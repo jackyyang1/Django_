@@ -1,0 +1,291 @@
+
+爬虫基础01
+
+
+
+------------------------------------------------------------
+1.基本的爬虫工作原理
+
+2.基本的http抓取工具,scrapy
+
+3.Bloom Filter:Bloom Filter by Example
+
+4.如果需要大规模网页抓取,需要分布式爬虫:
+	维护一个所有集群机器能够有效分享的分布式队列,最简单实现是python-rq:GitHub.com/nive/rq
+
+5.rq和scrapy 的结合:darkrho/scrapy-Redis.GitHub
+
+6后续处理,网页析取(grangier/python-goose.GitHub),存储(MongoDB)
+-----------------------------------------------------------------------
+
+
+1.为什么 要学习爬虫?
+		国内 政府 企业 都在设立 数据中心
+		北京 上海 广州 沈阳   杭州  西安 山西 鄂尔多斯号称 亚洲单体最大的数据中心 南京
+		 服务器集群
+		  软件齐全
+
+		  技术问题
+		 数据就是钱
+		
+
+2.什么是爬虫
+ 	网络爬虫: 模拟浏览器发送请求,抓取网页上的数据
+
+ 	主要用途: 数据采集
+
+ 	其他用途:
+ 		1.12306抢票  去哪儿 携程
+ 		2.网站投票: 爬虫  刷投票数1W(只有一个IP)
+ 		3.短信轰炸
+ 		4.网络攻击
+
+ 	爬虫分类:
+ 		1.通用爬虫 : 指搜索引擎和大型web服务提供商的爬虫-->特点:不精确,90%数据无用,
+ 		2.聚焦爬虫 : 针对特定网站的爬虫, 定向获取         	
+
+
+ 	HTTP 和 HTTPS:
+ 		http 没有安全验证,性能更快,信息不重要(端口 80)
+ 		https 更安全,有安全套接字层,ca证书 (端口443)
+
+
+ 		#acher 锚点 
+ 		
+
+ 		HTTP 常见请求头:
+ 			Host
+ 			Connection
+ 			Upgrade-Insec
+ 			User-Agent(必填)
+
+ 		GET 与 POST:
+ 			get 用来请求资源,在url中传输实体数据,传输的数据量小,有字节限制:2k	
+ 			post 安全,传输实体数据,在实体中传输数据,传输的数据量大
+
+
+ 	状态码:
+ 		200 成功
+ 		300 重定向
+ 		400 拒绝
+ 		500 服务器		
+
+
+3.爬虫的操作过程或者设计思路?
+	3.1 网页的三大特征: 前端的课程
+		# HTTP协议
+		1. URL 统一资源定位符
+		2. HTML或者XML结构
+		3. 代码模拟 HTTP网络请求
+		
+		
+	3.2 爬虫的过程或者叫设计思路
+			1.URL 需要的
+			2.发送请求
+			3.解析数据(难点):
+				1.如果是我们需要的数据: 存储
+				2.子URL;  重复上面的第二步
+
+			爬虫就结束 所有URL
+		
+		
+
+4.Python做爬虫的好处
+
+	PHP  java  c/c++ python
+
+	PHP  号称是世界上最好的语言, 对并发 多线程支持的不好	
+	java  完善;  代码笨重; 后期迭代的问题; 爬虫工具; 
+
+	c/c++  高效; c/c++ 大材小用了; 可以使用 如果能力可以; 学习成本高; 积累时间长 
+
+	python 最优美语言  简洁; 拥有 强大的 HTML和XML的解析库 ; 拥有 scrapy框架 和 scrapy-redis分布式框架
+	
+
+	
+5.需要学习的内容
+		基础: urllib urllib2 Requeuts
+			案例: 百度贴吧 内涵段子 招聘  知乎
+
+			反爬虫 xpath 正则  bs4
+
+		MongDB非关系型数据库
+
+			动态的获取数据  selesnums phantomJS
+			OCR 
+
+			科大讯飞 
+
+	 
+
+
+6.爬虫 和 反爬虫
+
+	
+	我们 都是程序员; 混口饭吃
+
+	爬别人的数据: 
+	服务器过载;  程序员的面子  1秒 3000次 非常人  爬虫
+
+	反爬虫
+
+	User-agent
+	IP
+	验证码 : 12306
+
+	重构网页结构
+
+
+	最终结果: 爬虫  只要用户可以访问到
+
+
+-----------------------------------------------------
+
+建议
+
+	2亿数据--->四个月
+-----------------------------------------------------
+
+	
+
+	fiddler 和插件安装
+
+	Windows中启动redis:
+	>redis-server.exe D:\学习软件\Redis\conf\redis.conf
+
+
+
+================================================================
+操作:
+	简单的爬虫代码:
+
+	------------------------------
+	一.python2中:
+		1.url : url = "http://www.baidu.com/"
+		2.发送请求:urllib2.urlopen(url)
+		3.response是返回的文件对象,response.read()查看
+	-----------------------------
+	二:python3中:
+		1.url
+		2.发送请求:urllib.request.urlopen(url)
+		3.读取数据,response.read()
+
+	--------------------------------------------------------------
+	三.以上两种方式请求只能暴露自己是爬虫,如果想让请求的服务器识别出自己是
+		人类浏览器正常访问的,那么需要用request对象添加headers 来掩盖自己:
+		1.url
+		2.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko","Connection":'我去'}
+		3.构建request对象:
+			request = urllib.Request(url,headers=headers)
+			注: Request要首字母大写
+
+		4.发送请求:
+			response = urllib2.urlopen(request)	
+     	5.获取用户代理人:即发送请求的人
+		    print request.get_header("User-agent")  # 注:首字母要大写,其他小写
+		    print request.get_header("Connection")  # 注:首字母要大写
+
+		    print response.getcode()   # 
+		    print response.geturl()  # 获取地址
+
+		    注:获取响应内容的时候首字母要大写,其他小写
+	--------------------------------------------------------------------
+	四.将上面第三的执行结果保存成html文件,然后直接用终端运行就可以访问指定
+		网址的指定内容了
+		1.url 
+		2.构建请求对象:
+		request = urllib2.Request(url,headers=headers)
+		3.发送请求:
+		reponse = urllib2.urlopen(request)
+		4.保存文件
+		data = response.read()
+		with open('1.html','w') as f:
+			f.write(data)
+	
+		注:看到urllib2就是python2,urllib.request就是python3	
+	---------------------------------------------------------------		
+	四:补充
+	    # 方式二: (请求量多的情况下)
+	    base_url = 'http://www.baidu.com/s?'
+	    params = {"wd":keyword}
+	    # 汉字转码 urlencode
+	    params_str = urllib.urlencode(params)
+	    url = base_url + params_str
+
+	    注:1.如果 请求量多的情况下,可以用字典拼接,注意要先将字典urlencode()
+	    	转换成字符串类型,不然 '字典' 和 str 不能拼接 
+	    	2.filename 在写拼接名字的时候会由于python2的 汉字因为编码问题,需要加 'u'
+	    	3.爬下来的html 文件需要右击,open in browser 才能找到网址
+
+
+
+	1.构建请求对象 Request()
+
+	2.发送请求 urlopen()
+
+	3.保存文件 write()-->filename = 'Tieba' + str(page) + u'页.html'
+
+	前面没写header,后面添加 request.add_header("User-Agent")
+		获取的时候是request.get_header("User-agent")
+
+
+		汉字转码:urllib :  url-->urlencode()
+
+		获取网址:request.geturl()
+
+		?后面的汉字 是网站经过处理后才显示出来的,
+
+
+		转码 :/xe5/x8a  --> %xE5%8A
+
+
+	爬贴吧:
+
+		+1
+		1页
+		批量
+		文件夹
+		日志
+
+	爬论坛:
+
+
+
+
+
+
+作业:随机切换User-Agent:
+	random.chiose(list)
+
+================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

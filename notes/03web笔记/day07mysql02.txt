@@ -1,0 +1,872 @@
+column 字段
+
+表的增删查改！
+数据的增删查改！
+
+
+
+1.准备数据
+ -创建数据库
+  create database python_test_1 charset=utf8; 设置字符集为utf8,如果不设置默认是拉丁字符集，创                                              建数据表的时候就会出现性别的枚举错误
+
+ 
+---student 表
+
+create table students(
+    id int unsigned primary key auto_increment not null,
+    name varchar(20) default "",
+    age tinyint unsigned default 0,
+    height decimal(5,2),
+    gender enum('男','女','中性','保密') default '保密',
+    cls_id int unsigned default 0,
+    is_delete bit default 0
+
+);
+
+-- classes 表
+create table classes (
+    id int unsigned auto_increment primary key not null,
+    name varchar(30) not null
+);
+ 
+
+-- 向students表中插入数据
+insert into students values
+(0,'小明',18,180.00,2,1,0),
+(0,'小月月',18,180.00,2,2,1),
+(0,'彭于晏',29,185.00,1,1,0),
+(0,'刘德华',59,175.00,1,2,1),
+(0,'黄蓉',38,160.00,2,1,0),
+(0,'凤姐',28,150.00,4,2,1),
+(0,'王祖贤',18,172.00,2,1,1),
+(0,'周杰伦',36,NULL,1,1,0),
+(0,'程坤',27,181.00,1,2,0),
+(0,'刘亦菲',25,166.00,2,2,0),
+(0,'金星',33,162.00,3,3,1),
+(0,'静香',12,180.00,2,4,0),
+(0,'郭靖',12,170.00,1,4,0),
+(0,'周杰',34,176.00,2,5,0);
+
+
+-- 向classes表中插入数据
+insert into classes values (0, "python5"), (0, "python6"),
+(0, "python7"), (0, "python8");
+
+
+
+
+查询：select
+    -- 查询基本使用
+         查询所有字段
+        -- select * from 表名; 
+        select * from students;  # 查询students表中所有的字段对应的值
+       --  
+       select * from students where id = 8; 
+
+    
+    --查询指定字段
+    --select 列1，列2，...from 表名；
+    select name,gender from students;
+    select gender,name from students;  
+
+
+    --使用as给 字段(bit) 起别名
+    --select 字段 as 名字...from 表名；
+    select name as '姓名',gender as '性别' from students;
+   注：起别名只能在当前语句中有用，并不能实际修改 字段名！！
+
+
+
+     -- sql语句完全的形式
+         select students.* from students; # sql语句中只有students这个表 所以此时表名可以省略
+     - select 表名.字段 ...from 表名；
+         select python_test_1.students.* from students; 
+       注：当前使用的数据库中就存在这样的一个数据表才能够省略数据库的名字
+    -- 当一个sql语句中有多个数据表的时候 此时不建议省略数据表
+         select students.id,student.name,student.gender from students;
+
+     
+    --可以通过as 给 表(table) 起别名
+    -- select 别名.字段...from 表名 as 别名;
+     -- 只在当前的sql语句中有效
+       select s.id,s.name,s.gender from students as s;
+  
+    --消除重复
+    -- distinct 字段
+    
+    -- 查询班级学生的性别  
+    select gender from students;
+    --查询班级有多少种性别
+     select  distinct gender from students;
+        (用distinct来修饰gender)
+        结果如下：
+        +--------+
+		| gender |
+		+--------+
+		| 女     |
+		| 男     |
+		| 保密   |
+		| 中性   |
+		+--------+
+
+   
+      select distinct id,gender from students;
+     注;这种写法是错的 ，因为distinct把（id，gender）当做一个整体来判断了，这样无法去重
+
+*******************************************************************
+
+--查询条件where
+   select * from students where id > 0;(恒成立)
+  
+   --比较运算符
+      -->
+     -- 查询大于18岁的信息
+      select * from students where age > 18;  
+      -- <
+     -- 查询小于18岁的信息
+     
+     -- >= 
+     -- <=
+     -- 查询小于或者等于18岁的信息
+     
+    -- = 而不是‘==’
+    -- 查询年龄为18岁的所有学生的名字
+     select name from students where age = 18;
+  
+   --逻辑运算符
+
+***************************************************************  
+ -- 逻辑运算符
+		-and
+		-- 18岁以上的女性
+		select * from students where age > 18 and gender = 2;
+          结果如下：
+            +----+-----------+------+--------+--------+--------+-----------+
+			| id | name      | age  | height | gender | cls_id | is_delete |
+			+----+-----------+------+--------+--------+--------+-----------+
+			|  5 | 黄蓉      |   38 | 160.00 | 女     |      1 |           |
+			| 10 | 刘亦菲    |   25 | 166.00 | 女     |      2 |           |
+			| 14 | 周杰      |   34 | 176.00 | 女     |      5 |           |
+			+----+-----------+------+--------+--------+--------+-----------+
+
+
+
+		-or
+		-- 18以上或者身高超过180(包含)以上
+		select * from students where age > 18 or height >= 180;
+
+		-not  非
+		-- 年龄不是18岁的学生
+		select * from students where age != 18;
+		select * from students where not age = 18;
+
+
+		-- 年龄是小于或者等于18 并且是女性
+		select * from students where age <= 18 and gender = 2;
+
+		- not 给 age 条件取反 age > 18
+		select * from students where not age <= 18 and gender = 2;
+           注：not 放在 age前面只能修饰age，只是对age取反，不能修饰后面的gender
+     
+		age > 18 or gender != 2
+		select * from students where not (age <= 18 and gender = 2);
+           注：这里not 不仅将age 和gender取反，也将and取反成 or，一定要注意！！！！！
+
+             *************         
+
+	-- 模糊查询
+		- like 
+		- % 表示任意字符可有可无
+		-- 查询姓名中 以 "小" 开始的名字
+		select * from students where name like "小%";
+		-- _ 表示任意一个字符
+		-- 查询有2个字的名字
+		select * from students where name like "__";
+		   注意：这个地方是下划线‘_ _’两条
+		-- 查询有3个字的名字
+		select * from students where name like "___";
+
+		- rlike 正则
+		-   findall  search match 只是方法而已
+		- . * [] {} () 这些特殊的符号表示的意思才是正则表达式
+		-- 查询以 周开始的姓名
+		select * from students where name rlike "^周.*";
+		select * from students where name rlike "^周.*伦$";
+
+	-- 范围查询
+		-  in表示在一个非连续的范围内
+		-- 查询 年龄为18、34,40岁的学生
+		select * from students where age = 18 or age = 34 or age = 40;
+		select * from students where age in (18,34,40);
+         结果如下：
+
+            +----+-----------+------+--------+--------+--------+-----------+
+			| id | name      | age  | height | gender | cls_id | is_delete |
+			+----+-----------+------+--------+--------+--------+-----------+
+			|  1 | 小明      |   18 | 180.00 | 女     |      1 |           |
+			|  2 | 小月月    |   18 | 180.00 | 女     |      2 |          |
+			|  7 | 王祖贤    |   18 | 172.00 | 女     |      1 |          |
+			|  8 | 周杰伦    |   36 |   NULL | 男     |      1 |           |
+			| 14 | 周杰      |   34 | 176.00 | 女     |      5 |           |
+			+----+-----------+------+--------+--------+--------+-----------+
+
+
+		
+		- not in 不在非连续的范围之内
+		-- 年龄不是 18、34岁的学生的信息
+		select * from students where age not in (18,34);
+         注：我发现not可以放age前面，也可以放在age后面
+            select * from students where not age in (18,34);
+
+		-- 年龄不是 18、34岁之间的信息
+		select * from students where age < 18 or age > 34;
+		-- 18 ~ 34
+		select * from students where not (age < 18 or age > 34);
+		select * from students where age >= 18 and age <=34;
+                                     注：或者 18<=age<=34
+
+
+		- between ... and ...表示在一个连续的范围内  两边都会包含
+		-- 查询 年龄在18到34之间的的信息
+		select * from students where age between 18 and 34;
+		     注：也包含18和34
+
+		-- not between ... and ...表示不在一个连续的范围内
+		select * from students where age not between 18 and 34;
+  
+
+	-  空判断 null  不能够使用比较运算符
+		-- 查询身高为空的信息  = 在sql中是比较运算符
+		# 错误: select * from students where height = null;  -- None
+		select * from students where height is null;
+		-- 查询身高不为空的学生
+		select * from students where height is not null;
+
+-  排序 从大到小--> 降序排序 从小到大-->升序排序
+	- order by 字段  默认就是升序排序 asc 可以省略
+	-- asc从小到大排列，即升序
+
+	-- 查询年龄在18到34岁之间的男性，按照年龄从小到大排序
+	select * from students where age between 18 and 34  and gender = 1 order by age asc;
+	select * from students where age between 18 and 34  and gender = 1 order by age;
+      注：要记清楚，轮到order by的时候前面没有and 
+
+	- 降序 desc
+	-  desc从大到小排序，即降序
+	-- 查询年龄在18到34岁之间的女性，身高从高到矮排序
+	select * from students where age between 18 and 34 and gender = 2 order by height desc;
+
+	-  order by 多个字段 order by age asc, height desc
+	-- 查询年龄在18到34岁之间的女性，身高从高到矮排序, 如果身高相同的情况下按照年龄从小到大排序--6666666
+	select * from students where age between 18 and 34 and gender = 2 order by height desc,age asc;
+	-- 查询年龄在18到34岁之间的女性，身高从高到矮排序, 如果身高相同的情况下按照年龄从小到大排序, 如果年龄也相同那么按照id从大到小排序
+	select * from students where age between 18 and 34 and gender = 2 order by height desc,age asc, id desc;
+	-- 按照年龄从小到大、身高从高到矮的排序
+
+	select * from students order by age asc, height desc;
+
+   注：不要再把 order 打错成oder了！！！！！！！！！！！！！！！！！！！！！！
+
+
+*****************************************************************************************
+
+
+- 聚合函数
+	-- 总数
+	-  count()   数数
+
+	-- 班级学生的总数
+	-  * 指的是一行
+	-  count(*)的效率最高
+	select count(*) from students;
+      结果如下：
+        +----------+
+		| count(*) |
+		+----------+
+		|       14 |
+		+----------+
+
+
+	select count(id) from students;
+	-- 查询男性有多少人，女性有多少人
+	select count(*) from students where gender = 1;
+	select count(*) from students where gender = 2;
+
+
+	-最大值
+	- max()
+	-- 查询最大的年龄
+	select max(age) from students;
+
+	# 获取最大年龄的学生的信息
+	# select name,height,gender, max(age) from students;
+	# 子查询语句
+	select * from students where age = (select max(age) from students);
+	  结果如下：
+	    +----+-----------+------+--------+--------+--------+-----------+
+		| id | name      | age  | height | gender | cls_id | is_delete |
+		+----+-----------+------+--------+--------+--------+-----------+
+		|  4 | 刘德华    |   59 | 175.00 | 男     |      2 |          |
+		+----+-----------+------+--------+--------+--------+-----------+
+    注;这里把 （select max(age) from students）当做age的判断条件
+
+
+	-- 查询女性的最高 身高
+	select max(height) from students where gender = 2;
+	-- 查询最大年龄的学生的名字
+	select name from students where age = (select max(age) from students);
+	
+	- 最小值
+	- min()
+	select name from students where age = (select min(age) from students);
+     注;这里仅仅是查最小年龄的名字 name，而不是全部信息 *。
+	
+	- 求和
+	- sum()
+	-- 计算所有人的年龄总和
+	select sum(age) from students;
+
+	- 计算平均年龄
+	select sum(age) / count(*) from students;
+	错误: select sum(height) / count(*) from students;
+	  注：这种做法是错的，因为有人的身高是null 
+
+	select sum(height) / count(height) from students;
+	
+	- 平均值
+	- avg()
+	-- 计算平均年龄
+	select avg(age) from students;
+
+	-- 计算平均身高
+	select avg(height) from students;
+
+
+	- 四舍五入 round(123.23 , 1) 保留1位小数
+	-- 计算所有人的平均年龄，保留2位小数
+	select avg(age) from students;
+	select round(avg(age), 2) from students;
+	-- 计算男性的平均身高 保留2位小数
+	select round(avg(height), 2) from students where gender = 1;
+
+
+ ? sql 寻求帮助的方式
+
+	注：round()函数的用法
+	  Examples:
+		mysql> SELECT ROUND(-1.23);
+		        -> -1
+		mysql> SELECT ROUND(-1.58);
+		        -> -2
+		mysql> SELECT ROUND(1.58);
+		        -> 2
+		mysql> SELECT ROUND(1.298, 1);
+		        -> 1.3
+		mysql> SELECT ROUND(1.298, 0);
+		        -> 1
+		mysql> SELECT ROUND(23.298, -1);
+		        -> 20
+	 
+******************************************************************************************
+
+- 分组
+	- group by 字段
+	-- 查询班级学生的性别 （有重复的）
+	select gender from students;
+
+	- 查看有哪几种性别
+	select distinct gender from students;
+
+	  	+--------+
+		| gender |
+		+--------+
+		| 女     |
+		| 男     |
+		| 保密   |
+		| 中性   |
+		+--------+
+
+	
+	-- 按照性别分组
+	select gender from students group by gender;
+
+
+	-- 计算每种性别中的人数
+	select gender, count(*) from students group by gender;
+       结果如下：
+          	+--------+----------+
+			| gender | count(*) |
+			+--------+----------+
+			| 男     |        5 |
+			| 女     |        7 |
+			| 中性   |        1 |
+			| 保密   |        1 |
+			+--------+----------+
+
+
+	- 获取每个性别下有哪些学生
+	# 错误：select gender,name from students group by gender; 
+	男  刘德华
+	男  周杰伦
+	男  小明
+	女  静香
+
+	- group_concat(...)     *******************
+	 注：应该显示如下
+	男: 刘德华 周杰伦 小明
+	女: 静香, 周杰 
+	中性: 金星
+	保密: 凤姐
+	select gender, group_concat(name) from students group by gender;
+  
+    注：按照性别分组：group by gender
+
+	-- 查询同种性别中的姓名和身高
+	select gender, group_concat(name,"-",height) from students group by gender;
+
+	-- 计算男性的人数
+	select count(*) from students where gender = 1;
+	  或者自己写： select count(*) from students group by gender having gender =1;
+
+	- 通过分组来实现  所有性别人数统计
+	select gender, count(*) from students group by gender;
+
+	  
+
+	-  在分组之后的数据中进行条件筛选需要使用having 不能够使用where , where 是用来对于源数据进行筛选的
+
+	- 使用having
+	-- 可以使用having 表示对于已经分组的数据做进一步的筛选
+	select gender, count(*) from students group by gender having gender = 1;
+	-- 除了男生以外的分组的人数
+	select gender, count(*) from students group by gender having gender != 1;
+	select gender, count(*) from students group by gender having not gender = 1;
+
+	-- 查询每种性别中的平均年龄avg(age)
+	select gender, avg(age) from students group by gender;
+        结果如下：
+        +--------+----------+
+		| gender | avg(age) |
+		+--------+----------+
+		| 男     |  32.6000 |
+		| 女     |  23.2857 |
+		| 中性   |  33.0000 |
+		| 保密   |  28.0000 |
+		+--------+----------+
+
+    
+
+	-  查询每种性别中的平均年龄avg(age), 最大年龄,平均身高,最高身高
+	select gender, avg(age), max(age), avg(height) , max(height) from students group by gender;
+      结果如下：
+         +--------+----------+----------+-------------+-------------+
+		| gender | avg(age) | max(age) | avg(height) | max(height) |
+		+--------+----------+----------+-------------+-------------+
+		| 男     |  32.6000 |       59 |  177.750000 |      185.00 |
+		| 女     |  23.2857 |       38 |  173.428571 |      180.00 |
+		| 中性   |  33.0000 |       33 |  162.000000 |      162.00 |
+		| 保密   |  28.0000 |       28 |  150.000000 |      150.00 |
+		+--------+----------+----------+-------------+-------------+
+
+
+	-- 查询平均年龄超过30岁的性别，以及姓名 --> 有哪些性别的平均年龄大于30岁
+	select gender, group_concat(name) from students group by gender having avg(age) > 30;
+
+       +--------+---------------------------------------------+
+		| gender | group_concat(name)                          |
+		+--------+---------------------------------------------+
+		| 男     | 彭于晏,刘德华,周杰伦,程坤,郭靖                 |
+		| 中性   | 金星                                         |
+		+--------+---------------------------------------------+
+       注：这几个 笔记绕，请记清楚！！！！以性别分组，平均年龄超过30岁以上的人的姓名
+ 
+
+	-- having 和 where 的区别
+	where 是用来对于源数据进行筛选的
+	having 是对于分组之后的数据做进一步的筛选操作, 有having 一定有group by , 有group by 不一定有having
+
+
+************************************************************************************
+
+- 分页
+	- limit start, count
+	- start 跳过多少条数据 默认值为0 可以省略 ******重点！！
+	- count 从起始位置向后获取多少条数据, 如果不够, 有多少条就获取多少条
+
+     已经用户当前点击的页码n(n从1开始), 已知每页显示m条数据, 请当前需要查询到哪些数据?
+     limit (n - 1) * m,m
+
+
+	每页显示5条数据							
+											
+	第1页
+	select * from students limit 5;
+	select * from students limit 0,5;
+
+	第2页
+	select * from students limit 5,5;	
+
+	第3页
+	select * from students limit 10,5;
+	 注：比如商品在网页上按页显示
+
+	-- 每页显示4个，显示第3页的信息, 按照年龄从小到大排序
+	# 错误select * from students limit 8,4 order by age asc;
+	select * from students order by age asc limit 8,4;
+	 注：order by 后面一定要接上判断条件age或其他条件，不然没法玩儿
+
+
+- 连接查询  将两个表按照某种条件合并到一起
+
+	--查询学生的信息和学生对应的班级名字
+	-- 学生名: students
+	-- 班级名: classes
+	- 触发笛卡尔积查询
+	# select name, name from students,classes;
+	select students.name, classes.name from students,classes where students.cls_id = classes.id;
+
+	- 连接查询
+	- 表1 inner join 表2 ... on  内连接查询   （from students inner join classes on）
+	- 内连接查询
+	select students.name, classes.name from students inner join classes on students.cls_id = classes.id;
+      注：所谓内连接查询 接收把两个表按一定的规则合起来，在from那里就不用from两个表了
+
+
+	select s.name, c.name from students as s inner join classes as c on s.cls_id = c.id;
+      注：这里是给每个表起别名，注意 在from 之后 写表students as s，表classes as c 就能将表起别名，其他地方直接用别名
+
+
+	select * from students as s inner join classes as c on s.cls_id = c.id;
+	
+	select * from classes as c inner join students as s on s.cls_id = c.id;
+	 注: 两个表内连接查询前后顺序可以互换，表classes 在前也可以
+	select s.*, c.* from students as s inner join classes as c on s.cls_id = c.id;
+
+	-- 按照要求显示姓名、和学生对应的班级的名字(学生所在的班级)
+	select s.name, c.name from students as s inner join classes as c on s.cls_id = c.id;
+
+       如下：
+         +-----------+---------+
+		| name      | name    |
+		+-----------+---------+
+		| 小明      | python5 |
+		| 小月月    | python6 |
+		| 彭于晏    | python5 |
+		| 刘德华    | python6 |
+		| 黄蓉      | python5 |
+		| 凤姐      | python6 |
+		| 王祖贤    | python5 |
+		| 周杰伦    | python5 |
+		| 程坤      | python6 |
+		| 刘亦菲    | python6 |
+		| 金星      | python7 |
+		| 静香      | python8 |
+		| 郭靖      | python8 |
+		+-----------+---------+
+	-- 在以上的查询中，将班级名字显示在第1列
+	select c.name, s.name from students as s inner join classes as c on s.cls_id = c.id;
+      注：只需要将c.name 放在前面就Oj8K了
+
+	-- 查询 学生所在的班级, 按照班级进行排序
+	select c.name, s.name from students as s inner join classes as c on s.cls_id = c.id order by c.name;
+        结果如下：
+          +---------+-----------+
+		| name    | name      |
+		+---------+-----------+
+		| python5 | 黄蓉      |
+		| python5 | 王祖贤    |
+		| python5 | 小明      |
+		| python5 | 彭于晏    |
+		| python5 | 周杰伦    |
+		| python6 | 小月月    |
+		| python6 | 刘亦菲    |
+		| python6 | 刘德华    |
+		| python6 | 程坤      |
+		| python6 | 凤姐      |
+		| python7 | 金星      |
+		| python8 | 郭靖      |
+		| python8 | 静香      |
+
+	- 外连接查询: left join + right join  一个是主表 一个是副表！！！！
+	- left join 左外连接查询 （左边是主表）
+	- 查询每位学生对应的班级信息
+	select * from students as s left join classes as c on s.cls_id = c.id;
+	# select * from classes as c left join students as s on s.cls_id = c.id;
+      注：这里left join可以把没有班级信息的同学‘周杰’也 连接进来，
+          而且left join会将合并好的两个表按班级顺序排列
+
+	-  right join 右外连接查询  使用的比较少（右边是主表）
+	select * from students as s right join classes as c on s.cls_id = c.id;
+        注：右外连接 不会显示班级信息为空的同学信息，而是合并好的大表按 id顺序排序
+
+    疑问？ 到底哪个是主表？？？？？？？
+
+	select * from classes as c left join students as s on s.cls_id = c.id;
+	-- 将数据表名字互换位置，用left join完成
+   
+
+    注：互换位置只需要将 需要放在前面的表 放在 from 后面就OK了
+
+
+
+	- 内连接和外连接的其他写法
+	-  内连接的其他写法 （去掉 inner 或者加上cross 都是一样的效果）
+	# select * from students as s inner join classes as c on s.cls_id = c.id;
+	select * from students as s join classes as c on s.cls_id = c.id;
+	select * from students as s cross join classes as c on s.cls_id = c.id;
+
+	- 外连接的其他写法 （中间加上outer效果一样）
+
+	select * from students as s left outer join classes as c on s.cls_id = c.id;
+
+ 注：内连接和外链接的区别是，内连接不分主副表，内连接区分！
+********************************************************************************************
+
+- 自关联  自己关联自己 （a inner join a）
+
+-- 准备数据
+create table areas(
+    aid int primary key,
+    atitle varchar(20),
+    pid int
+);
+
+- 通过 source 指令导入一个sql文件
+	-- 省级联动 url:http://demo.lanrenzhijia.com/2014/city0605/
+
+	-导入sql文件：source ./Desktop/areas.sql  (注，或者你也可以打开sql文件，复制粘贴到areas表里)
+
+	- 查询所有省份
+	select * from areas where pid is null;
+      结果如下：
+         +--------+--------------------------+------+
+| aid    | atitle                   | pid  |
++--------+--------------------------+------+
+| 110000 | 北京市                   | NULL |
+| 120000 | 天津市                   | NULL |
+| 130000 | 河北省                   | NULL |
+| 140000 | 山西省                   | NULL |
+| 150000 | 内蒙古自治区             | NULL |
+| 210000 | 辽宁省                   | NULL |
+| 220000 | 吉林省                   | NULL |
+| 230000 | 黑龙江省                 | NULL |
+| 310000 | 上海市                   | NULL |
+| 320000 | 江苏省                   | NULL |
+| 330000 | 浙江省                   | NULL |
+| 340000 | 安徽省                   | NULL |
+| 341402 | 居巢区                   | NULL |
+| 350000 | 福建省                   | NULL |
+| 360000 | 江西省                   | NULL |
+| 370000 | 山东省                   | NULL |
+| 410000 | 河南省                   | NULL |
+| 420000 | 湖北省                   | NULL |
+| 430000 | 湖南省                   | NULL |
+| 440000 | 广东省                   | NULL |
+| 450000 | 广西壮族自治区           | NULL |
+| 460000 | 海南省                   | NULL |
+| 500000 | 重庆市                   | NULL |
+| 510000 | 四川省                   | NULL |
+| 520000 | 贵州省                   | NULL |
+| 530000 | 云南省                   | NULL |
+| 540000 | 西藏自治区               | NULL |
+| 610000 | 陕西省                   | NULL |
+| 620000 | 甘肃省                   | NULL |
+| 630000 | 青海省                   | NULL |
+| 640000 | 宁夏回族自治区           | NULL |
+| 650000 | 新疆维吾尔自治区         | NULL |
+| 990000 | 新疆建设兵团             | NULL |
++--------+--------------------------+------+
+
+
+
+
+
+	- 需要将一张表 想象成两张表 省 和 市表
+	-查询出广东省有哪些市
+	广东省 深圳市
+	广东省 惠州市
+	p: province  c: city 
+	select p.atitle, c.atitle from areas as p inner join areas as c on c.pid = p.aid where p.atitle = "广东省";
+
+	- 查询出广州市有哪些区县
+	-- p: parent  s:son
+	select p.atitle, s.atitle from areas as p inner join areas as s on s.pid = p.aid where p.atitle = "广州市";
+     
+     注：理解之后，统一用p 和s  来查询：省-市，市-区
+         p: parent  s:son
+
+
+思考：如何将一张表想象成 3张表：省，市，区，并将其内连接
+select p.atitle,s.atitle from areas as p inner join 
+    (select s.atitle,q.atitle from areas as s inner join areas as q on s.aid = q.pid where s.atitle = '广州市') as
+    s on p.aid = s.pid where p.atitle = '广东省';
+
+结果如下：Duplicate column name atitle  搜索网络
+        一个重复的列名称
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

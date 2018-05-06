@@ -1,0 +1,600 @@
+
+
+Flask中对MySQL的操作
+
+execute执行
+
+	在Flask中可以使用Flask-Migrate扩展，来实现数据迁移。并且集成到Flask-Script中，所有操作通过命令就能完成。
+	为了导出数据库迁移命令，Flask-Migrate提供了一个MigrateCommand类，可以附加到flask-script的manager对象上。
+
+	首先要在虚拟环境中安装Flask-Migrate:
+	pip install flask-migrate
+
+
+1.数据库迁移扩展的使用
+
+	python 01_db.py run init  初始化
+
+	python 01_db.py run  migrate  生成迁移文件
+
+	python 01_db.py run upgrade  向数据库中进行迁移  
+
+	python 01_db.py run migrate -m "add gender"  # 添加备注 
+
+
+	python 01_db.py run history   查看迁移历史
+
+	注:如果不想要某个字段,那么就在py文件中将代码删除,然后再执行一遍迁移,覆盖之前的表
+
+
+2.发邮件Flask-Mail 
+
+	配置邮件:
+		app.config.update(
+			DEBUG = True,
+			MAIL_SERVER = ,
+
+
+		)
+
+	发送邮件函数:	
+
+
+
+3.蓝图BluePrint
+
+
+
+
+	Flask中app 相当于整个project
+	而不是小的应用,为了让代码模块化,
+
+		------------------------------------------
+		BUG:循环导入:
+			你的导入我,我导入你,互不谦让,程序都执行不下去
+
+			解决循环导入的两种方式:
+			1.这个时候需要将 from goods import get_goods 放下面,if __name__=='__main__'的下面
+			2.装饰器可以在函数已经产生的情况下延时加载:
+				即在外部创建一个函数,把它的装饰器放在main.py里单独放置,也能在启动之后进行装饰:
+				get_goods.py中:
+
+				# @app.route('/get_order')
+				def get_order():
+				    return "get order ok"
+
+
+				main.py中:    
+				#@app.route('/get_order')
+				app.route("/get_order")(get_order)
+
+			注:这样装饰器是器作用的,也能正常访问到get_order()函数	
+
+		-------------------------------------------
+
+
+	蓝图：用于实现单个应用的视图、模板、静态文件的集合。
+
+	蓝图就是模块化处理的类。
+	简单来说，蓝图就是一个存储操作路由映射方法的容器，主要用来实现客户端请求和URL相互关联的功能。 在Flask中，使用蓝图可以帮助我们实现模块化应用的功能。
+
+
+	3.1蓝图的使用:
+		一、创建蓝图对象。
+			# Blueprint必须指定两个参数,admin表示蓝图的名称,__name__表示蓝图所在模块
+			admin = Blueprint('admin',__name__)
+
+		二、定义视图(注册蓝图路由)
+			@admin.route('/')
+			def admin_index():
+				return 'admin_index'
+
+		三、在程序实例中注册该蓝图
+			app.register_blueprint(admin,url_prefix='/admin')
+
+
+			------------------------------------------------------
+	3.2单一结构使用蓝图
+
+		register.py:
+		# coding=utf-8
+
+		from flask import Blueprint
+
+		# 创建蓝图对象
+		#                   蓝图名字       寻找目录的模块名
+		app_users = Blueprint('app_users',__name__)
+
+		# 定义蓝图所有的视图
+		@app_users.route("/register")
+		def register():
+		    return "register page OK"
+
+
+		main.py:
+		
+		#注册蓝图
+		app.register_blueprint(app_users)    
+
+		访问:127.0.0.1:5000/register
+
+
+		注:如果前面要加一个前缀,要在注册蓝图的时候指明前缀名称:
+			#url_prefix 指明访问蓝图的路径前缀
+			app.register_blueprint(app_users,url_prefix="/users")
+			此时访问的路径为:127.0.0.0:5000/users/register
+		---------------------------------------------------------
+	3.3目录结构使用蓝图:
+
+		创建一个类似于django中的应用cart模块:
+		其中包含__init__.py,  models.py ,   views.py 等这些文件
+
+			init文件:
+				# coding=utf-8
+
+				from flask import Blueprint
+				# 创建蓝图对象
+				app_carts = Blueprint("app_carts",__name__)
+
+				from . import views  # 让代码执行的过程可以去views。py文件中看看，然后顺便找到get——carts方法
+
+			views文件:
+				# coding=utf-8
+				from . import app_carts
+				# 装饰器代表了整个应用
+				@app_carts.route('/get_carts')
+				def get_carts():
+				    return "get carts page"
+
+			main.py文件:
+				注册蓝图:	   
+				app.register_blueprint(app_carts,url_prefix="/carts")
+
+
+			访问:127.0.0.1/5000/carts/app_carts	
+				问题:如果在init文件中不添加from . import views 这句话,那么运行主程序main.py的时候
+					如果不在init.py中下面添加一个from . import views 来 将views扯上关系,顺带进views.py文件中逛一圈将
+					get_carts方法拿到的话,访问上面地址是无法拿到get_carts方法的
+
+
+	3.4.定义的蓝图无法自动识别内容的templates模板文件,需要我们指明!
+			在init.py文件中:
+			# 在蓝图应用中如果，定义了模板文件，必须指明，不然它无法识别
+			app_carts = Blueprint("app_carts",__name__,template_folder="templates")
+			
+			在蓝图应用中templates目录中,定义模板carts.html
+
+			访问:127.0.0.1:5000/carts/carts.html
+
+		注:如果项目全局也有一个templates目录,内部也有一个cart.html文件,那么
+			同样访问127.0.0.1:5000/carts/carts.html,此时会发生什么事呢?
+			答:会访问到全局的carts.html文件,而不是蓝图中的html
+			
+			所以说:templates文件全局的优先级更高
+
+
+
+4.单元测试:(开发人员自己测试)---->重要(基本功)
+
+	测试自己代码的一段代码
+
+	断言:assert
+	断言就是判断一个函数或对象的一个方法所产生的结果是否符合你期望的那个结果。 python中assert断言是声明布尔值为真的判定，如果表达式为假会发生异常。单元测试中，一般使用assert来断言结果。
+
+	--------------------------------------------------
+	assert:
+		In [1]: a = 1
+
+		In [2]: assert a == 1
+
+		In [3]: assert a == 2
+		---------------------------------------------------------------------------
+		AssertionError                            Traceback (most recent call last)
+		<ipython-input-3-d272bab06182> in <module>()
+		----> 1 assert a == 2
+
+		AssertionError:
+
+
+		In [5]: assert a == 2, "itcast error" # 可以自定义断言异常
+		---------------------------------------------------------------------------
+		AssertionError                            Traceback (most recent call last)
+		<ipython-input-5-73cc452d84da> in <module>()
+		----> 1 assert a == 2, "itcast error"
+
+		AssertionError: itcast error
+
+		--------------------------------------------------
+	*单元测试实例:
+			postman,测试登录逻辑是否完整
+			在django中有一个test.py文件是专门写单元测试的
+			flask提供了单元测试的类:unittest (所有的单元测试代码都要继承于它)
+
+
+	单元测试基本写法:
+		class TestLogin(unittest.TestCase):
+    		"""测试登陆案例"""
+		    def test_empty_user_name_password(self):
+		   注:测试方法要以test_开头,否则main()方法无法识别 	
+
+		   ---------------------------------------------------------
+		   代码如下:
+
+	   		class TestLogin(unittest.TestCase):
+    			"""测试登陆案例"""
+		       def setUp(self): #setup是单元测试自己提供的方法
+			        """在执行所有测试方法钱，先被调用"""
+			        # 向登陆接口发送请求
+			        # 方式一： 万能方式
+			        # urllib   urllib2   requests  http客户端模块
+
+			        # 方式二：使用flask框架的测试客户端
+			        # flask 的测试客户端
+			        self.client = app.test_client()
+			        # 设置flaks为测试模式
+			        app.config["TESTING"]=True
+
+			    def test_empty_user_name_password(self):  # y
+			        """测试用户密码不完整"""
+
+			        # 发起post请求
+			        #        后端接口路径     请求体数据
+			        response = self.client.post('/login',data={})
+
+			        # 接收接口的响应信息
+			        # 获取响应体数据
+			        json_str = response.data
+
+			        # 转换成字典
+			        resp_dict = json.loads(json_str)
+
+			        # 判断响应信息是否符合预期
+			        self.assertIn("code",resp_dict)
+			        self.assertEqual(resp_dict["code"],1)
+
+
+			    def test_wrong_user_name_password(self):
+			        """测试错误用户名和密码"""
+
+
+
+			        # 发起post请求
+			        #        后端接口路径     请求体数据
+			        response = self.client.post('/login',data={"user_name":"123","password":"tom"})
+
+			        # 接收接口的响应信息
+			        # 获取响应体数据
+			        json_str = response.data
+
+			        # 转换成字典
+			        resp_dict = json.loads(json_str)
+
+			        # 判断响应信息是否符合预期
+			        self.assertIn("code",resp_dict)
+			        self.assertEqual(resp_dict["code"],2)
+
+
+			    def tearDown(self):
+			        """在所有测试方法执行之后，被调用，用来收尾清理操作"""
+			        pass
+
+
+			if __name__=='__main__':
+			    unittest.main()
+
+		注:1.元测试的代码里,测试不同的功能逻辑 定义不同的功能函数,但都要以test_开头,
+			2.单元测试代码中首先是定义 测试客户端(框架提供),然后用客户端发起post请求,获取响应体数据,
+				转换成字典,然后断言(此时用的是封装好assert的方法) 	   
+			3.怎么测试自己写的代码?
+			        # 发起post请求
+			        #        后端接口路径     请求体数据
+			        response = self.client.post('/login',data={})
+ 				如这里例子,测试的是,登录数据是否为空,就是通过创建的client来直接访问"/login"路径的函数,
+ 				然后接收参数,进行判断,	
+ 			4.单元测试代码中:一段逻辑对应一个测试方法	
+ 			5.运行时 unittest.main()
+ 			6.flask测试代码运行时,可以不启动被测试的后端代码,框架会自动找到代码,只需要运行
+ 				单元测试代码即可
+
+ 			7.如果单元测试异常,说明逻辑代码不通
+ 			8.postman已经可以进行代码测试,为什么还要自己写测试代码呢?
+ 				因为如果逻辑变了,或者要优化后端代码,只要路径请求(接口访问方式)没变,单元测试代码始终可以用
+ 			9.tearDown的使用	
+		   --------------------------------------------------
+			在测试单元中开启测试模式:
+				app.config['TESTING']=True	   
+
+			非测试模式:------>(如果不开启测试模式,代码中出现错误,会报出如下错误)	   
+		   		NO JSON object could be decoded
+
+		   	测试模式开启:	---->(开启测试模式,代码出错,会很容易找到哪里错了)
+		   		ZeroDivisionError: integer division or modulo by zero
+
+
+
+5.gunicorn 绿色独角兽	
+	
+	pip install gunicorn
+
+	gunicorn -w 4 -b 127.0.0.1:5000 main:app
+
+	-w 子进程数
+	-b bind ip地址和端口
+	--access-logfile  前端访问的记录文件
+	main:app  模块名:flask应用对象名
+
+	gunicorn -w 4 -b 127.0.0.1:5000 -D main:app
+	后台程序运行:-D  daemon 守护精灵  守护进程
+
+	ps aux| grep gunicorn
+	一个爹 四个儿子进程(目测:父进程不是第一个就是最后一个,因为5个进程之间区别不大,很难判断)
+
+	关闭:kill -9 爹进程pid  
+
+	注:进程一旦开启后台模式必须要kill才能关闭
+
+
+
+	部署:
+
+	gunicorn -w 4 -b 127.0.0.1:5000 --access-logfile log/log1 main:app
+	# 想项目路径下新建log目录,以上面代码运行服务器,然后访问的时候会生成访问记录,保存在log1中
+	gunicorn -w 4 -b 127.0.0.1:5001 --access-logfile log/log2 main:app
+	# 想项目路径下新建log目录,以上面代码运行服务器,然后访问的时候会生成访问记录,保存在log2中
+
+
+
+						部署
+
+
+
+                                    ----------->后端服务器1
+                                    			127.0.0.1:5000
+
+	用户--->           nginx服务器 
+
+
+									------------>后端服务器2
+												127.0.0.1:5001
+
+
+
+	nginx服务器:
+
+		http {
+		
+			upstream flask {    # 组-->如果运行的是多台服务器,那么用组来管理,只需要将组名放在 location的http后面即可
+				server 192.168.32.149:5000;
+				server 192.168.32.149:5001;
+			}
+
+			server {
+				listen     80;
+				server_name localhost;
+
+				location / {
+
+					#proxy_pass http://127.0.0.1:5000;  # 请求转发的地址
+					proxy_pass http://flask;  #组名
+					proxy_set_header Host $host;    # 真实请求的主机
+					proxy_set_header X-Real-IP $remote_addr; # 解析出真实请求的主机的ip地址
+				}
+			}
+		}
+
+		注:	如果运行多台服务器,用nginx来实现负载均衡,那么需要在 upstream 组名 { server ip:port ...}									
+			以这种方式监听多个服务器,然后放在 server {location / { proxy_pass http://组名 }}这里就可以几个
+			服务器一起接活!
+
+
+	配置nginx:
+		/usr/local/nginx/conf/nginx.conf    
+
+		vim nginx.conf
+
+	注(重要):配置文件只有一份就是nginx.conf,nginx启动的时候只认识这一个配置文件,
+		如果之前项目配置过,那就备份一份放在当前目录中比如nginx.conf.dailyfresh,以后再运行dailyfresh项目再将其改为nginx.conf	
+
+
+	重启nginx:
+		sudo /usr/local/nginx/sbin/nginx -s reload
+
+
+	重启nginx之后开启两台服务器:	
+			gunicorn -w 4 -b 192.168.32.149:5000 --access-logfile log/log1 main:app
+			gunicorn -w 4 -b 192.168.32.149:5001 --access-logfile log/log2 main:app
+
+
+	用windows浏览器访问:
+			http://192.168.32.149/users/register
+			http://192.168.32.149/carts/get_carts
+
+
+
+*****************************
+new tools:
+	ctrl + y 恢复
+
+
+***************************
+
+
+
+
+技术演讲
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

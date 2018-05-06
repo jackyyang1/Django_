@@ -1,0 +1,540 @@
+
+
+爬虫基础day03
+
+
+
+
+1.网页解析和数据提取
+	非结构化数据：先有数据，再有结构，（http://www.baidu.com）
+	结构化数据：先有结构、再有数据 (wangyi)
+
+
+
+
+	1.1非结构化的数据处理(字符串,想怎么写怎么写)
+		文本、电话号码、邮箱地址:
+			正则表达式
+		HTML 文件: (单标签是标签不对称的)
+			正则表达式
+			XPath
+			CSS选择器
+
+	1.2结构化的数据处理 (json,xml)
+		JSON 文件:
+			JSON Path
+			转化成Python类型进行操作（json类）
+		XML 文件:
+			转化成Python类型（xmltodict）
+			XPath
+			CSS选择器
+			正则表达式
+
+
+	天眼查
+
+-------------------------------------------
+1.回顾:
+
+	response = requests.get(url,headers=headers)
+
+	data = response.content  # content 内容,不能用read()方法获取
+
+
+
+
+
+
+
+
+2.正则表达式:
+	compile 编译
+
+
+	2.1.1编译正则,并将其实例化对象
+		pattern = re.compile('正则表达式')
+
+	2.1.2用正则对象,调用findall()方法来匹配数据
+		result = pattern.findall(匹配数据)
+
+
+	什么是转译,什么是不转义?
+
+		re.S    匹配换行
+		re.I    忽略大小写
+		re.DOTALL  匹配换行(dot all)
+		re.S | re.I 匹配换行 和 忽略大小写
+	  	pattern = re.compile('a(.*)b',re.I|re.S)
+		r"" 不转义--->不表达?
+	-----------------------------------------------	------
+    # 忽略大小写 或 \n
+    pattern = re.compile('a(.*)b',re.I|re.S) # 匹配全部
+    # 忽略大小写与 \n换行 (同时满足)
+    pattern = re.compile('a(.*)b',re.I & re.S)  # ['bcdefff']
+    result = pattern.findall(str)
+
+	---------------------------------------------------
+
+	正则方法:
+		match()  -->  从头开始-->   一次
+		search() -->  任意位置开始-->一次
+		findall() --> 全部-->      返回 list
+		finditer() -->全部-->      返回迭代器 iter
+
+		sub  ->替换
+		split -->切分
+
+	---------------------------------------------	
+    2.2.split 分割字符串
+    str1 = 'a,;b;,,;;; c d;;;; l,n'
+    s_pattern = re.compile('[,;\s]+')  # ,  ;   \s(空白字符)
+    res = s_pattern.split(str1)  # 按照上面的三种字符切分字符串
+
+
+    2.3sub  替换
+    str = hello world
+      sub_pattern = re.compile('(\w+) (\w+)') # 组1  空格  组2
+	  调换顺序
+   	 result = sub_pattern.sub(r"\2 \1", sub_str)
+   	 注:结果为 world  hello
+
+    2.4. 汉字 正则和字符串 必须都是 unicode
+    chinese_str = u'小明是好学生,老王是坏人 is true'
+    chinese_pattern = re.compile(u'[\u4e00-\u9fa5]+')  #汉字unicode编码表：
+
+	---------------------------------------------------------
+
+
+	调换顺序,要分组()
+	
+	汉字 正则和字符串,都必须是 unicode	
+
+	js中正则方法是test()
+	python 中是 match()	
+	\s匹配空白字符,但是如果有全角空格--->中文下的空格! \s就不能匹配到了
+	-----------------------------------------------------
+
+
+
+3.内涵段子:
+	www.neihanpa.com
+	www.neihanba.com
+
+	操作:
+	1.
+		1.url
+	    self.base_url = 'http://www.neihanpa.com/article/list_5_'
+
+	    2.headers
+
+	    3.第一层解析,注:在正则中 '""' 与 "''" 是不一样的,要把双引号放在中间
+	        self.first_pattern = re.compile(r'<div class="f18 mb20">(.*?)</div>',re.S) # 非贪婪?
+
+	    4.第二层解析
+	    # 标签 <(.*?)>
+	    # 字符实体 &(.*?);
+	    # 空白处 \s
+	    # 全角空格 (　　)  注:括号中间的空白就是全角空格
+	    self.second_pattern = re.compile(r'<(.*?)>|&(.*?);|\s|　　',re.S)
+	2.发送    
+
+	3.解析数据
+
+	4.保存本地
+        注意:1.第一层解析完 ,返回的是 个list:循环取值
+
+          	 2.二次解析  注意:替换字符sub,而不是findall()
+
+	5.调用方法
+        # 文本转码,网页本身是gbk编码格式,需转码成utf08
+        data = data.decode('gbk').encode('utf-8')
+
+
+     注意点:
+		1.<div class=""> </div> 全角空格如果写不出来 ,可以复制!
+
+		2.在正则里 '""'  与 "''" 是不一样的!!!!因为html标签里都是" 双标签"
+			要写成单包双! 不然会没结果!'
+
+		3.第一层解析是用findall,返回一个列表,然后用for 循环遍历取值,	
+			第二次解析的时候是 sub()方法,将不需要的<P> 空格\s 等标签去掉,即替换
+	
+		4.细节:
+			4.1.下载一页的时候打印一次:
+				filename = "第" + str(page) + "页正在下载..."
+            4.2页数分隔
+            filename = "-----------第"+str(page) +"页-------------\n"
+            f.write(filename)
+    
+            4.3每写完一个段子就换两行
+            f.write('\n\n')	
+			
+
+		反爬:断页!	
+
+	------------------------------------------------------------	
+	XML:
+
+	数据格式	             描述	       设计目标
+
+	XML	Extensible Markup Language （可扩展标记语言）	被设计为传输和存储数据，其焦点是数据的内容。
+
+	HTML	HyperText Markup Language （超文本标记语言）	显示数据以及如何更好显示数据。
+
+	HTML DOM	Document Object Model for HTML (文档对象模型)	通过 HTML DOM，可以访问所有的 HTML 元素，连同它们所包含的文本和属性。可以对其中的内容进行修改和删除，同时也可以创建新的元素。
+
+	XML的节点关系:
+	<?xml version="1.0" encoding="utf-8"?>
+		1. 父（Parent）
+		2. 子（Children）
+		3. 同胞（Sibling）
+		4. 先辈（Ancestor）
+		5. 后代（Descendant）
+
+	选取节点
+	XPath 使用路径表达式来选取 XML 文档中的节点或者节点集
+
+		表达式	      描述
+		nodename	选取此节点的所有子节点。
+		/	        从根节点选取。
+		//	        从匹配选择的当前节点选择文档中的节点，而不考虑它们的位置。
+		.	        选取当前节点。
+		..	        选取当前节点的父节点。
+		@	        选取属性。
+
+
+
+		路径表达式	结果
+		bookstore	选取 bookstore 元素的所有子节点。
+		/bookstore	选取根元素 bookstore。注释：假如路径起始于正斜杠( / )，则此路径始终代表到某元素的绝对路径！
+		bookstore/book	选取属于 bookstore 的子元素的所有 book 元素。
+		//book	选取所有 book 子元素，而不管它们在文档中的位置。
+		bookstore//book	选择属于 bookstore 元素的后代的所有 book 元素，而不管它们位于 bookstore 之下的什么位置。
+		//@lang	选取名为 lang 的所有属性。
+
+	选取未知节点:
+		XPath 通配符可用来选取未知的 XML 元素。
+
+		通配符	描述
+		*	匹配任何元素节点。
+		@*	匹配任何属性节点。
+		node()	匹配任何类型的节点。
+
+
+
+	lxml库
+	lxml 是 一个HTML/XML的解析器，主要的功能是如何解析和提取 HTML/XML 数据。
+
+	lxml和正则一样，也是用 C 实现的，是一款高性能的 Python HTML/XML 解析器，我们可以利用之前学习的XPath语法，来快速的定位特定元素以及节点信息。
+	
+		lxml类库:
+		安装 pip install lxml	
+
+	------------------------------------------------------------
+
+4.XPath
+
+	XPath (XML Path Language) 是一门在 XML 文档中查找信息的语言，可用来在 XML 文档中对元素和属性进行遍历。
+	
+	用法:
+	//找标签 找唯一的区别 @属性='值'; /text() /@属性
+
+
+	4.1取属性: 
+		@   //a[@href=""]
+
+	4.2取文本: text()
+		result = html_data.xpath('//li/a/text()')		
+
+	---------------------------------------------------------------	
+	例子:
+	//book[@category='cooking']/title/text() | //book[@category='children']/title/text()
+
+	结果:Everyday Italian
+		Harry Potter
+	--------------------------------------------------------------
+
+	4.3如果同一个标签有两个以上的相同元素,可以用下标取
+		//book[@category="web"][1]
+
+		last() 倒取
+		price>35 表达式,只作用于数字
+	取唯一标签:
+
+	xpath如果找不到,那就往上一层父类选择:
+
+	不足50
+
+	代码操作: 1.导库
+			2.转html DOM类型
+			3.xpath匹配
+
+	注:插件只是辅助作用,一切以代码为准,有可能插件找到了标签元素,但是代码里怎么都实现不了		
+
+
+5. xpath代码的使用
+
+
+    # 1.转换成 可以解析的类型
+    html_data = etree.HTML(data)
+    # 1.1.补全标签
+    res = etree.tostring(html_data)  #   </li></ul>
+
+    # 2.使用xpath解析 --->所有标签 返回的都是list
+
+    # 2.1取出所有的li标签
+    res = html_data.xpath('//li')      # //li是返回一个对象
+    # 2.2取出所有的a标签
+    res = html_data.xpath('//li/a')
+    # 2.3取出所有的a标签 的文本
+    res = html_data.xpath('//li/a/text()')
+
+    # 2.4取出所有的a标签 的属性
+    res = html_data.xpath('//li/a/@href')
+
+    # 2.4取出class="item-inactive"标签 的属性
+    res = html_data.xpath('//li[@class="item-inactive"]/a/text()')
+
+    # 2.5取出所有的li标签class="i"标签   --->模糊查询
+    res = html_data.xpath('//li[contains(@class,"i")]/a/text()')
+
+    print res
+
+    注:查询出来的一般都是[] 列表,列表里面装的标签对象,如果要取到里面的元素
+    	需要加text()-->取里面文本内容  或 @属性名 (取属性值)
+
+
+
+6.百度贴吧案例
+	爬取百度贴吧图片:
+
+	1.   1.第一层详情页的链接
+        self.first_xpath = '//div[@class="t_con cleafix"]/div/div/div/a/@href'
+
+        2.第二层
+        self.second_xpath = '//img[@class="BDE_Image"]/@src'
+
+    2.发送请求    
+
+    3.解析数据
+        # 1.转换成可解析的类型
+        html_data = etree.HTML(data)
+        # 2.解析--》返回list
+        data_list = html_data.xpath(xpathstr)
+
+    4.保存文件    
+        filename = 'images/' + str(page)  # 取每张图片url 的最后10位作为图片名字
+        print(filename)
+        with open(filename,'wb') as f:  # 因为写的是图片文件,需用二进制方式写入
+            # print(data)
+            f.write(data)
+    5.调用方法
+    def run(self):
+        for page in range(self.start_page,self.end_page+1):
+            # 1.发送列表页的请求
+            pn = (page - 1)*50
+            url = self.base_url + 'f?'
+            params = {
+                'kw':self.name,
+                'pn':pn
+            }
+            list_data = self.send_request(url,params=params)
+
+            # 2.解析出 详情页的链接(其实就是通过xpath规则筛选出符合条件的链接,返回列表)
+            detail_link_list = self.analysis_data(list_data, self.first_xpath)
+
+            # 3.循环遍历详情标签 ,发送请求
+            for detail_link in detail_link_list:
+                link_url = self.base_url + detail_link
+                detail_data = self.send_request(link_url)
+                # 4.解析出每个图片的url (筛选出图片url,返回列表)
+                images_links_list = self.analysis_data(detail_data, self.second_xpath)
+
+                # 5.遍历所有的图片的list 取出每一个,再次发送请求
+                for image_link in images_links_list:
+                    image_data = self.send_request(image_link)
+
+                    # 写入
+                    page = image_link[-10:] # 取每张图片url 的最后10位作为图片名字
+                    self.save_file(image_data, page)
+
+
+    注:第一层解析是将每个楼主发的链接地址筛选出来,返回的是一个 list 列表,将列表遍历
+    	取出每个链接,发送请求进入链接,将此页面里面的所有图片都筛选一遍,即进行第二层解析,
+    	返回一个图片链接地址的 list,遍历这个 list,取出来的是每张图片src的地址,然后 根据地址 写入数据
+    	即:保存图片内容,每一次循环是写入一张当前页面的图片,每一次大循环是每个楼主发的帖子的对应信息
+    	可以指定爬取 start_page 和 end_page
+
+
+---------------------------------------------------------
+
+u'你好'.decode('utf-8')
+u'\u4f60\u597d'
+u'你好'.encode('utf-8')
+'\xe4\xbd\xa0\xe5\xa5\xbd'
+
+
+
+
+-----------------------------------------------------------
+python2 无法识别安装 pip install lxml
+
+	解决步骤:
+
+		1.下轮子:
+		easy_install wheel
+
+		2.下载对应的.whl文件
+		下载网址:https://pypi.python.org/pypi/lxml/2.3/#downloads
+
+		3.安装刚刚下载的文件:
+		pip install C:\Users\Admin\Desktop\lxml-4.1.1-cp27-cp27m-win_amd64.whl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

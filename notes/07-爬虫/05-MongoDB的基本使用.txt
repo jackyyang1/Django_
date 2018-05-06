@@ -1,0 +1,504 @@
+爬虫基础04
+
+tag  :标签;附属物;口头禅;称呼
+
+
+
+
+
+
+
+1. 如果数据保存到内存里：
+优点：读写非常快
+
+缺点：程序关闭导致数据丢失
+
+2. 如果数据保存到文件系统里：
+优点：数据可以永久保存
+
+缺点：1. 频繁地IO操作，效率不高；2. 数据管理不方便，如果查询某个数据需要全部读取出来，再匹配。
+
+
+3.数据库存数据:
+	1.大数据时代到来，关系数据库的缺点：
+
+		1.处理数据格式单一：关系数据库所采用的二维表格数据模型不能有效地处理多维数据，不能有效处理互联网应用中半结构化和非结构化的海量数据，如Web页面、电子邮件、音频、视频等。
+		2.高并发读写性能低：Web2.0网站数据库并发负载非常高，往往要达到每秒上万次读写请求。关系型数据库勉强可以应付上万次SQL查询，但硬盘I/O往往无法承担上万次的SQL写数据请求。
+		3.可扩展性低：当一个应用系统的用户量和访问量与日俱增的时候，传统的关系型数据库却没有办法像Web服务器那样简单地通过添加更多的硬件和服务节点来扩展性能和负载能力。对于很多需要提供不间断服务的系统来说，对数据库系统进行升级和扩展往往需要停机维护和数据迁移。
+		根据这种情况，NoSQL技术应运而生。
+
+
+	2.NoSQL相比关系数据库的主要优势：
+
+		1.低延迟的读写速度：应用快速地反应能极大地提升用户交互速度;
+		2.高性能和可扩展性：基于键值对，数据没有耦合性，容易进行分布式扩展；
+		3.非结构化和不可预知的数据：NoSQL的存储格式是Key-Value形式、文档形式、图片形式等等，而关系型数据库则只支持基础类型。
+
+		NoSQL的缺点：
+			1.不支持SQL语句：不提供SQL支持，学习和使用成本较高；
+			2.提供的功能有限：无事务处理，完整的解决方案和报表等支持不好；
+			3.稳定性：产品的完善程度和稳定性，不能和几十年的历史的关系型数据库相提并论。
+
+
+MongoDB:
+
+	Nosql非关系型数据库:
+		1.key--value (redis)
+		2.document  (MongoDB)
+
+	MongoDB的好处: 1.键值对形式
+					2.大尺寸,低价值
+					3.效率较快	
+
+
+1.MongoDB的启动服务
+	1.启动服务:
+	
+	服务器:sudo mongod  
+	客户端:mongo
+
+	2.关闭
+	use admin
+	db.shutdownServer()
+	或者是用 sudo kill -9 pid
+
+	注:1.sudo mongod之后是在后台运行,直接再开一个终端,然后mongo 来链接客户端!
+		2.对于warning 不必关心,每次重启Linux都会 再次报错!但不影响正常运行
+		3.在开启服务端的时候一定要执行下面两步操作\:
+
+			创建 /data目录和 /data/db 目录，并指定 读/写/执行 权限:
+				python@ubuntu:~$ sudo mkdir -p /data/db
+				python@ubuntu:~$ sudo chmod 777 /data/db	
+
+
+
+2.数据库操作:ObjectID
+
+	创建用户:
+	db.createUser({user:"aaa",pwd:"123456",roles:["root"]})
+	创建用户只能读:
+	db.createUser({user:"bbb",pwd:"123456",roles:[{role:"read",db:"admin"}]})
+
+
+	1.查看当前数据库:db
+
+	2.查看数据库:show dbs
+	
+	3.查看所有的集合(表): show collections
+	4.查看文档(内容):  db.xx.find()
+	5.切换数据库: use 数据库名
+		切换用户一定要在这个下面:use admin
+
+	6.删除数据库:  
+		先进入这个数据库: use xxx
+		执行删除:db.dropDatabase()	
+
+	7.'切换用户:use admin切换到admin数据库
+		查看用户:show users
+		认证登录:db.auth("aaa","123456")
+		删除用户:  db.dropUser("bbb")
+
+	8.创建数据库;
+		use 数据库名
+		创建表:db.createCollection("haha")
+
+		注:如果不创建 collection 那么 数据库就不会被创建!	
+
+	9.新增数据:
+		db.haha.insert({user:"张三",age:38})
+		查看:db.haha.find()	
+
+	10.删除集合(表):
+	   	db.haha.drop() --.删除 "haha"这个集合(表)
+		注:删除表要进入该数据库中!
+
+	11.查看统计信息:db.stats()
+		结果如下:
+				{
+			"db" : "admin",
+			"collections" : 3,
+			"objects" : 6,
+			"avgObjSize" : 121.83333333333333,
+			"dataSize" : 731,
+			"storageSize" : 86016,
+			"numExtents" : 0,
+			"indexes" : 4,
+			"indexSize" : 118784,
+			"ok" : 1
+			}
+	=================================================		
+	- 参数capped：默认值为false表示不设置上限，值为true表示设置上限
+	- 参数size：当capped值为true时，需要指定此参数，表示上限大小，当文档达到上限时，会将之前的数据覆盖，单位为字节
+	语法 :
+
+	>db.createCollection("stu", {capped : true, size : 6142800} )
+	==================================================
+	数据类型:
+
+
+			下表为MongoDB中常用的几种数据类型：
+
+			ObjectID：文档ID
+			String：字符串，最常用，必须是有效的UTF-8
+			Boolean：存储一个布尔值，true或false
+			Integer：整数可以是32位或64位，这取决于服务器
+			Double：存储浮点值
+			Arrays：数组或列表，多个值存储到一个键
+			Object：用于嵌入式的文档，即一个值为一个文档
+			Null：存储Null值
+			Timestamp：时间戳，表示从1970-1-1到现在的总秒数
+			Date：存储当前日期或时间的UNIX时间格式
+
+	=============================================================db.stu.insert({_id : 6, name:'段王爷',hometown:'大理',age:45,gender:true})
+		db.stu.insert({_id : 9, name:'段小狗',hometown:'大理',age:45,gender:true})
+		
+	注: '1.如果要插入数据,要首先 db,查看当前的是在哪个数据库!!!!!!!!	
+		2.如果新建了 test 等新 的非自带数据库,那么连接客户端之后,默认是进入非自带数据库!
+
+
+
+
+3.文档数据增,删,改:
+
+	1.增加;
+		1.1直接增加:
+		db.xx.insert({字典数据})
+
+		1.2先字典,再增加:
+		dict = {
+			user:"老王",
+			age:28,
+			gender:true
+		}	
+		db.xx.insert(dict)
+
+	注:1.对于相同id 字段,不能重复添加,会报错	
+
+		2.save -----相当于: insert() + update()
+
+
+	2.删除数据:
+		
+		2.1db.stu.remove(删除条件) 删除所有符合条件的数据
+			db.stu.remove({age:10})
+		2.2 只想删除符合条件的一个数据	
+			db.stu.remove({gender:false},{justOne,true})
+		2.3	删除所有数据
+			db.stu.remove({})
+
+	3.更改数据
+		3.1db.xx.update(查询条件,修改内容)
+			db.stu.update({age:16},{user:"大兰"})  ---->这样一改,其他字段都没有了,只留下了一个user:"大兰"
+			db.stu.update({},{})
+
+		3.2只修改或增加  原有的字段;其他字段不变, 保留 $set
+			db.stu.update(
+				{age:18},
+				{$set:{user:"李小璐"}}
+				)
+				
+		3.3只要符合条件都修改,字段  multi	
+			db.stu.update(
+				{gender:false},
+				{$set:{gender:true}},
+				{multi:true}
+				)
+				
+	4.数据的基本查询:
+		1.基本查询:
+			1.查询所有数据: db.xx.find()			
+			2.指定条件查询: dbs.xx.find({gender:false})
+				db.xx.find({gender:false}).pretty()
+
+				pretty()如下:
+					> db.stu.find({gender:false}).pretty()
+						{
+							"_id" : 2,
+							"name" : "黄蓉",
+							"hometown" : "桃花岛",
+							"age" : 18,
+							"gender" : false
+						}
+						{
+							"_id" : 3,
+							"name" : "华筝",
+							"hometown" : "蒙古",
+							"age" : 18,}
+
+			3.只查找符合条件的一个:
+				db.xx.findOne(条件)
+	
+		2.运算条件 ; $lt(<)  $gt(>)  $lte(<=)  $gte(>=) $ne(!=) 
+			db.xx.find(
+				{查询字段:
+					{运算符:值}}
+				)
+
+			取出年龄大于20的人:
+				db.stu.find(
+					{
+					age:{$gt:20}
+					}
+
+					)
+
+		3.逻辑运算: $and	 $or 	  # 列表 [{},{}...]
+			db.xx.find(
+				{
+					运算符:[
+						{条件1},
+						{条件2}
+						...
+					]
+				}
+			)
+			1. $and: 默认find的 多条件就是 $and
+				//籍贯是 桃花岛,年龄 18
+				db.stu.find({hometown:"桃花岛",age:18})
+				db.stu.find(
+					{
+					    $and:[
+					    	{hometown:"桃花岛"},
+					    	{age:18}
+					    ]
+					}
+				)
+
+			2.$or	
+				//来自大理,或者是女生
+
+				db.stu.find({$or:[{hometown:"大理"},{gender:false}]})
+
+
+
+			3.混合使用	
+				//来自桃花岛或者年龄小于45岁, 必须是男生
+				db.stu.find(
+					{
+						$and:[
+
+							{
+								$or:[{hometown:"桃花岛"},{age:{$lt:45}}]
+							},
+							{gender:true}
+						]
+					}
+				)
+
+			4.范围运算符 $in(在)  $nin(不在)	
+
+               // 来自大理 或者 桃花岛 
+               db.stu.find(
+                   {
+                       hometown:{$in:["大理","桃花岛"]}
+                   }
+               )
+               // 取 年龄 18 40  45
+               db.stu.find(
+                   {age:{$in:[18,40,45]}}
+               )
+
+
+			5.正则表达式:
+				db.xx.find(
+						{字段:正则表达式}
+					)
+
+				1./正则/
+					db.stu.find(
+							{name:/誉/}
+						)
+
+				2.{$regex:"正则表达式"}
+						db.stu.find(
+							{name:{$regex:"黄"}	
+							)
+
+				3.忽略大小写: 两种:
+					3.1db.stu.find({name:/xsl/i})
+					3.2db.stu.find(
+						name : {$regex:"xsl",$options:"i"}
+						)
+
+					注:先插入: db.stu.insert({ "_id" : 10, "name" : "XSL", "hometown" : "湖南", "age" : 22, "gender" : true })
+
+
+			6.自定义函数
+				db.xx.find(
+					{
+						$where:带返回值的匿名函数
+					}
+
+				)	
+
+			'	// 返回年龄小于20的
+				db.xx.find(
+					{
+					$where:function () {
+						return this.age<20
+						}
+					}
+				)
+
+
+
+	5.查询结果显示
+		1.skip 跳过几个显示
+			例2：查询从第3条开始的学生信息
+
+		2.limit 允许显示几个
+			例1：查询2条学生信息
+			db.stu.find().limit(2)
+
+			注意点:方法limit()和skip()可以一起使用，不分先后顺序
+			
+			'创建数据集:
+			for(i=0;i<15;i++){db.nums.insert({_id:i})}
+			结果如下:
+				> db.nums.find()
+				{ "_id" : 0 }
+				{ "_id" : 1 }
+				{ "_id" : 2 }
+				{ "_id" : 3 }
+				{ "_id" : 4 }
+				{ "_id" : 5 }
+				{ "_id" : 6 }
+				{ "_id" : 7 }
+				{ "_id" : 8 }
+				{ "_id" : 9 }
+				{ "_id" : 10 }
+				{ "_id" : 11 }
+				{ "_id" : 12 }
+				{ "_id" : 13 }
+				{ "_id" : 14 }
+
+
+		3.投影:显示部分字段 : 显示true  默认false 
+			db.xx.find(
+				{查询条件,{投影 字段:true}}
+
+				)		
+
+			// 找到年龄小于 45的男的 名字
+			db.stu.find(
+				{age:{$lt:45}},
+				{age:true,name:true}  
+
+				)
+			db.stu.find(
+				{},
+				{hometown:true}
+
+				)
+			注:'所谓的投影就是 你想让它只显示你想显示的字段!
+				'投影没有关键字,要显示什么就 xx:true
+
+		4.sort 排序: -1降序  1升序	
+			db.xx.find().sort({排序标准字段:-1})
+
+			//年龄  排降序
+            db.stu.find().sort({age:-1})
+
+		5.count 统计个数	
+			db.stu.count()
+			db.stu.find({查询条件}).count()-->> db.stu.find({age:45}).count()
+
+		6.distinct 去重
+			db.xx.distinct("去重条件":{查询条件})
+
+			// 年龄大于30岁的 人的籍贯
+			> db.stu.distinct('hometown',{age:{$gt:30}})
+				[ "桃花岛", "大理" ]
+ 
+
+
+
+-----------------------------
+robo3t:  图形化MongoDB客户端
+	弹窗:
+	direct 连接
+
+
+
+
+------------------------------------------------------
+
+
+
+https://www.amazon.cn/dp/B00UUW3VJU/ref=sr_1_1?ie=UTF8&qid=1517146955&sr=8-1&keywords=%E5%A5%B6%E7%B2%891%E6%AE%B5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

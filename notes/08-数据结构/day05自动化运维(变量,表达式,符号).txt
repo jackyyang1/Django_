@@ -1,0 +1,272 @@
+
+shell
+一句话，shell就是在操作系统和应用程序之间的一个命令翻译工具。
+
+
+shell语言
+
+
+部署项目:
+	手动部署
+
+	自动化部署
+
+
+
+	什么是shell:
+	shell 是一个命令解释器, 本身是一个程序,/bin/bash
+
+
+	查看系统shell信息:
+		echo $SHELL  ---> /bin/bash
+
+	打开终端,就打开了shell交互命令
+
+	第一个shell脚本:
+		  1 #!/bin/bash
+		  2 
+		  3 echo 'hello world'    -->echo(相当于python中的打印)
+		  4 
+		  5 pwd   
+
+		  首行是: #!/bin/bash
+		  注释是: #
+		  tab键, 没有意义,仅仅是好看
+
+  	执行shell脚本(3种执行方式)
+  		1 bash hello.sh
+  		2 ./hello.sh          把文件改为可执行 (chmod +x ./hello.sh)
+  		3 source hello.sh     
+
+  		注: 前两种会开新进程执行文件,不能共享变量,source不会开新进程,可以共享变量
+
+
+2.变量:
+
+	2.1定义变量:
+		name=laowang
+
+		如果要解析变量必须要使用"" (双引号) :
+		
+		python@ubuntu:~/Desktop$ name=laowang
+		python@ubuntu:~/Desktop$ word="my name is $name"
+		python@ubuntu:~/Desktop$ echo $word
+		my name is laowang
+
+
+	2.2命令变量: 运行命令,把结果赋值给左边变量
+	
+		1. name=`pwd`    (反引号,esc下面的 `)	
+
+		2. name=$(pwd)   
+
+
+	2.3本地变量 : 当前窗口能用, 其他窗口不能用!	
+
+
+	2.4全局变量:
+		-----------------------
+		变量文件:
+		vi /etc/profile
+ 
+		vi ~/.bashrc
+
+		查看系统所有的变量:env
+		------------------------
+		
+		全局变量:  -->只能在当前shell和子shell中 使用
+		1 name="wang"
+		export name
+		
+		2. export name="wang"
+
+		注: 修改/etc/profile文件, 增加全局变量
+			source /etc/profile
+
+			此时增加的全局变量只能在当前窗口使用
+
+			如果想再所有终端使用,必须重启
+
+		查看变量: 
+			1. echo $name
+			2. echo "$name"
+			3. echo ${name}
+
+			4. echo "$(name)"	
+
+		删除变量: unset name
+
+		内置变量:
+
+			$0  获取当前执行的shell文件的名称
+			$#  获取当前执行的shell文件时,传入的参数个数
+			$n  $1...$9获取传入的参数,参数个数大于9, 使用${10}
+			$?  获取上一天命令的返回值, 0代表成功,
+
+		字符串截取:
+				
+
+
+3.表达式:
+
+		测试语句:
+			1,  test 1 = 2   ( 表达式必须要有空格)
+				echo $?  --> 0表示成立, 1 表示不成立
+
+			2, [ 1 = 2 ]    -->全部都要空格
+				echo $?   
+
+
+		逻辑表达式:
+			
+			表达式1 && 表达式2   --> 表达式1 成立,表达式2 才会执行
+			
+			表达式1 || 表达式2   --> 表达式1成立,表达式2 不会执行,表达式1不成立,表达式2才会执行		
+
+
+		文件表达式:
+			[ -f hello.sh ]	  判断是否是文件
+			[ -d hello ]      判断是否是文件夹
+			[ -x hello ]      判断文件是否可执行,文件夹也是可执行
+
+
+		数字比较	:
+			[ 1 -eq 1] : = 
+
+
+		字符串比较:
+			[ abc == abc ]				
+			[ abc != abc ]
+
+
+		计算:
+
+
+
+Linux常见符号
+	
+	1.重定向: > (覆盖)     >> (追加)
+
+		python@ubuntu:~/Desktop$ cat file.txt > file_right
+		python@ubuntu:~/Desktop$ cat file_right
+		hello2
+		hello3
+		python@ubuntu:~/Desktop$ cat file.sss
+		cat: file.sss: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat file.sss > file_right
+		cat: file.sss: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat file_right
+
+		注:重定向 只会输出正确的结果		
+
+
+	2.  &   让前台的程序跑到后台运行
+
+
+ 	让你写Linux命令:
+ 		ping www.baidu.com > /dev/null 2>&1 &   --->把 ping百度的输出信息全部(分组1和2)重定向到 /dev/null, 然后通过& 放在后台运行!
+
+ 		/dev/null   --->Linux的黑洞文件,只能存,不能取,可以存无限量数据
+
+ 		bash fuhao.sh 1>f_right 2>f_err  --> 将正确的输出重定向在f_right(分组1),错误输出重定向在f_err(分组2)
+ 		bash fuhao.sh 1>f_all 2>f_all 	 --> 将所有输出都重定向到f_all(两个分组全部放进去)
+ 		bash fuhao.sh >f_all 2>&1        --> 前面的 分组1 可以省略"1", 2>&1 是按照 1>分组的重定向来重定向
+
+ 	-------------------------------------------------------------
+	 	python@ubuntu:~/Desktop$ ping www.baidu.com > /dev/null 2>&1 &
+		[1] 49244
+		python@ubuntu:~/Desktop$ cat file.txt > file_right
+		python@ubuntu:~/Desktop$ cat file_right
+		hello2
+		hello3
+		python@ubuntu:~/Desktop$ cat file.sss
+		cat: file.sss: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat file.sss > file_right
+		cat: file.sss: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat file_right
+		python@ubuntu:~/Desktop$ python@ubuntu:~/Desktop$ cat file.txt > file_right
+		bash: python@ubuntu:~/Desktop$: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ python@ubuntu:~/Desktop$ cat file_right
+		bash: python@ubuntu:~/Desktop$: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ hello2
+		未找到 'hello2' 命令，您要输入的是否是：
+		 命令 'hello' 来自于包 'hello-traditional' (universe)
+		 命令 'hello' 来自于包 'hello' (main)
+		hello2：未找到命令
+		python@ubuntu:~/Desktop$ hello3
+		未找到 'hello3' 命令，您要输入的是否是：
+		 命令 'hello' 来自于包 'hello' (main)
+		 命令 'hello' 来自于包 'hello-traditional' (universe)
+		hello3：未找到命令
+		python@ubuntu:~/Desktop$ python@ubuntu:~/Desktop$ cat file.sss
+		bash: python@ubuntu:~/Desktop$: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat: file.sss: 没有那个文件或目录
+		未找到 'cat:' 命令，您要输入的是否是：
+		 命令 'cat' 来自于包 'coreutils' (main)
+		cat:：未找到命令
+		python@ubuntu:~/Desktop$ python@ubuntu:~/Desktop$ cat file.sss > file_right
+		bash: python@ubuntu:~/Desktop$: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat: file.sss: 没有那个文件或目录
+		未找到 'cat:' 命令，您要输入的是否是：
+		 命令 'cat' 来自于包 'coreutils' (main)
+		cat:：未找到命令
+		python@ubuntu:~/Desktop$ python@ubuntu:~/Desktop$ cat file_right
+		bash: python@ubuntu:~/Desktop$: 没有那个文件或目录
+		python@ubuntu:~/Desktop$ cat file.txt 1>file_right 2>file_err
+		python@ubuntu:~/Desktop$ cat file_right
+		hello2
+		hello3
+		python@ubuntu:~/Desktop$ cat file_err
+		python@ubuntu:~/Desktop$ vi fuhao.sh
+		python@ubuntu:~/Desktop$ bash fuhao.sh
+		正确信息。。
+		fuhao.sh: 行 4: lll: 未找到命令
+		python@ubuntu:~/Desktop$ bash fuhao.sh 1>f_right 2>f_err
+		python@ubuntu:~/Desktop$ cat f_right
+		正确信息。。
+		python@ubuntu:~/Desktop$ cat f_err
+		fuhao.sh: 行 4: lll: 未找到命令
+		python@ubuntu:~/Desktop$ bash fuhao.sh 1>f_all 2>f_all
+		python@ubuntu:~/Desktop$ cat f_all
+		fuhao.sh: 行 4: lll: 未找到命令
+		python@ubuntu:~/Desktop$ bash fuhao.sh 1>f_all 2>&1 
+		python@ubuntu:~/Desktop$ cat f_all
+		正确信息。。
+		fuhao.sh: 行 4: lll: 未找到命令
+		python@ubuntu:~/Desktop$ bash fuhao.sh >f_all 2>&1 
+		python@ubuntu:~/Desktop$ cat f_all
+		正确信息。。
+		fuhao.sh: 行 4: lll: 未找到命令
+		python@ubuntu:~/Desktop$ bash fuhao.sh 2>f_all 1>&2 
+		python@ubuntu:~/Desktop$ cat f_all
+		正确信息。。
+		fuhao.sh: 行 4: lll: 未找到命令
+		python@ubuntu:~/Desktop$ /dev/null
+		bash: /dev/null: 权限不够
+		python@ubuntu:~/Desktop$ bash fuhao.sh >/dev/null 2>&1
+		python@ubuntu:~/Desktop$ cat /dev/null
+		python@ubuntu:~/Desktop$ 
+
+	--------------------------------------------------------------	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

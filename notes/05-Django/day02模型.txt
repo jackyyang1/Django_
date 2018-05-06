@@ -1,0 +1,812 @@
+
+django模型
+
+1.项目准备:
+	1.创建项目
+		在桌面创建文件夹pytest,并cd 进入pytest:
+		django-admin startproject test1
+	注:我第二次创建的虚拟环境是django_py3,注意第一次是py3_django!!!!
+
+
+	2.创建应用
+		进入test1文件夹:
+		python manage.py startapp booktest
+
+	3.用pycharm打开项目,设置项目依赖的python环境
+		which python
+
+	4.安装应用(settings.py中设置)
+		'booktest'
+
+	5.本地化(settings.py中设置)
+		LANGUAGE_CODE = 'zh-Hans'
+		TIME_ZONE = 'Asia/Shanghai'
+
+	6.模板路径
+		在应用同级目录创建templates文件夹,并且在模板settings文件中添加如下设置:
+			TEMPLATES = [
+		{
+		  ......,
+		  'DIRS': [os.path.join(BASE_DIR, 'templates')], 
+		  ......,
+		},
+		]
+
+
+	7.准备视图,在应用文件中的views.py中编写内容如下:
+		from django.http import HttpResponse
+
+		def index(request):
+		  return HttpResponse('hello world!')
+
+
+	8.项目中匹配url,在项目设置中的urls.py文件中包含应用的urls文件
+
+		urlpatterns = [
+		  ......,
+		  url(r'^', include('booktest.urls'))
+		]
+
+	9.应用中匹配url,在应用中创建urls.py,编写内容如下:
+		from django.conf.urls import url
+		from booktest import views
+
+		urlpatterns = [  
+		  url(r'^index$', views.index)
+		]
+
+
+	9.1如果要使用mysql数据库,需要在项目里的init.py文件加入以下:
+		前提是虚拟环境安装了pymysql的包
+		import pymysql
+		pymysql.install_as_MySQLdb
+
+	9.2.如果要使用之前的数据库setting.py文件中还要做如下修改:
+		DATABASES = {
+		    'default': {
+		        'ENGINE': 'django.db.backends.mysql',
+		        'NAME': 'test3',  # 使用昨天创建的数据库
+		        'USER':'root',
+		        'PASSWORD':'mysql',
+		        'HOST':'localhost',
+		        'PORT':'3306',
+		    }
+		}
+
+
+	10.开启服务器,测试项目
+		python manage.py runserver
+
+		浏览器中输入网址
+		http://127.0.0.1:8000/index
+
+2.ORM简介:
+	ORM，全拼Object-Relation Mapping，中文意为对象-关系映射，是随着面向对象的软件开发方法发展而产生的
+
+	对象-关系映射ORM系统一般以中间件的形式存在，主要实现程序对象到关系数据库数据的映射
+
+
+	在MVC框架中的Model模块中都包括ORM，对于开发人员主要带来了如下好处：
+
+	实现了数据模型与数据库的解耦，通过简单的配置就可以轻松更换数据库，而不需要修改代码
+	只需要面向对象编程，不需要面向数据库编写代码
+
+
+
+3.使用mysql：
+
+	1.使用mysql需要安装django操作的mysql包:
+
+		python2:
+			pip install mysql-python
+
+		python3:
+			pip install pymysql
+
+	2.安装完之后，还需要在test3/__init__.py中加如下内容：
+
+		import pymysql
+		pymysql.install_as_MySQLdb()
+
+	3.使用数据库:
+		sudo mysql -uroot -pmysql
+
+		创建数据库名称为test3,注意设置数据库的编码为utf8:
+			create database test3 charset=utf8;
+
+		数据库创建完后，需要在settings.py文件中的database一项设置如下：
+
+		DATABASES = {
+		    'default': {
+		        'ENGINE': 'django.db.backends.mysql',  # 引擎为mysql
+		        'NAME': 'test2',                       # 设置数据库名称
+		        'USER': 'root',                        # 设置登录用户名
+		        'PASSWORD': 'mysql',                   # 设置登录密码
+		        'HOST': 'localhost',                   # 设置数据库主机位置
+		        'PORT': '3306',                        # 设置端口，默认是3306
+		    }
+		}
+
+
+------------------------------------------------------------------------
+		注意:设置完成之后,要先定义模型类才能迁移: 迁移的目的就是将模型类class 当做表创建到数据库!!!
+			所以在迁移之前一定要将数据库给更改了,不然没办法写入表!
+
+			定义模型类见正下方↓↓↓
+
+		设置完之后，使用模型类迁移，会自动在mysql数据库中创建表:
+			python manage.py makemigrations
+			执行:
+			python manage.py migrate
+
+
+4.定义模型类:
+
+	模型类被定义在“应用/models.py”文件中，此例中为“booktest/models.py”文件，模型类必须继承自Model类，位于包django.db.models中。提示：对于重要数据使用逻辑删除
+
+	1.定义属性
+		
+		定义属性语法为: 属性=models.字段类型(选项)
+
+		属性命名规则:
+			不能是python的保留关键字
+			不允许使用连续的下划线，因为连续下划线在查询中会用到
+			定义属性时需要指定字段类型
+			主键一般不用自己定义，django会自动创建自增长主键列
+
+	2.字段类型
+
+		类型	            说明
+		AutoField	自动增长的IntegerField，通常不用指定，Django会自动创建
+		*BooleanField	布尔字段，值为True或False
+		*NullBooleanField	支持Null、True、False三种值(null用于性别保密等)
+		*CharField	字符串，参数max_length表示最大字符个数
+		TextField	大文本字段，一般超过4000个字符时使用
+		IntegerField	整数
+		*DecimalField	十进制浮点数，参数max_digits表示总位数，参数decimal_places表示小数位数
+		FloatField	浮点数
+		*DateField	日期，参数auto_now表示自动保存最新的修改日期，默认值False，参数auto_now_add表示自动保存创建时的日期，默认值False，两个参数不能同时设置
+		TimeField	时间，参数同DateField
+		DateTimeField	日期和时间，参数同DateField
+		FileField	上传文件字段
+		ImageField	继承于FileField，对上传的内容进行校验，确保是有效的图片
+
+	3.关系字段类型
+
+		类型	             说明
+		ForeignKey	     一对多，将字段定义在多的一端中(一本书对应多个英雄,定义在英雄中)
+		ManyToManyField  多对多，将字段定义在两端中
+		OneToOneField	 一对一，将字段定义在任意一端中
+
+
+	4.字段类型选项:
+
+		类型	             说明
+		null	如果为True，表示允许为空，默认值是False
+		blank	如果为True，则该字段允许为空白，默认值是False
+		db_column	字段的名称，如果未指定，则使用属性的名称
+		db_index	若值为True, 则在表中会为此字段创建索引，默认值是False
+		default	默认值
+		primary_key	若为True，则该字段会成为主键，默认是False，一般作为AutoField的选项
+		unique	如果为True, 这个字段在表中必须有唯一值，默认值是False
+
+	5.元选项
+
+		生成的数据表默认名称为：‘应用名称_模型类名称’，通过在模型类中定义类Meta，可以自定义表的名字
+
+		class BookInfo(models.Model):
+		    ……
+		    class Meta:#元信息类
+		        db_table='bookinfo'#指定表的名称
+		作用:  元类信息可以自动生成一个表名! 
+			(如果不定义元选项mysql中生成的表名将会是:booktest_bookinfo,其中mysql中不区分大小写,可以一律小写!)
+
+	6.定义模型类:(booktest/models.py)
+		class BookInfo(models.Model):
+
+		class HeroInfo(models.Model):
+
+		注:如果还需要添加什么字段,就在对应的类里面添加属性,一个类的属性对应于表格里面的一个字段,
+			添加完之后记得迁移才能使其生效!(数据迁移就相当于sql语句中的update)
+
+		此时要用两个终端!一个跑据库,一个跑应用!
+
+
+		定义完之后,迁移数据,生成的msql如下:
+			生成:python manage.py makemigrations
+			执行:python manage.py migrate
+---------------------------------------------------------------------------------------------------------------------------
+			
+			from django.db import models
+
+			#定义图书模型类BookInfo
+			class BookInfo(models.Model):
+			    btitle = models.CharField(max_length=20)#图书名称
+			    bpub_date = models.DateField()#发布日期
+			    bread = models.IntegerField(default=0)#阅读量，默认值表示在创建模型对象时，不指定这个属性值，这个值就为0
+			    bcommet = models.IntegerField(default=0)#评论量
+			    isDelete = models.BooleanField(default=False)#逻辑删除
+			    class Meta:#元信息类
+			        db_table='bookinfo'#指定表的名称
+
+			#定义英雄模型类HeroInfo
+			class HeroInfo(models.Model):
+			    hname = models.CharField(max_length=20)#英雄姓名
+			    hgender = models.BooleanField(default=True)#英雄性别
+			    isDelete = models.BooleanField(default=False)#逻辑删除
+			    hcontent = models.CharField(max_length=100)#英雄描述信息
+			    hbook = models.ForeignKey('BookInfo')#英雄与图书表的关系为一对多，所以属性定义在英雄模型中
+
+
+-------------------------------------------------------------------------------------------------------------------------
+
+    7.加入测试数据
+    	在数据库中执行命令:
+	    	图书数据:
+	    	英雄数据:
+
+
+
+	8.准备视图及模板显示所有图书
+
+		1.准备视图:
+			def booklist(request):
+			    books = BookInfo.objects.all()
+			    return render(request, 'booktest/booklist.html',{'books':books})
+
+			注:render()函数本身封装好,可以返回一个HTTPresponse对象!
+
+		2.配置URL:
+			url(r'^booklist$' , views.booklist)
+
+
+		3.准备模板booklist.html
+
+			注:配置好之后,开启服务器来,用浏览器访问,localhost:8000/booklist
+
+5.模型成员
+
+	1.模型实例方法:
+
+		__str__()：在将对象转换成字符串时会被调用
+		save()：保存或者修改模型对象到数据表中
+		delete()：将模型对象从数据表中删除
+
+
+	2.模型类属性objects
+
+		1.objects叫做管理器，是Manager类型的对象，定义在from django.db import models中
+			用于模型对象和数据库交互
+		2.object类属性是默认自动生成的，但是可以自定义管理器对象
+		3.自定义管理器对象后，Django不再生成默认管理器对象objects
+
+
+	3.自定义管理器类主要用于两种情况：
+
+		1.改变查询的结果集
+		2.添加额外的方法
+
+		1.1class BookInfo(models.Model):
+		    ...
+		    # 这样实例化一个Manager对象后，BookInfo的管理器就是“books”
+		    # 相当于把管理器改了名字，没多大意义，一般使用自定义管理器类，然后再实例化
+		    books = models.Manager()
+			自定义管理器,此时的管理器名称就不是objects,而是books,这么做没什么意义
+
+			class BookInfoManager(models.Manager):
+	    		def total(self): # 自定义一个查询所有结果集的方法
+	        		return super().all().filter(isDelete=False)
+			定义一个图书管理器的类,定义方法def total() 返回没有逻辑删除的图书
+
+		1.2在模型类BookInfo中定义管理器:
+
+			class BookInfo(models.Model):
+			    ...
+			    # 使用和objects相同的名称来实例化，objects在和原理功能相同的基础上，多了一个total方法
+			    objects = BookInfoManager()
+
+		2.图书管理器类中定义修改对象的方法：
+
+			class BookInfoManager(models.Manager):
+			    def total(self):
+			        return super().all().filter(isDelete=False)
+
+			    # 定义方法，给所有的书名加上书名号
+			    def shuminghao(self, obj):
+			        for i in obj:
+			            i.btitle = "《%s》" % i.btitle
+			        return obj
+
+		注:1.定义好了之后迁移!!迁移一次就会自动生成一个迁移文件
+			2.models.Model是django自带的一个模型类,它封装了
+			3.自定义管理器的类单独创建,添加方法,当需要在某个模型类使用的时候再实例化:objects = BookInfoManager()
+			4.自定义管理器是继承models.Manager这个类
+
+-----------------------------------------------------
+
+自定义管理器之后,就通过这个添加了一些方法的对象objects来进行后续的查询工作!
+
+---------------------------------------------------------------------------------
+
+6.查询集
+
+
+
+	1.查询集特性及过滤器
+
+	查询两大特性:
+
+	惰性执行：创建查询集不会访问数据库，直到调用数据时，才会访问数据库，调用数据的情况包括迭代、序列化等。
+	缓存：查询集的结果被存下来之后，再次查询时会使用之前缓存的数据。
+
+
+	2.查看mysql数据库日志操作步骤
+		1)sudo vi /etc/mysql/mysql.conf.d/mysqld.cnf 取消68、69行注释
+		2)sudo service mysql restart 重启mysql服务
+		3)/var/log/mysql/mysql.log   mysql操作的日志文件
+		4)sudo tail -f /var/log/mysql/mysql.log  实时查看日志文件的内容
+
+
+	3.查询集限制
+		如果查询返回多个结果，这个结果类似列表，可以使用下标的方式进行限制，等同于sql中的limit和offset子句，不支持负数索引。
+		如果获取一个对象，直接使用[0]，等同于[0:1].get()，但是如果没有数据，[0]引发IndexError异常，[0:1].get()引发DoesNotExist异常
+
+
+	4.使用shell命令验证查询集特性
+		from booktest import BookInfo
+		books = BookInfo.objects.all() 不会操作数据库
+		books 调用books，会在日志中看到操作了数据库，这个叫做惰性执行
+
+		book1 = books[1] 操作数据库，返回新的结果
+		book1  调用book1时，不会操作数据库，book1的结果被缓存了
+
+
+	5.过滤器
+
+	  返回列表的过滤器如下：
+
+		all()：返回所有数据
+		filter()：返回满足条件的数据
+		exclude()：返回满足条件之外的数据，相当于sql语句中where部分的not关键字
+		order_by()：排序
+
+	  返回单个查询结果的过滤器如下：
+
+		get()：返回单个满足条件的对象，如果未找到会引发"模型类.DoesNotExist"异常，如果多条被返回，会引发"模型类.MultipleObjectsReturned"异常。
+		count()：返回当前查询的总条数
+		aggregate()：聚合
+		exists()：判断查询集中是否有数据，如果有则返回True，没有则返回False
+
+
+
+7.条件查询:(重点)
+
+	过滤器内的筛选条件的格式:
+		属性名称__比较运算符=值
+
+	0.    # 2、获取没有逻辑删除的图书
+	    books2 = BookInfo.objects.total()
+	    如果没有逻辑删除字段,那么就在数据库那里执行操作,update bookinfo set isDelete=1 where id=4
+
+	    注:这里的total()方法是之前在模型类的管理器中自定义的方法,就是用来筛选逻辑删除的
+
+	1.判等 exact
+
+		例：查询编号为1的图书
+
+		list=BookInfo.objects.filter(id__exact=1)
+		list=BookInfo.objects.filter(id=1)  和上面效果相同的简写方式
+------------------------------------------------------------------------------------------------
+		注: 表.管理器对象.过滤器(属性名称__比较运算符=值),注意是两个下划线连接属性名和比较运算符!
+-------------------------------------------------------------------------------------------------
+
+	2.模糊查询 contain
+		contain:查询包含某字符的记录，
+		startswith:以什么开始
+		endswith:以什么结束
+
+
+		例：查询书名包含'传'的图书
+		BookInfo.objects.filter(btitle__contains='传')
+
+
+
+	3.查询是否为空 isnull
+		查询某字段是否为空的记录，
+
+		例：查询书名不为空的图书:
+		BookInfo.objects.filter(btitle__isnull=False)
+
+-----------------------------------------------------------
+
+	--在models.py里BookInfo模型类里添加此字段!然后迁移使其生效!
+		bremark = models.CharField(max_length=100,null=True) #备注
+   		
+   	在数据库页面将几本书的 bremark修改一下:
+   		update bookinfo set bremark='金庸' where id>2;	
+
+    # 5.获取备注不为空的图书
+    	books5 = BookInfo.objects.filter(bremark__isnull=False)
+-----------------------------------------------------------
+
+	4.范围查询 in
+		查询某个范围内的记录，
+
+		例：查询编号为1或3或5的图书
+		BookInfo.objects.filter(id__in = [1,3,5])
+
+	5.比较查询
+		gt:大于
+		gte:大于等于
+		lt:小于
+		lte：小于等于 
+
+
+		例：查询编号大于3的图书
+		BookInfo.objects.filter(id__gt = 3)
+
+
+
+	6.日期查询
+		year、month、day、week_day、hour、minute、second：对日期时间类型的属性进行运算 
+
+		例1：查询1980年发表的图书
+		BookInfo.objects.filter(bpub_date__year=1980)
+
+		例2:查询1980年5月1日发布的图书
+		方法一:
+		BookInfo.objects.filter(Q(bpub_date__year=1980)&Q(bpub_date__month=5)&(bpub_date__day=1))
+		方法二: 先导入时间模块:from datetime import date
+		BookInfo.objects.filter(bpub_date=date(1980,5,1))
+
+
+	7.查询取反(exclude)
+		返回不满足条件的记录，
+
+		例：查询id不为3的图书信息
+		BookInfo.objects.exclude(id=3)
+
+
+	8.F对象
+		用于表字段之间的比较，使用前需要先导入这个模块
+		from django.db.models import F,Q,Sum
+
+		例：查询阅读量大于等于评论量的图书
+		BookInfo.objects.filter(bread__gte=F('bcommet'))
+
+		注:不同字段不能直接比较,需要用F('')将其中一个包裹
+
+	9.Q对象
+		用于查询时的逻辑条件。not and or，可以对Q对象进行& | ~操作，
+			使用前需要先导入这个模块:
+			from django.db.models import F,Q,Sum
+
+		例：查询id大于3或者阅读量大于30的图书的信息
+		BookInfo.objects.filter(Q(id__gt=3)|Q(bread__gt=30))
+
+
+	10.查询结果排序 order_by
+
+		例：查询所有图书的信息，按照id从大到小进行排序
+		BookInfo.objects.all().order_by('-id')
+
+		例：把id大于3的图书信息按阅读量从大到小排序显示
+		BookInfo.objects.filter(id__gt=3).order_by('-bread')
+
+		注:1.从大到小排序需要在属性名前面加'-'
+			2.筛选之后再排序
+
+
+	11.聚合查询
+
+		对查询结果进行聚合操作，
+		聚合函数包括：Avg，Count，Max，Min，Sum，被定义在django.db.models中，
+
+		使用前要先导入：
+		from django.db.models import Sum,Count,Max,Min,Avg
+
+		例1：查询所有图书的数目:
+		BookInfo.objects.aggregate(Count('id'))
+		BookInfo.objects.count()  上面写法等同于下面count()函数的写法
+
+		(在booklist.html中显示:{{books17.id__count}} , 不需要遍历,因为它是一个值)
+
+
+		例2：查询所有图书阅读量的总和:
+		BookInfo.objects.aggregate(Sum('bread'))
+
+		booklist.html: <p>13、获取所有图书阅读量的总和{{books13.bread__sum}}</p>
+
+	
+		注:aggregate [ˈæɡrɪɡɪt] 合计,聚集体
+
+	12.连表查询
+
+		语法:关联模型类名小写__属性名__运算符=值
+
+		例：查询图书，要求图书中英雄的描述包含‘八’
+		BookInfo.objects.filter(heroinfo__hcontent__contains='八')
+
+		注:连表查询:
+			主表(BookInfo).管理器.筛选器(副表__外键字段__运算符='值')
+
+	****		这是根据英雄来查找图书!!!
+
+
+	连表 :将英雄表和图书表连在一起显示: 
+		books20 = BookInfo.objects.raw('select * from BookInfo as b inner join booktest_heroinfo as h on where b.id = h.hbook')
+
+----------------------------------------------------------------------
+
+	#  通过英雄获取图书
+	def herolist(request):
+	    # 18.通过英雄查找图书
+	    heros = HeroInfo.objects.get(id=1) #获取id为1的英雄的对象
+	    
+	    books18 = BookInfo.objects.get(id=heros.hbook.id) # 
+
+	    context = {
+	        'books18':books18,
+	    }
+
+	    return render(request, 'booktest/herolist.html', context)
+
+
+总结:
+	1.过滤器有两种:
+		返回对象列表的:all(),filter(),exclude(),order_by()
+
+		返回单个对象的:get(),count(),aggregate(),exists()
+
+	2.过滤器筛选的对象的过程:
+		BookInfo.objects.filter(id__exact=1),
+
+		1.表(table)经过管理器对象(objects)处理,然后筛选器(filter)筛选出符合条件的对象
+		并以列表的方式返回出来(由于它返回的是列表,所以不论里面有几个对象,都需要用for循环来取值,或者是用下标取值)! 
+		所以在booklist.html中显示数据的时候需要将列表遍历出来,
+		然后用book.id 这种方式去显示图书信息
+
+
+		2.对于返回单个对象的筛选器来说,在booklist中就不需要遍历(for),因为它只有一个对象
+			使用时,直接book.id 这种方式显示!
+------------------------------------------------------------------------
+
+
+8.关联 (通过外键)
+
+	1.在定义模型类时，可以指定三种关联关系，最常用的是一对多关系，
+		如本例中的“图书-英雄”就为一对多关系。
+
+		可以通过图书，来查询它对应的英雄，也可以通过英雄，来查询它对应的图书：
+
+		book=BookInfo.books.get(id=1)    # 查询编号为1的图书
+		book.heroinfo_set.all()          # 获得book图书的所有英雄
+----------------------------------------------------------------------
+
+		hero=HeroInfo.objects.get(id=1)  # 获得编号为1的英雄
+		hero.hbook                       # 获得hero英雄出自的图书,
+
+		注:下面这个hero.hbook是通过筛选器get()筛选出一个id为1的英雄对象,
+			然后英雄对象关联了外键书籍(hbook),如果要获取hero英雄出自的图书
+			books1 = BookInfo.objects.filter(id=hero.hbook.id)
+			(英雄.外键.id   筛选的是英雄对应图书的id)
+
+
+	2.self 自关联
+
+		1.定义省市区表对应的模型类：
+
+		class AreaInfo(models.Model):
+		    atitle=models.CharField(max_length=30)  # 名称
+		    aParent=models.ForeignKey('self',null=True,blank=True)   # 自关系
+
+		    注:用了self自关联
+
+		2.将地区数据导入数据库:
+			进入数据库:mysql -uroot -pmysql
+			使用数据库:use test3
+			导入地区数据:source areas.sql;
+
+
+		3.定义视图
+
+
+		4.配置URL
+
+
+		5.定义模板
+
+
+		6.运行服务器
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

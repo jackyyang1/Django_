@@ -1,0 +1,791 @@
+
+
+jinja2    模板
+
+
+
+1.模板
+
+	django中渲染模板是用render()函数:return render(request,"index.html",{"name":tom})
+
+	flask中渲染模板是render_template()函数:
+		return render_template("index.html",name="tom",...)
+		注:flask中最后一个是用关键字参数的形式传递值的,而且是用"="连接的!所以如果要
+			在flask中把定义好的参数变量,以字典的形式传过去,那么需要解包!**data	
+
+	--------------------------------------------------------------
+	代码:
+
+	    data = {
+	        "name":"Tom",
+	        "age":18,
+	        "a_list":[1,2,3,4,5],
+	        "a_dict":{"a":10},
+	        "a_str":" Hello Tom  "
+	    }
+	    # 渲染模板
+	    return render_template("index.html",**data)   # 解包，解包的目的是使传过来的字典 键等于值
+		
+	    字典取值有两种方式:
+	        <h1>{{ a_dict["a"] }}</h1>
+   			<h1>{{ a_dict.a }}</h1>
+
+
+	    在flask模板中可以直接进行加法操作:
+	    	<h1>{{ list[0] + list[1] }}</h1>
+	    	<h1>{{ name + "Green" }}</h1>	
+
+	------------------------------------------------------------
+	    	
+
+2.过滤器:
+	flask支持链式过滤器:	{{"hello world " | trim | upper}}
+
+	字符串过滤器:
+		转义:safe
+			模板中都带有转义功能-->防止xss注入攻鸡
+		------------------------------------------------------------	
+		代码如下:
+
+			@app.route('/xss',methods=['GET','POST'])
+			def xss():
+			    if request.method == "GET":
+			        t = ""
+			    else:
+			        # 表示post方式提交表单
+			        t = request.form.get('text')
+
+			    return render_template('xss.html',text=t)
+
+			xss.html
+				    {{ text | safe }}    
+		-----------------------------------------------------------
+
+
+3.自定义过滤器
+	方式一:先定义,注册,
+	----------------------------------------------------------
+		# 自定义过滤器
+		方式一
+		def handle_list_step_2(alist):
+		    """自定义过滤器的方法,隔二取一
+		    alist：要处理的模板变量（在这里是指a_list）
+		    :return: 返回值会被放到模板变量的位置
+		    """
+		    return alist[::2]
+
+		# 将定义的过滤器函数注册
+		                        #过滤器函数        模板中使用的名字
+		app.add_template_filter(handle_list_step_2,"list2")
+
+		注:注册时第二个参数是指,在模板中自定义的管理器叫什么名字
+
+		模板:
+    	<h1>{{ a_list | list2 }}</h1>
+
+		------------------------------------------------------------------
+
+	方式二:通过装饰器定义过滤器
+
+
+		@app.template_filter("list3")
+		def handle_list_step_3(alist):
+		    """自定义过滤器，筛选出隔三取一
+		    alist：要处理的模板变量
+		    :return: 返回值会放在模板变量的位置
+		    """
+		    return alist[::3]
+
+		模板:
+			{{a_list | list3 }}   
+
+		注;因为过滤器要处理数据,所以定义过滤器函数的时候要将形参定义进去	
+		-----------------------------------------------------------	
+
+
+3.5控制语句:略  {% if %}  {% endif %}
+
+
+4.宏: 类似于python中的函数,作用是在模板中重复利用代码()
+
+	宏的使用:
+
+	4.1在模板中:
+		{# 定义宏#}
+		{% macro input1() %}
+				<input type="text">
+		{% endmacro %}
+
+		调用:
+		{{ input1() }}
+
+	4.2带参数的宏:
+		    {% macro input2(name,type="text",size="30") %}
+		        <input name={{ name }} type={{ type }} size={{ size }}>
+		    {% endmacro %}
+
+		    调用:
+	        {{ input2("tom") }}
+    		{{ input2("jack",type="password",size="50") }}
+
+    	注:查看源代码可以观察到宏干了什么
+    
+    4.3使用其他文件定义的宏:
+    	先在模板 macro_input.html 定义一个名叫 input3 的宏
+
+    	在原模板中调用:
+    	    {#  使用其他文件定义的宏 #}
+		    {# 导入宏 ,起别名#}
+		    {% import "macro_input.html" as i_macro %}
+		    {# 调用 #}
+		    {{ i_macro.input3("jack") }}
+
+
+5.表单
+
+
+	5.1不使用Flask-WTF扩展,表单需要自己处理
+		前端和后端都会对表单数据进行以下处理:定义,提取参数,进行校验(前端会校验,后端不管前端有没有校验也会校验)
+		获取表单数据，进行表单数据验证(if...else...),每个字段每个字段校验特别麻烦
+
+
+
+	5.2使用Flask-WTF扩展:WTForms
+		 好处():使用Flask-WTF表单扩展，可以帮助进行CSRF验证，帮助我们快速定义表单模板，
+			而且可以帮助我们在视图中验证表的数据
+
+		安装:
+		pip install Flask-WTF
+
+
+		使用wtf扩展,需要配置secret_key(不然会报错:csrf)
+		app.config["SECRET_KEY"]="uhfahaajfhafhlkaglgk"
+
+
+	WTForms常用验证函数:
+	
+		验证函数	           说明
+		DataRequired	  确保字段中有数据
+		EqualTo	          比较两个字段的值，常用于比较两次密码输入
+		Length	          验证输入的字符串长度
+		NumberRange	      验证输入的值在数字范围内
+		URL	              验证URL
+		AnyOf	          验证输入值在可选列表中
+		NoneOf			  验证输入值不在可选列表中	
+
+	----------------------------------------------------------	
+	代码:
+	    <form method="post">
+	        {# flask中csrf_token是form对象的一个属性 #}
+	        {{ form.csrf_token }}
+	        {# 为了控制样式，把他们放进p标签中 #}
+	        <p>{{ form.user_name.label }}</p>
+	        <p>{{ form.user_name }}</p>
+	        {# 错误信息会放在表单中的 errors属性中 #}
+	        {% for err in form.user_name.errors %}
+	            <p>{{ err }}</p>
+	        {% endfor %}
+
+
+	        <p>{{ form.password.label }}</p>
+	        <p>{{ form.password }}</p>
+	        {% for err in form.password.errors %}
+	            <p>{{ err }}</p>
+	        {% endfor %}
+
+	        <p>{{ form.password2.label }}</p>
+	        <p>{{ form.password2 }}</p>
+	        {% for err in form.password2.errors %}
+	            <p>{{ err }}</p>
+	        {% endfor %}
+
+	        {{ form.submit }}
+
+	    </form>
+
+	    注:注意 模板部分,很多地方与django不同,应该是方法{% %}的地方变成变量属性{{}}
+
+
+6.控制语句
+
+	{% if .. %}
+	{%  else %}
+	{% endif %}
+
+
+7.模板的特殊变量与闪现的使用
+
+	7.1 Flask中的特殊变量和方法：
+	在Flask中，有一些特殊的变量和方法是可以在模板文件中直接访问的。
+
+		config 对象:
+		config 对象就是Flask的config对象，也就是 app.config 对象。
+
+		request 对象:
+		就是 Flask 中表示当前请求的 request 对象，request对象中保存了一次HTTP请求的一切信息。
+
+		url_for 方法:
+		url_for() 会返回传入的路由函数对应的URL，所谓路由函数就是被 app.route() 路由装饰器装饰的函数。如果我们定义的路由函数是带有参数的，则可以将这些参数作为命名参数传入。
+
+		get_flashed_messages方法：
+		返回之前在Flask中通过 flash() 传入的信息列表。把字符串对象表示的消息加入到一个消息队列中，然后通过调用 get_flashed_messages() 方法取出
+
+			{% for message in get_flashed_messages() %}
+			    {{ message }}
+			{% endfor %}
+
+
+			闪现机制:
+			flask在实现闪现的时候,是将flash的数据保存在session中了,
+			使用flash需要保证程序中配置过secret_key
+
+			flash(u"表单填写错误1")
+			--------------------------------------------------------
+			后端代码:
+	        else:
+	            # 不满足
+	            # 利用闪现来保存要展示的消息数据
+	            # 一次保存的数据早模板中只能提取一次，再提取就没有了
+	            # 使用flash要保证配置了secret_key
+	            flash(u'搞比利吗兄弟？')
+	            flash(u'卧槽')
+	            flash(u'你二大爷的')
+	            return render_template("register.html",form=form)
+
+	        模板代码:
+	      
+			    {% for msg in get_flashed_messages() %}
+			        <p>{{ msg }}</p>
+			    {% endfor %}
+    
+    		闪现作用: 如果传入的参数正确,且都有值,就进行下一步操作,如果没有,就将用闪现将错误信息展示出来!
+			 -------------------------------------------------
+			 
+
+
+8.数据库:
+
+	SQLAlchemy
+	安装 操作数据库的扩展包:--->用来管理数据库
+	pip install flask-sqlalchemy
+
+	要连接mysql数据库，仍需要安装flask-mysqldb(数据库驱动)
+	pip install flask-mysqldb
+
+
+
+	-------------------------------------------------------------	
+
+	flask:
+		00.orm框架-->将模型类的操作转换成sql语句
+			connect()
+			cursor
+			cursor.execute(sql)
+			cursor.fetch
+		11.orm框架-->将结果转换为模型类对象
+
+		注:0.flask 提供的ORM框架做了 00 和 11 这两件事,连接数据库connect(),以及对数据库的操作
+				都是 pymysql完成的 
+			1.pymysql既是MySQL数据库客户端,又是MySQL数据库驱动,由它来跟数据库连接,完成访问
+			2.mysqld是指MySQL数据库在后台运行
+			3.连接数据库connect()的过程实际是发送了host和port
+
+		-------------------------------------------------------------
+		
+     其他数据库驱动:mysql-python ---->支持python2
+     			   pymsql       ---->支持python2,python3
+     			   flask-mysqldb---->只在flask中有用,	
+
+     *********************************************************************	
+
+     操作数据库机制;
+
+     	django中,我们在使用驱动连接mysql数据库的时候,会导入以下包:
+     			django pymysql.install_as_mysqldb()		   
+     	那是因为mysql数据库只认识 mysqldb() 这样一个对象,连接也是通过它来链接的		
+     	上面列举的几个mysql数据库驱动也都是会创建出一个mysqldb来对数据库进行操作的!
+
+     *******************************************************************
+ 
+     8.1SQLAlchemy管理数据库的时候需要配置:
+     	#设置连接数据库的URL
+		app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:mysql@127.0.0.1:3306/Flask_test'
+
+		#设置每次请求结束后会自动提交数据库中的改动
+		app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+
+		app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+		#查询时会显示原始SQL语句
+		app.config['SQLALCHEMY_ECHO'] = True
+		db = SQLAlchemy(app)
+
+	     注:先有表后有模型类!
+
+
+	 8.2   模型类代码:
+
+	    # 创建模型类
+		class Role(db.Model):  # 继承db.Model
+		    """角色表"""
+		    # 自定义表名
+		    __tablename__ ='tbl_roles'
+
+		    # db.Column指明时数据库中真实存在的一列
+		    id = db.Column(db.Integer,primary_key=True)  # 默认自增主键
+		    name = db.Column(db.String(32),unique=True)  # unique是指唯一的
+
+		    # 为了查询方便，添加额外字段，数据库中不存在的
+		    # backref 指明为User类中添加了一个额外属性role
+		    users = db.relationship("User",backref="role")
+
+
+		class User(db.Model):
+		    """用户数据表"""
+		    __tablename__ = "tbl_users"
+
+		    id = db.Column(db.Integer,primary_key=True)
+		    name = db.Column(db.String(32),unique=True)
+		    email = db.Column(db.String(64))
+		    password = db.Column(db.String(128))
+
+		    # 关联role角色表的外键
+		    role_id = db.Column(db.Integer,db.ForeignKey("tbl_roles.id"))
+		    
+		    
+		 注:user1.role_id -->返回主键的id值（不是对象）
+			user1.role --> 返回role对象 （为了返回role对象 我们在role表中虚拟字段users中添加，通过backref来给User类添加一个额外的属性role）
+		# role1.users --》User表的对象  列表  
+		    
+
+		#在Django中：
+		#role = Foreignley(Role)
+		#user1.role --> Role对象
+		#role1.user1 -->User对象的列表
+
+		注:1.db.Column这种格式的都是真实存在的表的字段
+			2.user1.role_id,这种通过外键拿去到的不是role对象,而是role主键的id值,
+				所以为了方便操作,我们在role表中添加虚拟字段users,然后再给users
+				通过backref来给User类添加一个额外的属性role,这样就能拿到对应role对象
+
+
+	8.3	向数据库迁移表:
+		if __name__=='__main__':
+
+		    # 清除数据库中的所有原先数据
+		    db.drop_all()
+
+		    # 在数据库中创建模型类的表
+		    db.create_all()
+
+		    # # 添加数据
+		    role1 = Role(name="admin")
+
+		    # db.session是sqlalchemy的属性，用来记录数据库操作任务的(相当于事务)
+		    db.session.add(role1)
+
+		    # 提交任务
+		    db.session.commit()
+
+		    # 添加第二个角色
+		    role2 = Role(name='stuff')
+		    db.session.add(role2)
+		    db.session.commit()
+
+		    # 添加用户
+		    us1 = User(name='wang',email='wang@163.com',password='123456',role_id=role1.id)
+		    us2 = User(name='zhang', email='zhang@189.com', password='201512', role_id=role2.id)
+		    us3 = User(name='chen', email='chen@126.com', password='987654', role_id=role2.id)
+		    us4 = User(name='zhou', email='zhou@163.com', password='456789', role_id=role1.id)
+
+		    # 添加多个数据
+		    db.session.add_all([us1,us2,us3,us4])
+		    db.session.commit()
+
+     ------------------------------------------------------------------
+
+
+	8.4数据库操作:
+		8.4.1增		
+			见上方↑
+
+
+
+
+		li 是列表?'
+
+
+		8.4.2查:
+
+		在终端中运行,ipython 进行交互查询:
+
+		# 先导入模块:
+		In [2]: from db_demo import *
+
+		# all()的两种使用方式:  all()获取的是所有对象
+		all()第一种:
+		Role.query.all()   
+
+		li = Role.query.all()
+
+		In [6]: type(li[0])
+		Out[6]: db_demo.Role  # 列表内的数据是对象类型
+
+		In [8]: li[0].id
+		Out[8]: 1L
+
+		In [9]: li[0].name
+		Out[9]: u'admin'
+
+
+		all()第二种:
+		db.session.query(Role).all()
+
+
+		first()获取单个对象记录第一种:
+		Role.query.first()
+
+		获取单个对象记录第二种:
+		get()方法的使用,根据主键id查询单条对象:	
+		Role.query.get(2)
+
+		注:1.获取的对象要使用,必须用变量接收 :a = Role.query.get(2)
+			2.通过all()方法返回的是对象列表,通过first()返回的是单一对象
+			3.first(),只是用来查询单个对象的,跟第一不第一没有半毛钱关系
+			4.first()查出来的可以直接用,all() 查出来的要[]取值再用   # .name  .id
+
+
+		filter_by()过滤查询:
+		User.query.filter_by(name="zhang").all()
+		User.query.filter_by(name="zhang").first()
+		注:后面要跟上 first()-->单个对象 或 all()-->对象列表 才能真正把数据拿出来
+
+		注:在flask中如果查询不存在的单条记录,不会报错,而是什么也不返回	
+
+		filter()过滤查询复杂版:
+		User.query.filter(User.name=="zhang").first()
+
+		User.query.filter(User.name!="zhang").all()   # 不等于
+		[<db_demo.User at 0x7efdd00927d0>,
+		 <db_demo.User at 0x7efdd00921d0>,
+		 <db_demo.User at 0x7efdd0092a50>]
+
+		 注:filter()	 是filter_by()的复杂版,因为它要加User,而且要'=='
+
+		or 的使用:
+		查询姓名为 zhang,或者id=4的对象:
+		from sqlalchemy import or_
+		User.query.filter(or_(User.name=='zhang',User.id==4)).all()
+
+
+		模糊查询:
+		In [53]: li = User.query.filter(User.email.endswith("163.com")).all()
+
+		In [54]: li[0].name
+		Out[54]: u'wang'
+
+		In [55]: li[1].name
+		Out[55]: u'zhou'
+
+
+		关联查询:(外键表查询主键表:)
+		In [57]: role1 = Role.query.get(2)  # 先获取一个对象
+
+		In [58]: role1.name
+		Out[58]: u'stuff'
+
+		In [59]: role1.users    # 用对象.虚拟的关联User表的字段,直接使用对应的user对象
+		Out[59]: [<db_demo.User at 0x7efdd0085990>, <db_demo.User at 0x7efdd00921d0>]
+
+		In [60]: role1.users[0].name  ## 用对象.虚拟的关联User表的字段,直接使用对应的user对象.name来取到User表中对应对象的数据
+		Out[60]: u'zhang'
+
+		关联查询2:(主键表查询外键表)
+		In [61]: user1 = User.query.get(4)
+
+		In [62]: user1.name
+		Out[62]: u'zhou'
+
+		In [63]: user1.id
+		Out[63]: 4L
+
+		In [64]: user1.role_id
+		Out[64]: 1L
+
+		In [65]: user1.role.name   # 主表对象通过.role 直接拿到对应的Role表中对象,直接用对象取到Role表中的数据.name
+		Out[65]: u'admin'
+
+		注:在sqlalchemy中查询单条数据如果不存在,会返回一个None,而且不会报错!
+						如果查询的是all(),那么返回的是一个空list!
+
+		count()用法:
+		In [72]: User.query.count()
+		Out[72]: 4L
+
+		In [75]: User.query.filter(User.email.endswith('163.com')).count()
+		Out[75]: 2L
+
+
+		limit()使用: 只查询多少个,默认从低到高
+		In [80]: u = User.query.limit(2).all()
+
+		In [81]: u[0].name
+		Out[81]: u'wang'
+
+
+		offset(),偏移查询跳过多少个,开始查询
+		User.query.offset().limit()
+
+		In [82]: l = User.query.offset(2).limit(2).all()
+
+		In [83]: l[0].name
+		Out[83]: u'chen'
+
+		In [84]: l[1].name
+		Out[84]: u'zhou'
+
+
+		order_by()排序查询 :默认升序
+
+		In [85]: User.query.order_by(User.id).all()
+		Out[85]: 
+		[<db_demo.User at 0x7efdd00927d0>,
+		 <db_demo.User at 0x7efdd0085990>,
+		 <db_demo.User at 0x7efdd00921d0>,
+		 <db_demo.User at 0x7efdd0092a50>]
+
+
+		desc()倒叙排序查询:
+		User.query.order_by(User.id.desc()).all()  
+
+ 
+		group_by()分组查询:			# 字段      # 数量                           
+		In [91]: db.session.query(User.role_id,func.count(User.role_id)).group_by(User.role_id).all()
+		Out[91]: [(1L, 2L), (2L, 2L)]
+
+		注:返回两个元组的意思是:根据role_id查出来两个结果,即两个role_id,每个字段中的对象数量都是2
+
+
+		paginate(),分页:
+
+							页数   每页数量,   是否自动错误返回
+		User.query.paginate(1,per_page=2,error_out=False)
+
+		In [97]: page = User.query.paginate(1,per_page=2,error_out=False)
+
+		In [98]: page.items[0].name
+		Out[98]: u'wang'
+
+		In [99]: page.items[1].name
+		Out[99]: u'zhang'
+
+		pages属性:总共页数
+		In [101]: page.pages
+		Out[101]: 2
+
+		注:1L:长整型是python2中特有的
+
+
+		8.4.3更新(改)
+
+		在对象存在的情况下更新:
+		In [102]: user1 = User.query.get(3) # 获取对象
+
+		In [103]: user1.name
+		Out[103]: u'chen'
+
+		In [104]: user1.name = "Tom"
+
+		In [105]: db.session.add(user1)
+
+		In [106]: db.session.commit()
+
+		在对象不存在的情况下更新:(查询同时进行更新操作)
+
+		In [108]: User.query.filter_by(id=4).update({'name':'Jack'})
+		Out[108]: 1L
+
+		In [109]: db.session.commit()
+
+
+
+		8.4删除
+
+		方式一:
+			查询对象
+			user1 = User.query.get(3)
+			删除
+			db.session.delete(user1)
+			提交删除
+			db.session.commit()
+
+		方式二:
+			User.query.filter_by(id=4).delete()	
+			db.session.commit()
+
+
+
+提一点:
+	1.操作数据库要谨慎:
+
+		先写查询语句,把条件测通
+		select * from tbl_users where name="zhang"
+
+		然后再写删除或更新sql语句:
+
+
+	2.sqlalchemy由于版本问题(5,7,20),操作数据库时,数据库会回馈一个错误
+
+		问题:
+			类似于这样:	@@tx_isolation  warning
+				mysql <5.7.20   select @@tx_isolation
+				mysql >=5.7.20   select @@transaction_isolation
+
+
+			创建表的时候,执行完成,数据库报出如下错误:
+			Warning: (1287L, u"'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead"	
+
+		解决:		
+			https://github.com/zzzeek/sqlalchemy/pull/391/files
+
+			cd 找到sqlalchemy中mysql的配置文件:
+
+			python@ubuntu:~/.virtualenvs/flask_py2/lib/python2.7/site-packages/sqlalchemy/dialects/mysql$ 
+
+			vim 快速定位:/tx_isolation,只用输入  ':/tx' 就可以找到了 
+
+			然后做如下修改:
+				9         #cursor.execute('SELECT @@tx_isolation')
+				1570         if self.server_version_info < (5,7,20):
+				1571             cursor.execute('SELECT @@tx_isolation')
+				1572         else:
+				1573             cursor.execute('SELECT @@transaction_isolation')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

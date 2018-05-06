@@ -1,0 +1,586 @@
+jQuery
+
+1.jQuery的加载
+2.jQuery选择器
+3.jQuery的click事件
+4.jquery的样式操作
+5.jQuery动画
+
+
+code.jQuery.com-->选择版本-->老版本兼容高-->复制链接打开-->压缩,未压缩版本-->保存
+
+
+
+00.全局变量和菊部变量
+
+	//在开发中尽量不要出现局部和全局变量同名
+	//局部变量的优先级比全局要高,如果函数内出现如果函数内出现和全局变量同名时, 在局部变量定义的函数内,会屏蔽掉全局变量,此时如果提前使用变量会提示undefined类型
+
+    注:在函数中,如果用var iNum=10 定义了一个全局变量,而在它的一个内部函数中 将iNum重新赋值为20,那么此时的iNum实际上还是那个全局变量,而且此全局变量被重新赋值了,以后再调用都是20,;
+    2.但如果在那个内部函数中var iNum=20,这样操作的话相当于是定义了一个局部变量,对外面那个同名的全局变量iNum没有影响,且这个局部变量只在定义它的函数里有效!
+
+
+1.封闭函数:
+	作用:解决同名函数或同名变量的功能覆盖问题!
+	前提:js的外链式功能函数名也叫fnTest;
+
+	fnTest();
+
+	!function () {
+		alert('现任')
+	}();
+	这种是简写,完整写法是,里面包含一整个fnTest函数!
+
+
+	注:匿名函数必须要变量名或者属性来接收,不然会报错,感叹号!使
+		匿名函数不报错,在函数{}后面直接使用();相当于直接调用函数!
+		(也可以使用'~'来代替'!')
+	
+
+2.jQuery引入测试
+
+	在使用jQuery框架前,首先要导入文件!
+	外链式:
+	<script src='./js/jQuery-1.12.4.min.js'></script>
+	src='url'也可以写成联网下的网址;
+
+	查看外链式jQuery是否导入成功:
+	<script> alert($)</script>
+
+
+
+
+3.jQuery和原生js对比 (write less ,do more)
+
+	1.原生js只能获取标签的行内式样式属性的值
+
+	2.jQuery获取标签对象,用jQuery获取的标签 对象,变量前面一$开头,就是为了区分jQuery和原生js
+
+	
+
+	3.jQuery获取样式属性值时,不管它是怎么有的  都能获取到
+		alert($div.css('fontSize') + 'jQuery获取');
+
+	$(document).ready(function () {功能,属性设置})
+	//$()是万能函数,修改获取属性的操作都要在
+
+	简写:
+		1.$().ready(function () {功能,属性设置}) #省掉document
+		2.$(function () {功能,属性设置})  # 省掉ready
+		虽然省掉不写,但是功能还存在!
+
+	注:1.jQuery因为有ready,所以比js先执行,
+		2.其中jQuery在选中id的时候 :var $div = $('#box')
+		3.选中的东西要用 ('')包裹
+		4.jQuery的所有操作都要在 $(function () {})				这样的匿名函数中进行
+
+4.jQuery操作css属性:
+
+	0.jQuery操作css属性的格式是:$div.css({'color':'red'});
+	1.jquery 在使用时px可以不用写,如果要写,可以用''包裹
+	2.jq中没有提示,属性可以写成background-color或者backgroundColor	
+	3.获取属性的值
+		alert($div.css('color'))
+
+	4.此时jq设置属性时使用的是行内式,因为权重值够高,1000
+	5.原生js写属性的时候好处是提示
+	6.属性之间用逗号连接
+	7.属性要用'',引起来,不然会认为它是变量会报错!外面要用{}将css属性和值包裹起来
+
+
+	注:原生js是操作属性oDiv.style.color='red',jQuery是操作函数
+		$div.css({'color':'red','width':200,'height':200})
+
+5.jQuery的选择器; (重点)
+	
+	1.标签选择器
+	var $div = $('div');    #选中标签
+	$div.css({'color':'green'});  #设置标签属性
+
+	注:尽量不要标签选择器 ,因为标签太多
+	
+	2.类选择器
+
+	var $div = $('.box1');
+	$div.css({'backgroundColor':'red'})
+
+	3.Id选择器 #
+     var $div = $('#box4');
+     $div.css({'color':'pink'});
+
+	4.层级选择器
+		var $div = $('.cn .box2')
+
+	5.并级选择器
+		 var $div = $('.box1,.box2'
+	
+
+	6.属性选择器
+		正则:*=:只要包含, ^=:开头包含,$=;结束包含
+
+            var $div = $('div[class$=1]');
+            
+            $div.css({'color':'green'});
+		注:拥有class=xx属性的这样一个div标签!
+
+
+6.jQuery选择集的过滤
+
+	1.has() 选中后代包含的xx的标签(有)(选中的其实是它自己)
+
+		var $divs = $('div');
+		$divs.has('p1').css({'backgroundColor':'gold'});
+		注:has中参数只能是子集,后集,找到后代包含某个标签
+			--找到后代包含某个标签的div,只要找到此标签,设置属性时整个div块都会被改动!
+		
+
+	2.not();除了x标签之外的标签(没有)(选中的是它自己)
+		not() 里面不能传后代 ,和子级无关 , 找的是类名/id名形式的标签
+		$divs.not('.box').css({'backgroundColor':'lightgreen'});
+
+
+	3.eq(角标) ; (等于)
+		通过角标的方式去找指定的标签,和嵌套层次无关,都是从0开始
+		 var $list = $('li');
+		 $list.eq(6).css({'color':'red'});
+
+
+
+7.选择器的转移 (previous上一个,前一个)(重点)
+
+	1.prev 选中平级,上面的一个标签,(上一兄弟)
+
+	2.prevAll 选中平级兄弟  上面的所有标签(上面所有)
+
+	3.next 选中平级兄弟  下面的一个标签(下一兄弟)
+
+	4.nextAll  选中平级兄弟  下面的所有标签(下面所有)
+
+	5.siblings 选中除了自己以外的所有平级兄弟(除了自己)
+
+	注:前面五个都是平级的
+
+	6.children() 选中所有直接子级,不会找到孙子及后代
+
+	7.find()  查找后代
+
+	8.parent() 转移到自己的直接父级(直系亲属和它自己)
+		$('p').parent().css({'color':'red'});
+
+		$('p').parents().css... 找它上面的所有爹,以及他自己!
+
+8.length 判断选择器是否选择到标签
+
+	
+	alert($li.length),如果length为0,那么没选中!
+	如果有,会获取当前标签数
+
+
+9.jQuery中的事件:(重点)
+
+	1.点击事件click(jQuery中事件都去掉了on)
+
+
+	2.this 当前触发的事件的对象(this是原生js对象需要$()包装,相当于self)
+
+        var $lis = $('li');
+
+        //this 在事件中,它表示谁触发的事件就是谁,默认是js对象(摸谁谁变红)
+        // 把js对象转成jQuery对象,用$()  包装就可以了
+        $lis.click(function () {
+            $(this).css({'color':'red'});
+
+        })
+
+
+	3.index() 获取元素的角标;
+	从每一个嵌套关系中 都是从0开始;
+		获取当前标签在他
+
+            $lis.click(function () {
+            $(this).css({'color':'red'});
+
+            //原生js改颜色
+            //this.style.color = 'red';
+
+            //index() 从每一个嵌套关系中  都是从0 开始
+            //index()获取当前标签在它的直接父级中它是第几个儿子,从0开始
+            alert($(this).index());
+
+            })
+		注:如果有两个一样的列表集,那么点击它们时index()会返回每个从0开始的下标,即列表1是从0开始,那么列表2也是从0开始
+
+
+10.jQuery操作样式类(重点)
+
+	1.add,给标签添加类
+
+		var $div = $('div');
+		$div.addClass('box');
+		如果有一个css刚好修饰box这个盒子,那么就可以看到添加的效果!
+
+	2.remove 删除类
+		$div.removeClass('box');
+
+	3.切换:toggle如果已经有此类就删除,如果没有就添加
+		$div.toggleClass('box');
+		
+	注:这里的class就是class ='con box'那种
+
+
+10.x  元素的显示或隐藏
+	
+        /* 隐藏后不显示,且原本的位置也不再占用 */
+        display:none;
+
+11.选项卡案例;
+	
+    //1.给三个按钮添加click事件
+    $btns.click(function () {
+        //点击按钮就可以给此按钮添加class
+        // $(this).addClass('active');
+
+        //除了当前点击的那个按钮,其他按钮都应该删除掉active这个类
+        // $(this).siblings().removeClass('active');
+
+        $(this).addClass('active').siblings().removeClass('active');
+
+        //点击按钮显示对应的内容
+        //说明:当点击按钮的时候返回点击这个按钮的下标,选中这个下标对应的标签,并为此标签添加current类名
+        // 并给这个标签添加类名current,删除除自己以外所有的current类
+        $cons.eq($(this).index()).addClass('current').siblings().removeClass('current');
+
+    })
+
+
+
+
+12.jQuery中的动画: animate:驱动,使有生气
+
+	jQuery动画颜色库:jquery.color.js
+
+            $(function () {
+        var $div = $('.box');
+
+        //动画函数
+        //第一个参数:{} 动画属性 css属性
+        //第二个参数:动画持续时间  毫秒
+        //第三个参数:swing  linear  默认不传就是用 swing
+        // 第四个参数:动画执行完成之后的回调函数
+        $div.animate({
+            'width':'100%',
+            'background-color':'red',
+        },2000,function () {
+            $div.animate({
+                'width':200,
+                'background-color':'blue',
+            },2000);
+        });
+
+
+	注:动画效果:
+	swing:加速,减速
+	linear:匀速
+
+
+雪碧图制作:
+
+	1.ps切图,切片工具
+	选择,切  ,调整
+
+	2.选择工具,去除图层,隐藏背景
+	需要透明图片格式
+
+	3.选择格式,存储,所有用户切片,仅限图片
+	png
+
+
+	制作雪碧背景长条:
+
+	width:80
+	height:500
+
+	视图-->标尺-->新建参考线-->水平50px-->100px....
+
+	将小图片拖进长条中;
+	点对勾,3次
+	一个个啦上去,
+	清除参考线,
+	移除背景,切除多于部分,存储或导出
+
+
+
+
+总结:
+	1.在导入jQuery之后,用jQuery 判断是否选中了标签
+	        $(function () {
+            var $lis = $('.list');
+
+            //如果length=0,那么说明没有选择到标签
+            alert($lis.length);
+
+        })
+	你会发现先弹窗,然后才加载出来html页面内容,这是因为jQuery框架里面的ready的作用
+
+
+ 	2.js元素字符在选中标签对象的时候是:
+ 		var oDiv = getElementById('id')
+		而且,js中只能选中id标记的标签,className的没办法,因为无效
+		js是在window.onload = function () {} ;中运行的
+
+
+		jQuery在选中标签对象的时候是:
+		var $div = $('#id名')
+		或者 var $div = $('.class名')
+		jQuery是在匿名函数 $(function () {}); 中运行的
+	
+
+	3.jQuery既可以取值,也可以赋值,利用函数来操作
+		jQuery选择器几乎和css选择器一毛一样
+		在js中class叫做className,在jQuery中class就是class
+	
+		jQuery.color要在jQuery文件之后导入
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+总结:功能函数名也不要同名,如果同名,功能会被覆盖!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

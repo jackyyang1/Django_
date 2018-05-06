@@ -1,0 +1,29 @@
+﻿
+
+安装scrapy
+
+        ①lxml:https://pypi.python.org/pypi/lxml/3.8.0
+
+        ②setuptools:https://pypi.python.org/pypi/setuptools/36.0.1
+
+        ③zope.interface:https://pypi.python.org/pypi/zope.interface/4.4.1
+
+        ④Twisted:https://pypi.python.org/pypi/Twisted/13.1.0(python2.7要求版本为13.1.0.python3.6可以用16.6.0的版本）
+
+        ⑤OpenSSL:https://pypi.python.org/pypi/pyOpenSSL/17.0.0
+
+        ⑥pywin32:https://pypi.python.org/pypi/pywin32（这个需要跳转到其他链接下载）
+
+3.安装支持包
+
+        统一在CMD中用pip install XXXX（文件名）进行安装，如：pip install lmxl-3.8.0-cp27-cp27m-win32.whl。
+        如果安装报错，那可能是pip版本问题。查询pip支持版本方法：在IDLE中输入：import pip，回车，pip.pep425tags.get_supported()。如果显示出的版本都是形如('cp27', 'none', 'win32')这样的，就把whl文件文件名改为 lmxl-3.8.0-cp27-none-win32.whl（也就是把cp27m改为none），python3的版本同理修改。修改文件名之后在CMD中运行pip install lmxl-3.8.0-cp27-none-win32.whl，就能成功安装whl文件。
+
+
+4.安装及验证scrapy
+
+        至此，python已经安装完毕，环境变量也已经配置好，pip和wheel包以及各种scrapy需要的支持包也全部安装完毕，想必你已经迫不及待的要pip install scrapy了。但是还不行，你还需要下载一个Microsoft Visual C++ 9.0（python2对应，也叫Microsoft Visual C++ 2008）或者Microsoft Visual C++ 14.0（python3对应，也叫Microsoft Visual C++ 2015），python2和python3分别有指定的版本要求。
+
+        9.0下载地址：http://www.jb51.net/softs/73040.html
+
+        14.0下载地址：http://www.jb51.net/softs/402927.html

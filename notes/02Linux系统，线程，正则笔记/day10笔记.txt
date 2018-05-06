@@ -1,0 +1,273 @@
+递归的上限是1000次：最多998
+停止
+迭代器没有上限控制
+
+1.迭代：
+  总结：能够使用for循环遍历取值的过程叫迭代
+
+  可迭代对象：能够迭代的对象（字符串，列表，字典，元组，集合，range）
+  *注意：for循环在遍历字典的键值对的时候需要加items()
+         for key,values in  a.items():
+             print(key,value)
+
+
+  判断是否可迭代对象：
+     from collections import Iterable   #(使用Iterable之前要先在collections调用)
+     a = [1,2,3]	
+     
+     result = isinstance(a,Iterable)  ******判断是否为迭代对象
+
+     True
+    
+     注：整型和类是不可迭代对象
+
+2.自定义可迭代对象
+    ---*******判断是否为迭代器：result = isinstance(xxx,Iterator)
+
+   迭代器：Iterator （在调用迭代器的时候要先导入 from collections import Iterator）
+     
+   # 提供__iter__的方法，该对象就是一个可迭代对象（因为类不是可迭代对象，所以要将其变       为可迭代对象，要添加iter方法）
+
+   提示：可迭代对象的本质是通过迭代器依次把数据遍历出来的
+   
+   自定义迭代器：
+        类里提供__iter__ 和__next__ 方法这个类就是一个迭代器，迭代器就是记录当前遍历位        置及获取下一个位置的值
+
+   课堂代码理解：定义了两个类，class student，用来添加列表数据，class S_Iterator，是自     定义的一个迭代器，在class student的类里创建def __inter__(self)方法，因为此方法返         回的是他本身self，如果要向返回一个迭代器，那么就需要在inter方法里调用自定义的          迭代器，就可以return student_itertor了,那么此时一个类（非可迭代对象）就变成             了可迭代对象，系不系很神奇！
+       判断自定义的迭代器是否为迭代器：result = isinstance(xxx,Iterator)  
+
+                                           print(result)    True
+   
+  人性化理解课堂迭代器代码：
+      # 总结：因为只要一个类里定义了iter方法，并且iter（正常情况下返回的是它本身self）    返回值是一个迭代器，那么恭喜你，这个类创建的对象就变成了可迭代对象，活生生把一个非     迭代，变为可迭代，这个时候对象就可以当做可迭代对象来for遍历了
+
+
+
+
+   # 迭代器可以使用for循环直接遍历取值
+   # for 循环的本质：首先向内部通过iter函数找到iter方法，然后找到next方法来遍历取值
+
+
+
+3.生成器：是一类特殊的迭代器，，，也就是说可以使用next函数获取下一个值
+
+
+ yield result # 在遇到yield的时候会先把值返回然后暂停执行，当再次启用生成器的时候会从              之前暂停的地方开始
+      next（f），next（f）
+
+4.生成器使用return关键字
+  总结：1.在生成器里面可以有return关键字，语法上没有问题，但是执行return代码以后，会抛            出停止迭代异常
+        2.return只能返回一次
+        
+        3.yield可以返回多次结果
+
+    # 获取return 的返回值except StopIteration as e:    # StopIteration 是停止迭代错误
+        # 获取return返回值
+        print(e.value)        # 这里要用e.value获取return的返回值
+        break
+	
+
+
+    启动生成器：next（可迭代对象），while 循环  for循环
+
+
+# send方法可以给生成器传参数（是在暂停的地方传参，Parmas = yield result）
+  如果使用send方法第一次启动生成器，那么这个参数只能是None，第二次启动可以传入对应的参   数，但是一般第一次启动时使用next函数启动
+   res = f.send(None)
+   print(res)
+
+   res = f.send(5)
+   print(res)
+
+
+
+4.协程： 
+
+   又称为微线程，可以理解为比线程更小的执行单元，也可以称为用户基线程，协程的执行顺序  可以由程序员控制  
+
+    协程理解：如果在函数中看见yield关键字  可以理解为协程
+   
+    学习协程的目的：在单线程的基础上完成多任务，多个任务交替执行，可以用协程
+                   （在不开辟线程的基础上）
+    
+     def work1():
+        while True:
+           print('work1')
+           yield
+           time.sleep(0.1)
+  
+     work1 和work2可以交替执行 互相等待
+       
+
+ 4.1   greenlet ******* greenlet 对协程进行封装（yield），手动切换到不同协程执行任务
+     
+     def work1():
+       for i in range(10):
+           print('work1')
+           g2.switch()
+           time.sleep(0.1)
+ 
+
+     # 创建协程
+     g1 = greenlet(work1)
+     g2 = greenlet(work2)
+
+     # 开启协程
+     g1.switch()    # 这里写多少就是从哪里开始
+
+
+5.greenlet的使用
+
+  手动切换 g2.switch（）
+
+6.gevent
+   gevent封装的是greenlet，根据耗时操作自动执行协程间切换执行
+
+ 
+   gevent自带延时操作，gevent.sleep(0.1)
+
+    或者：打补丁（from gevent import monkey），让gevent能 识别延时操作
+      
+    from gevent import monkey
+  
+    monkey.patch_all()   # 这句话一定要最先执行，patch就是补丁的意思
+
+    如果不打补丁的话，gevent就没办法识别time.sleep(1)的延时操作
+    
+       def work1（）：
+           pass
+   
+    # 创建协程指派任务
+    # 第一个参数是函数名
+    g1 = gevent.spawn(work1)   # spawn！！！指派任务
+    g2 = gevent.spawn(work2)
+
+    #开启协程
+     g1.switch（）
+	
+    # 主线程等待两个协程任务执行完成以后程序在退出
+    g1.join()
+    g2.join()
+
+
+7.使用gevent 下载图片
+
+
+import gevent
+import urllib.request # 网络模块
+from gevent import monkey
+
+
+# 打补丁，让gevent识别耗时操作
+monkey.patch_all()
+
+
+# 下载图片的任务
+def download_img(img_url, img_name):
+    # 根据地址打开资源路径
+    response = urllib.request.urlopen(img_url)
+    try:
+        with open(img_name, "wb") as file:
+            while True:
+                # 读取资源理解的数据
+                img_data = response.read(1024)
+                if img_data:
+                    # 把获取的文件二进制数据写入到指定文件
+                    file.write(img_data)
+                else:
+                    break
+    except Exception as e:
+        print("图片下载异常:", e)
+    else:
+        print("%s图片下载成功" % img_name)
+
+# 定义资源路径
+img_url1 = "https://ss2.bdstatic.com/70cFvnSh_Q1YnxGkpoWK1HF6hhy/it/u=3722615040,3422677914&fm=27&gp=0.jpg"
+img_url2 = "https://ss1.bdstatic.com/70cFuXSh_Q1YnxGkpoWK1HF6hhy/it/u=2220032324,3579499021&fm=27&gp=0.jpg"
+img_url3 = "https://ss1.bdstatic.com/70cFvXSh_Q1YnxGkpoWK1HF6hhy/it/u=829730016,3409799239&fm=27&gp=0.jpg"
+
+# 主线程等所有协程执行完成任务以后程序在退出
+gevent.joinall([
+    # 创建协程对象
+    gevent.spawn(download_img, img_url1, "1.jpg"),
+    gevent.spawn(download_img, img_url2, "2.jpg"),
+    gevent.spawn(download_img, img_url3, "3.jpg")
+])
+
+
+
+
+
+想一想怎么开启协程？
+
+ 1.对于函数里有yield的 直接使用 next（对象） 开启
+ 2.对于用greenlet（封装了yield），的要手动开启，g2.switch()  g1.switch() 来回切换，创    建协程g1 = greenlet（work1），开启g1.switch()
+ 3.对于gevent，创建协程是 g1 = gevent.spawn(work1),开启是 g1.switch，注：gevent和      greenlet的区别是gevent是根据耗时操作 自动执行切换协程，但是greenlet是手动切换      g1.switch()
+
+
+
+*******************************************************************************************
+
+总结：
+     1.一个类对象不是可迭代对象，如果在类里定义了iter方法，return self，那么它就是一个可迭代对      象，如果再定义一个next 方法，那么它就是迭代器
+     
+     2.迭代的本质就是通过迭代器遍历取值的过程，for循环就是一个迭代器
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+注意：
+
+
+群发消息】linux：
+      1.在 if __name__ == '__main__' 下面开启 多线程 或 多进程时，而 if __name__ == '__main__'  下面定义的变量 都为全局；
+window：
+      1.在 if __name__ == '__main__' 下面开启 多线程 时，而 if __name__ == '__main__'  下面定义的变量 为全局；
+      2.在 if __name__ == '__main__' 下面开启 多进程 时，而 if __name__ == '__main__'  下面定义的变量 为局部；
+          原因：window 多进程只复制其它函数代码，不复制程序入口代码
+
+
+
+
+
+
+
+

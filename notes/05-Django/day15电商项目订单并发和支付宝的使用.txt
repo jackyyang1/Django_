@@ -1,0 +1,560 @@
+
+dailyfresh
+
+
+订单创建
+
+
+	总体流程:
+	1.用户每下一个单,应该向df_order_info中添加记录
+	2.订单中包含几个商品,就应该向df_order_goods中添加记录
+
+	注:df_order_goods 的外键是df_order_info,如果要从后台删除mysql他俩表的数据
+		需要先删df_order_goods 表中的数据
+		delete from df_order_goods;'
+
+	------------------------------------------------------
+	订单创建的流程：
+	    1.接收参数
+	    2.校验参数
+	    3.组织订单信息
+
+	    设置一个保存点(sid)
+
+	    todo：向df_order_info表中添加一条记录
+
+	    todo：遍历向df_order_goods中添加记录
+
+	        获取商品的信息
+
+	        	商品信息不存在,回滚到保存点
+
+	        从redis中获取用户要购买商品的数量	
+
+	        判断商品的库存
+
+	        	库存不足,回滚到sid保存
+
+	        todo：向df_order_goods中添加一条记录
+
+	        todo：减少商品的库存，增加销量
+
+	        todo:累加计算用户要购买的商品的总数目和总价格
+
+        todo:更新order对应记录中的total_count和total_price
+
+	    todo：删除购物车中对应的记录
+
+	    返回应答
+
+
+	    注:django框架提供的保存点方法:savepoint(),savepoint_rollback()
+	    					释放保存点:savepoint_commit()
+	----------------------------------------------------
+
+
+1.事务
+
+	1)场景:在一个订单中,要购买商品数量为5,实际库存为3,这个时候商品不足,
+		(注:实际上商品不足都不会走到提交支付这个页面,因为它会先判断库存够不够才给你放在购物车,
+			所以这里要在提交支付之前在后台修改数量为小于 订单数量才能验证!)
+		但是提交订单失败之后还会向df_order_info中添加一条数据,这是不应有的!		
+	
+		select * from df_goods_sku where id=5 \G;	
+
+	2)解决:
+		订单没下成功也会向mysql添加一条记录,要解决这个问题就要设置一个事务
+		下单没成功的时候不会向mysql中添加数据
+
+	----------------------------------------------------------------
+	mysq事务:
+		1.一组mysql语句,要么执行,要么全部不执行 
+		2.事务的四个特性:原子性,稳定性,隔离性,可靠性
+		3.事务控制语句:
+					begin或 start transaction(显示的开启一个事务)
+					commit(提交)
+					rollback(回滚):begin-->insert() -->rollback
+					savepoint(保存点):
+						begin-->savepoint s1; ----insert()-->select-->
+								savepoint s2; -->insert()-->select..
+						如果不想要某个数据,可以回滚到对应的保存点:
+							rollback to s1/s2;	
+						一旦commit提交之后事务就会变成永久性的数据:	
+							commit;
+
+		4.mysql事务隔离级别:
+				1.Read Commit(读取提交内容)
+				2.Repeatable Read(可重读 ,默认是这个级别,即重复读以前的内容,无法识别更新的数);幻读							
+				3.Serializable(可串行化):最高级别
+
+
+
+	----------------------------------------------------------------------
+	技术:	
+		from django.db import action
+
+		操作放在同一个事务中:
+		class OrderCommitView(View):
+			@transaction.atomic
+			def post(self,request):
+				pass
+
+		代码大致思路:
+			1.在上面设置一个事务保存点 sid = transaction.savepoint() 		
+			2.如果:
+				     商品不存在，回滚到sid事务保存点
+                    transaction.savepoint_rollback(sid)
+            3.如果:
+                	商品库存不足，回滚保存点
+                    transaction.savepoint_rollback(sid)        
+            4.如果:
+                    数据库的操作出错，都可以直接回滚到事务保存点
+            		transaction.savepoint_rollback(sid)        
+
+    总结:添加事务就是让出现错误的订单信息不保存!      		
+	--------------------------------------------------------------------			
+
+
+
+2.订单并发:
+		如果两个人同一时间买同一商品,那么数据库中商品的数目减少的数量对不上!
+		这是因为mysql数据库默认的隔离级别为重读造成的只能读取之前的数据,不能读取更新的数据!
+	
+	
+	1.悲观锁:在事务中获取信息的时候尝试对数据进行加锁.拿到锁就可以进行操作
+			拿不到就要等待
+
+		用户1(进程1):
+			*向df_order_info表中添加一条记录
+				这是sql语句-->
+					select * from df_goods_sku where id=sku_id for update;(获取悲观锁)
+				这是python中代码语句-->
+					sku = GoodsSKU.objects.select_for_update().get(id=sku_id)
+			*获取商品的信息 stock:10
+			*判断商品的库存
+			*向df_order_goods表中添加一条记录
+			*减少商品的库存,增加销量 5
+				--操作结束,释放锁(注:释放锁是它内部自动完成的,不需要再写代码)
+
+		用户2(进程2)略	
+			select * from df_goods_sku where id=sku_id for update;(等待释放锁)
+			...
+
+			注:对于悲观锁来说, for update 这句代码就是加锁!	
+
+
+	2.乐观锁	:在获取信息的时候不加锁,但是在进行数据修改的时候需要进行条件的判断,
+			 修改失败之后需要重新进行尝试	(乐观锁其实不是锁)
+
+			 乐观锁大体流程:
+			  判断条件(如果条件不满足那么再返回重新判断条件)-->更新数据-->添加记录	
+
+
+		用户1(进程1):
+			select * from df_goods_sku where id=sku_id;(这里不改,还是原始查询)
+
+			update from df_goods_sku set stock=new_stock,
+			sales = new_sales where id = sku_id and stock=origin_stock
+
+			2.1从商品的库存到修改上哦的库存过程中没有人改变商品的库存,满足条件才会更新成功,否则更新失败
+			2.2更新失败之后不代表商品库存不足,需要重新进行尝试
+			2.3更新成功则跳出循环
+
+		用户2(进程2):
+			略
+
+		隔离级别导致两个事务中有一个事务执行失败:	
+			在使用乐观锁的时候会发现有一个事务会执行失败,是因为,mysql默认事务级别为:可重读(重读即反复读取第一次读到的数据)
+			这个时候需要修改myslq的配置文件,即修改mysql事务隔离级别
+		
+		解决办法:
+			重点':在乐观锁中,修改隔离级别可以解决订单并发问题,设置mysql为读取提交级别(read commit)只需找到mysql配置文件进行修改:
+				sudo vi /etc/mysql/mysql.conf.d/mysqld.cnf
+				
+				*加上这么一句:
+				transaction-islation=READ-COMMITED
+				
+				重启mysql: 
+				sudo service mysql restart
+
+	-------------------------------------------------------------
+	代码:
+\
+		场景:
+			奇异果库存10个:
+			  mysql> update df_goods_sku set stock=10 where id=5;
+
+			smart用户 和admin 用户分别买 5个奇异果:
+			  相当于是两个进程同时访问,那么它们的初始化环境是一样的,也就是说最开始读取到的商品库存是一样的
+			  而当第一个买 到 5 之后,第二个读到的是10,就继续买5,库存就剩下 5 .	而实际上应该剩下0个库存!
+
+
+		乐观锁和悲观锁代码区别:
+
+			悲观锁:  ... for update;  (加锁-->修改数据-->解锁)
+
+			乐观锁: (判断条件-->不成功重新判断条件-->条件满足更改数据)
+		        if res == 0:
+		            # 更新失败
+		            if i==2:
+		                #尝试三次之后仍然更新失败，下单失败
+		                transaction.savepoint_rollback(sid) # 失败回滚
+		                return JsonResponse({'res':7,'errmsg':'下单失败（乐观）'})
+		            continue # 如果第一次尝试失败，那么continue跳出当前循环，继续判断下一次条件
+		    	
+
+		注:
+		悲观锁:有释加锁和释放锁的时间开销,在冲突比较多的时候使用	(秒杀)	
+		乐观锁:没有加锁释放的时间开销,重新尝试需要花费时间,在冲突比较少的时候使用
+        
+        -------------------------------------------------------------------
+            
+
+3.提交订单(place_order.html)
+	******************************************
+	如果要删数据库内容: 先删外键内容,再删主键内容*
+		delete from df_order_goods;
+
+
+	******************************************
+	设置跳转到用户订单页面:
+		1.捕获: url(r'^order/(?P<page>\d+)$', UserOrderView.as_view(), name='order'),  # 用户中心-订单页
+		2.接收page:class UserOrderView(LoginRequiredMixin, View):
+					def(self,request,page)
+		3.place_order.html动画跳转:  window.location.href = '/user/order/1';			
+		4.base.html跳转:<a href="{% url 'user:order' 1 %}">我的订单</a>
+
+
+		5.设置user_center_order.html页面,显示要支付的商品信息和支付状态,1
+		6.在	class UserOrderView(LoginRequiredMixin, View):中将支付状态由数字改为文字属性(未支付)	
+			并且显示运费信息:
+            # 获取订单支付状态的名称 :1
+            order.status_name = OrderInfo.ORDER_STATUS[order.order_status]
+            # 计算订单的实付歀w:总价+运费
+            order.total_pay = order.total_price + order.transit_price
+
+        7.刷新显示    
+
+
+
+
+4.支付宝开放平台:
+
+
+	API=接口=函数(是同一个概念)
+
+	支付宝开发文档:www.
+		电脑网站支付:
+			创建应用(在首页中)
+			申请
+
+		开发者中心:	
+			沙箱环境:模拟的环境	
+				1.沙箱应用:
+					APPID:
+				2.配置秘钥	
+				3.搭建和配置开发环境python-alipay-sdk --upgrade
+					3.1下载服务端SDK:官方没有python的sdk,所以要下三方的(python-alipay-sdk):
+							安装:
+							 pip install python-alipay-sdk --upgrade
+
+							*如果未使用开放平台SDK，需要自行实现签名过程，参考此处流程。
+							自行签名过程:1.筛选并排序
+										2.拼接
+										3.调用签名函数 (SHA256)
+										4.把生成的签名赋值给sign参数,拼接到请求参数中
+
+
+
+					3.2接口调用配置(API):(详情见支付宝开放平台-->文档中心-->支付API)
+						公共请求参数:
+							app_id, -->支付宝分配给开发者的应用ID
+							method,  -->接口名称
+							charset,  -->请求使用的编码格式，如utf-8,gbk,gb2312等
+							sign_type,-->签名算法类型，目前支持RSA2和RSA，推荐使用RSA2
+							sign(签名串), -->商户请求参数的签名串
+							biz_content  -->(业务请求参数的集合)
+					    业务请求参数:
+					    	out_trade_no(订单号)
+					    	total_amount(总金额)
+					    	subject (订单标题)
+
+	这里使用两个接口:1.下单支付接口				    	
+					2.交易查询接口
+
+
+	1.网站和支付宝平台进行对接:				
+		前言:网站和支付宝平台进行对接时,其实就是通过网络请求			    	
+
+		django网站服务器<--------------->支付宝平台 
+			通过网站服务器的私钥对信息加密   ||通过服务器的公钥对信息解密
+			--------------------------->  | 
+			通过支付宝的私钥对信息加密
+			|<-----------------------------
+     		|
+
+		真实环境:无'dev'
+		沙箱环境: 有'dev' + order_string
+
+
+	2.订单支付流程:
+			
+		用户                     django网站的服务器                支付宝平台
+										调用支付宝下单支付接口				
+		点击去付款,访问/order/pay        alipay trade.page.pay
+		|------------------------>      |----------------------->         |
+		|	传递参数:order_id →			业务参数(必传):   →                  	  |
+        |                                        订单id                   |     
+        |                                        总金额                   | 
+        |             							订单标题                  |
+        |             					公共参数(可不传):					 |
+        |             							return_url,				 |
+        |             							notify_url  			 |
+        |                                                                |     
+        |      ←引导用户到支付订单页面                  ←返回支付页面的地址  |                   
+        |   <---------------------------|<------------------------------  |                       
+        |   
+        |  登录支付宝,选择支付方式,输入支付密码.点击确认支付 →    
+        |---------->------------------->------------------->------------->|
+        |                               |     同步的访问网站的return_url地址 |                            
+        |                               |   ← 告诉用户支付的结果             |                     
+        |                               |<----------------<----------------|
+        |								|	← notify_url	
+        |								|<-----------------<---------------|
+        |       访问:/order/check       |     调用支付宝交易查询接口 →       
+        |->-------------->------------->|>------------------>-------------->|
+        |                               |   ← 返回交易结果                   |                      
+        | <--------------<--------------|<---------------<-----------------<|                                               
+
+        过程简介:用户访问/order/pay -->网站调用支付宝API-->返回支付页面地址-->引导用户到支付订单页面
+        		-->用户与支付宝交互 
+
+    	注:如果想让支付宝平台能够访问提供的return_url和notify_url
+     	   要求网站必须有公网IP
+
+    -----------------------------------------------------------------
+
+    代码如下:         
+    	1.order应用中在views.py:
+        前端页面参数:params----->$.post():用ajax封装好的方法post发送参数和请求
+        ---->参数传递到后端,调用后端函数--->后端执行:验证参数,
+
+        2.安装python与支付宝的SDK:
+        	# 从 1.3.0升级上来的用户, 请先卸载pycrypto:
+			pip uninstall pycrypto
+			# 安装python-alipay-sdk
+			pip install python-alipay-sdk --upgrade
+
+        3.生成秘钥文件:(生成的是本机的私钥和私钥):私钥和公钥是一对一的,有私才有公
+        	openssl
+			OpenSSL> genrsa -out app_private_key.pem   2048  # 私钥
+			OpenSSL> rsa -in app_private_key.pem -pubout -out app_public_key.pem # 导出公钥
+			OpenSSL> exit
+
+			注:生成之后要退出exit之后才能在目录下查看到 公钥私钥:ls
+				1.cat app_public_key.pem 查看公钥的内容
+
+				2.将-----BEGIN PUBLIC KEY-----和-----END PUBLIC KEY-----
+				  中间的内容保存在支付宝的用户配置中（沙箱或者正式）
+
+				  公钥:
+					-----BEGIN PUBLIC KEY-----
+					MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwkhbds4sa1qbAyivyQ3L
+					b8RH89Cu37Y9Cxmlrq4V7Sy8A3g+JtddUuD9ugWXgR26dQ3TTyNOg+V5WEVjVBe/
+					U3VzkFKuUaImd1IA96j2+9x+El9XsoQzif363Of4DrPHN3SmJD3kRDGJ66s8w7jF
+					k/XoRKmO5b3L87zmHHAnb7tNPeJXoGg4fOEqEHTL/wHviN65ZiVJoNHUxMH61BmB
+					a7W19Fx0SEx5PX88h6XL+1Kx7AoW9OVumxVuV+KCppVQKd9YTteB27i+F0gYwZhc
+					MThKY8IlsOb0Qfr5JZzBCxIGhwspUHIxbZcXNZ0+wZwEk9YJV19WAkjgrdpK8x6e
+					qQIDAQAB
+					-----END PUBLIC KEY-----
+
+		4.支付宝:沙箱应用:
+			配置应用公钥,查看支付宝公钥
+
+			将支付宝公钥放在order应用下的alipay_public_key.pem中
+			将本机私钥放在order下的app_private_key.pem
+
+
+		5.使用支付宝python包初始化:
+			from alipay import AliPay
+			class OrderPayView(View):
+				def post(self,request):
+					...
+					# 业务处理：调用支付宝下单支付接口
+			        # 初始化
+			        alipay = AliPay(
+			            appid="",   # 应用APPID
+			            app_notify_url="None", # 默认回调url
+			            app_private_key_path="os.path.join(settings.BASE_DIR,'apps/order/app_private_key.pem", # 默认回调url
+			            alipay_public_key_path="os.path.join(settings.BASE_DIR,'apps/order/alipay_public_key.pem",  #支付宝的公钥，验证支付宝回传消息使用
+			            sign_type="RSA",  # RSA 或者 RSA2签名算法类型
+			            debug=False  # 默认False，代表真实环境；用沙箱要改为True
+			        )
+
+	      		# 电脑网站支付，需要跳转到https:openapi.alipay.com/gateway.do? + order_string
+		        total_amount = order.total_price + order.transit_price #decimal
+		       	# 这里是调用支付宝的api:api_alipay_trade_page_pay()
+		        order_string = alipay.api_alipay_trade_page_pay(
+		            out_trade_no=order_id, # 订单id
+		            total_amount=str(total_amount),
+		            subject='天天生鲜%s'%order_id, # 订单标题
+		            return_url=None, 
+		            notify_url=None  # 可选，不填则使用默认notify_url
+		        )
+
+
+		        # 返回应答
+		        pay_url = "	https://openapi.alipaydev.com/gateway.do" + order_string
+
+		        return JsonResponse({'res':3,'pay_url':pay_url})
+		
+		6.前端页面:user_center_order.html	
+
+			    $('.oper_btn').click(function () {
+			        //获取订单的状态
+			        var status = $(this).attr('status')
+			        if (status == 1) {
+			            //订单未支付
+			            // 获取订单order_id
+			            // 发起ajax post 请求，访问order——id
+			            var order_id = $(this).attr('order_id')
+			            var csrf = $('input[name="csrfmiddlewaretoken"]').val()
+			            //组织参数
+			            var params = {'order_id':order_id,'csrfmiddlewaretoken':csrf}
+			            //发起ajax post 请求，访问/order/pay ，传递参数：order_id
+			            $.post('/order/pay',params,function (data) {
+			                if (data.res == 3) {
+			                    //打开订单支付页面
+			                    window.open(data.pay_url)
+			                }
+			                else {
+			                    alert(data.errmsg)
+			                }
+			            })
+			        }
+			        else {
+			            //执行其他操作
+			        }
+			    })
+
+		7.到订单页面点击支付:
+			跳转到支付宝页面,用沙箱提供的账户密码登录客户端	    
+			完成支付
+
+			注:进入沙箱环境一定要在,页面点击内容里的 高亮'沙箱工具' 才能进入沙箱
+***************************************************************************
+
+小结:
+	1.attr()方法可以获取自定义的属性
+		prop()只能获取原生属性
+
+	2.var csrf = $()	
+
+	3.分页:
+
+		views.py页面:
+	        # 分页 (创建分页对象，对orders，每页显示1个)
+	        paginator = Paginator(orders,1)
+
+
+	        # 以下分页内容与goods。view中分页方法一样，可以cp过来
+	        # 处理页码
+	        page = int(page)
+	        if page > paginator.num_pages or page <= 0:
+	            # 默认显示第一页
+	            page = 1
+
+	        # 获取第page也页Page对象
+	        order_page = paginator.page(page)
+
+	        # 页码处理（页面上最短只显示出5个页码）
+	        # 1.分页之后总页数不足5页，显示所有页码
+	        # 2.当前页是第三页，显示1-5页
+	        # 3.当前页时后3页，显示后5页
+	        # 4.其他情况，显示当前页的前2页，当前页，当前页的后两页
+	        num_pages = paginator.num_pages  # 返回的时num_pages页数对象
+	        if num_pages < 5:
+	            pages = range(1,num_pages+1)
+	        elif page <= 3:
+	            pages = range(1,6)
+	        elif num_pages - page <=2:
+	            pages = range(num_pages-4,num_pages+1)
+	        else:
+	            pages = range(page-2,page+3)
+
+
+		html页面:
+			<div class="pagenation">
+                {% if order_page.has_previous %}
+				<a href="{% url 'user:order' order_page.previous_page_number %}">上一页</a>
+                {% endif %}
+                {% for pindex in pages %}
+				<a href="{% url 'user:order' pindex %}" {% if pindex == order_page.number %} class="active" {% endif %}>{{ pindex }}</a>
+                {% endfor %}
+                {% if order_page.has_next %}
+				<a href="{% url 'user:order' order_page.next_page_number %}">下一页></a>
+                {% endif %}
+			</div>
+
+	4.像支付页面这样的,如果页面不需要跳转,那么就采用ajax post请求来处理业务
+		那么在后端代码里就要用 return JsonResponse({'res':1,'errmsg':'哈哈哈'})
+		这种方式来返回应答		
+		ajax 有两种封装好的简单的方法(前端页面使用):
+			$.get()
+			$.post()
+
+
+****************************************************************
+
+ 明日内容:
+ 	1.订单支付
+ 	2.订单评论
+ 	3.项目部署
+ 	4.项目总结
+
+*************************************************************
+疑问:
+	 1.user_center_order.html中: 
+	  {% for order_sku in order.order_skus %}
+		<li class="col01"><img src="{{ order_sku.sku.image.url }}
+		为什么只有这样才可以访问图片,是关联吗?order_sku.sku.image.url
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

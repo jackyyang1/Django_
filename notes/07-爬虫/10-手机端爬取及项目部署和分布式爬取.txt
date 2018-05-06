@@ -1,0 +1,716 @@
+
+
+
+
+
+
+
+手机端返回的都是 raw原生的 json
+
+
+
+1.fiddler的手机抓包
+	1.不建议虚拟机操作
+	2.电脑连网线,电脑开wifi给手机
+	3.手机连wifi,在浏览器输入:192.168.32.1:8888 
+		下载安装 fiddler证书
+	4.进入wlan修改手机 代理:
+		手动,DHC:192.168.32.1  port:8888
+	5.开启斗鱼:查看电脑上的fiddler 数据
+
+	详细教程:
+	http://blog.csdn.net/gld824125233/article/details/52588275
+
+
+
+2.斗鱼图片下载
+	
+	斗鱼json地址:http://capi.douyucdn.cn/api/v1/getVerticalRoom?limit=20&offset=
+	--------------------------------------------------------------------------
+	获取斗鱼json数据的操作:
+		只下载一个页面的图片步骤:
+		1.start_urls为抓取的斗鱼json数据地址(只有一页数据), parse()方法里
+			        room_list = json.loads(response.body)['data'],
+		        因为scrapy框架会直接进入这个json页面通过'GET'方式拿到数据,
+		        所以只要 使用 'response.body' 然后通过结构来 以键值取到里面想要的数据
+		2.通过遍历返回的 list ,将里面每个房间的信息都拿到,没拿一个房间的 五个信息之后就yield 返回给管道
+		3.管道接收到 item 之后,转换类型,并且写入打开的 json 文件里
+		4.setting 中使用USER_AGENT,开启管道,运行爬虫!        
+
+
+		我自己用fiddler抓的手机斗鱼json地址为:
+		https://apiv2.douyucdn.cn/gv2api/rkc/roomlist/2_201/0/20/android?client_sys=android 
+	------------------------------------------------------------------------------------
+	下载图片流程:
+
+		1.下载图片
+		from scrapy.pipelines.images import ImagesPipeline # 处理下载图片的 类
+
+		IMAGE_STORE = 'Users/xxx/images/' # 绝对路径,要加'/'
+
+		2.改图片名字:
+			下载图片成功之后,改为主播名字
+			os.rename(老路径,新路径)
+
+		3.爬取多页
+			域名: douyucdn.cn
+		
+		报错:no such file or directory 
+			如果主播没有头像,会使用斗鱼官方的默认图片,默认图片的地址是一样的,如果有20个人没有头像,那么只会返回一张斗鱼默认图片!
+
+			代码修改:try:	
+
+		4.将数据存到MongoDB
+			utcnow()	
+
+
+		注意点:1.时间转换成str	
+			   2.同名字的图片处理
+			   3.图片名字带'/'	
+
+	-------------------------------------------------------------1	   
+		斗鱼下载图片的操作: 
+
+		1.爬一页图片操作:
+			1.1因为在douyu.py中 将数据全部 yield item 到了管道,那么我们就需要在管道的代码中
+				定义请求图片的方法,其中,scrapy 框架自己的一个ImagePipeline 类里封装了请求图片的方法
+				from scrapy.pipelines.images import ImagesPipeline # chuali
+
+			1.2那么我们就在管道中,重写下载图片的方法,让它继承于ImagesPipeline
+				# 下载图片的管道
+				class DouyuImagePipeline(ImagesPipeline):
+				    def get_media_requests(self, item, info):
+
+				        # 发送 图片的下载请求
+				        yield scrapy.Request(item['vertical_src'])	
+
+			1.3在setting中开通管道 :'Douyu.pipelines.DouyuImagePipeline': 400,
+
+			1.4在setting中设置图片保存地址:	        
+				# 图片保存的路径(绝对路径)  最后的路径要加 "\"
+				IMAGES_STORE = 'C:\Users\Admin\Desktop\Spyder\Douyu\Douyu\images/'
+
+
+		2.改名:
+			2.1查看 运行结束之后的 数据: print result
+			    # 下载成功之后,我们要修改图片的名字 -->主播名字
+			    # 使用方法: os.rename(老名字,新名字)
+			    def item_completed(self, results, item, info): # item_completed是内部封装的上面的item]执行完成之后执行的方法
+
+			        # item[self.images_result_field] = [x for ok, x in results if ok]
+			        print(results)
+			
+				打印的结果如下:
+				[(True, {'url': 'https://rpic.douyucdn.cn/live-cover/appCovers/2018/01/07/3777281_20180107150938_big.jpg',
+						'path': 'full/674a84d326688f4450c26a4e0e49bdddd21bf408.jpg',
+			         	'checksum': '1c6db66343b966855a2cd36a4aa2c9af'})]
+				
+				在操作完 item,保存完图片之后,类里还封装了一个方法, def item_competed()
+				这个方法是在上面操作完成之后才被调用,我们拿出来重写,首先打印一下运行结束里面数据内容
+				[(True,{"":"","":"",})] ,checksum 是图片名称经过 md5加密之后的结果 
+				我们现在要的是 'path',即老的图片名字! item[0][1]['path']可以取到,还有一种方法可以取到;
+				    image_path = [x['path'] for ok,x in results if ok][0]
+
+			2.2 用 os.rename(老名字,新名字) 重命名:
+			    # 老路径
+		        old_path = IMAGES_STORE + image_path
+		        # 新路径
+		        new_path = IMAGES_STORE + item['nickname'] + '.jpg'
+
+		        os.rename(old_path,new_path)	    
+
+
+		3.批量爬取每页图片:
+
+			3.1在设置 offset += 20 之后,翻页爬取多页图片的时候,由于有些图片url是一样的重命名时会报错:
+				    os.rename(old_path,new_path)
+					WindowsError: [Error 2]
+
+				解析:	
+				翻页爬取的时候,有些主播没有头像 ,那么斗鱼的官网会自动提供一个子集的官方头像(占位图),
+				头像的url 为: https://staticlive.douyucdn.cn/upload/web_pic/default2_thumb.jpg
+
+				解决:
+					在pipelines管道重命名的地方判断一下先,如果这个图片已经修改过名字了,那么就跳过这个图片,
+					相同的url 图片下载下来会覆盖,所以如果是十几张没有设置头像,那么最终只会保存一张图片,修改名字的时候也只修改这一张
+
+					# 替换
+			        try:
+			            os.rename(old_path,new_path)
+			        except:
+			            print('图片已经修改完毕')
+
+
+		-----------------------------------------------------------------
+		BUG:TypeError: expected string or buffer
+			数据类型不正确!
+			解决: 这里应该是 dumps(),搞成了 loads()!
+		-----------------------------------------------------------------	
+
+
+	4.斗鱼存储数据库和数据源
+		4.1在windows下cmd 启动MongoDB服务端:D:\mongodb\bin\mongod --dbpath D:\mongodb\data\db
+
+		4.2在pipeline.py管道文件中添加如下:
+
+			# 数据源的管道
+			class DouyuDataSourcePipeline(object):
+			    def process_item(self, item, spider):
+
+			        item['data_source'] = spider.name
+			        item['data_time'] = str(datetime.utcnow())
+
+			        return item
+			...        
+
+			class DouyuMongoPipeline(object):
+
+			    def open_spider(self, spider):
+			    	# 与MongoDB创建连接
+			        self.client = pymongo.MongoClient(host='127.0.0.1',port=27017)
+			        # 创建 数据库 'Douyu'
+			        self.db = self.client['Douyu']
+			        # 创建表'roomlist'
+			        self.collection = self.db['roomlist']
+
+			    def process_item(self, item, spider):
+			    	# 在插入item之前需要将其处理 为 dict() 类型
+			        self.collection.insert(dict(item))
+			        return item
+
+			注: 1.一般爬取数据周期为3-6个月,看对方是否有更新字段,可以在item添加字段,data_source 和data_time        
+				以方便查看数据爬取时间,
+				2.存储爬取的数据到MongoDB时,操作为:在pipeline管道文件中,导入包,新建类 class 与MongoDB建立连接
+					'创建库','创建collection',定义方法insert(dict(item))
+				3.运行爬虫,查看MongoDB中的数据,show dbs, use Douyu, db.roomlist.find()	
+
+
+
+3.scrapyd进行项目远程部署和监控
+	
+	1.安装:
+		服务端;pip install scrapyd
+		客户端: pip install scrapyd-client
+ 		
+	2.启动服务:
+		sudo scrapyd	
+
+	3.部署文件	scrapy.cfg
+		----------------------------
+		[deploy:scrapyd_Tencent]
+		url = http://localhost:6800/
+		project = Tencent
+		----------------------------
+
+	4.部署爬虫的项目到 服务
+		4.1 cd到项目
+		4.2客户端 :scrapyd-deploy scrapyd_Tencent -p Tencent
+
+
+	5.开启爬虫
+		curl http://localhost:6800/schedule.json -d project=Tencent -d spider=tencent3
+		
+		查看日志log
+
+	6.关闭爬虫 (jonid 要看开启的时候返回的那个)
+		curl http://localhost:6800/cancel.json -d project=Tencent -d job=3ec1111e0a2311e89c5dacbc329a1151
+
+
+
+	注:1.把爬虫运行在服务端,只需输入ip就可 查看爬虫进度,和网络日志
+			只要开启了服务器:scrapyd  就可以访问localhost:6800
+
+		2.部署的时候记得要开启延时 :DOWNLOAD_DELAY = 3
+		3.第四部启动scrapyd客户端 时 ,正确会显示如下;
+			Packing version 1519543006
+			Deploying to project "Tencent" in http://localhost:6800/addversion.json
+			Server response (200):
+			{"version": "1519543006", "project": "Tencent", "spiders": 1, "node_name": "\u201c
+			\u674e\u76f8\u8d6b\u201d", "status": "ok"}
+			注: node_name 是系统自己起的别名 
+
+		4.在windows下运行部署需要安装调度方法 :curl
+			 下载并配置环境变量
+
+		5.开启爬虫任务:注:还是在Ubuntu上面开启爬虫比较好,因为在windows上
+			会报错 : 'builtins.NotImplementedError: spawnProcess not available since pywin32 is not installed.
+			即使安装了 pip3 install pywin32 还是会报错
+			可以登陆 localhost:6800 但是 点击 Jobs 无法查看到进行的任务!
+			但相同的代码在 Ubuntu上就能完美运行! 可以点击 log 查看日志!
+			如果想中断爬虫: 就输入 关闭爬虫的命令
+
+		6.重点: 如果不手动关闭爬虫,就算信息爬取完毕,爬虫仍然是出于启动状态!
+				正常情况下 关闭爬虫过一阵子才会关闭!
+
+
+	-----------------------------------------------------
+	bug: 1.' python 2,和python3  同时装 scrapyd 会默认覆盖掉另一个,即
+			2装了 启动的时候 就会默认使用2的解释器,会报 utf-8 can't decode by ox...
+			解决:卸载 python2 的scrapyd和 scrapyd-client包, pip uninstall scrapyd
+
+
+	------------------------------------------------------
+
+
+
+
+
+4.scrapy-redis的工作机制(重点)
+	
+	scrapy-redis是为了更方便的实现scrapy分布式爬取,而提供了一些以redis为基础的组件(仅有组件)
+
+	scrapy-redis提供了下面四种组件(四种组件意味着这四个模块都要做相应的修改):
+		Scheduler          --> 将待爬取队列按优先级建立一个字典结构
+		Duplication Filter  -->url重复过滤器
+		Item pipeline      -->数据直接存储在redis中
+		Base Spider        -->
+
+
+	1.分布式爬虫
+		安装:pip install scrapy-redis
+
+
+	分布式爬取过程:
+		1.首页向url 发送请求,批量返回数据以及多个 url,调度器调用redis组件
+			对url去重,入队列,将任务交给闲置的机器
+		2.机器在没有任务的时候,是休眠的状态,即等待,等到有爬虫任务信号的时候再进行工作	
+
+		3.数据经过管道的时候 自动调度组件将数据存储到redis中(当然也可以另写管道将数据存储在其他地方)
+
+		4.scrapy框架本身并不支持分布式爬取,但是 scrapy-redis将scrapy queue 换成
+			数据库(也就是redis队列), 从同一个redis-server存放要爬取的request,
+			便能让多个spider去同一个数据库里读取
+
+		注: 理论上可以将多个不同类型的爬虫放在一个调度器中运行,但是由于数据的混乱,以及有些数据是假数据]
+			导致在对数据库 数据进行清洗的时候比较麻烦,可以根据 ,spider.name 来进行清洗
+
+	
+	2.不同组件的功能分析:
+		
+		2.1 Scheduler：		
+			Scrapy中跟“待爬队列”直接相关的就是调度器Scheduler，它负责对新的request进行入列操作（加入Scrapy queue），取出下一个要爬取的request（从Scrapy queue中取出）等操作。它把待爬队列按照优先级建立了一个字典结构，比如：
+
+		    {
+		        优先级0 : 队列0
+		        优先级1 : 队列1
+		        优先级2 : 队列2
+		    }
+			然后根据request中的优先级，来决定该入哪个队列，出列时则按优先级较小的优先出列
+
+		2.2 Duplication Filter
+			scrapy 使用集合实现这个request去重功能,scrapy中把已经发送的request指纹放入到一个集合		
+			中,把下一个request的指纹拿到集合中对比,如果该指纹存在于集合中,说明这个request已经发送过来,如果没有
+			则继续操作
+		**去重原理: 它通过redis的set 不重复的特性 ,scrapy-redis调度器从引擎接受request，将request的指纹存⼊redis的set检查是否重复，
+					并将不重复的request push写⼊redis的 request queue
+
+					引擎请求request(Spider发出的）时，调度器从redis的request queue队列⾥里根据优先级pop 出⼀个request 返回给引擎，引擎将此request发给spider处理。		
+
+			注:所有的请求都是要入消息队列的,消息队列是一个集合 seen = set(),然后再 由Spider发出请求,
+				这就保证了 请求是唯一的 ,请求的数据不重复			
+
+
+		2.3 Item pipeline:
+			引擎将(Spider返回的)爬取到的Item给Item Pipeline，scrapy-redis 的Item Pipeline将爬取到的 Item 存⼊redis的 items queue。
+			修改过Item Pipeline可以很方便的根据 key 从 items queue 提取item，从⽽实现 items processes集群			
+
+
+		2.4 Base Spider	
+			不再使用原有的Spider类,重写的RedisSpider 继承了Spider和RedisMixin 这两个类,
+			RedisMixin是用来从redis读取url的类。
+
+			当我们生成一个Spider继承RedisSpider时，调用setup_redis函数，这个函数会去连接redis数据库，然后会设置signals(信号)：
+
+			 *一个是当spider空闲时候的signal，会调用spider_idle函数，这个函数调用schedule_next_request函数，保证spider是一直活着的状态，并且抛出DontCloseSpider异常。
+
+			 *一个是当抓到一个item时的signal，会调用item_scraped函数，这个函数会调用schedule_next_request函数，获取下一个request。
+									
+			
+
+
+
+5.scrapy-redis数据库配置
+
+
+	启用 去重组件
+
+	启用redis的调度器
+
+	是否可以暂停下载
+
+
+	scrapy -redis 分布式
+    1.指挥端 master :
+        启动redis 数据库
+
+    2.打工 slaver: 
+        连上数据库
+        redis-cli -h master的IP(证明从机器是跟主机器是通的)
+
+
+    3.爬虫spider 
+        1. from scrapy_redis.spiders import RedisSpider
+        2, 继承 RedisSpider
+        3. redis_key = ''
+
+    4. 指挥者 master  发布任务
+   		 redis-cli:lpush mysider:start_urls "url"
+
+
+
+
+
+
+描述:	DEMO1:
+		git上example案例1:dmoz.py,并没有实现分布式爬取,而是普通的
+    		CrawlSpider进行爬取,然后直接存储数据到redis中!
+
+    	操作:	
+    	1 在windows下启动redis客户端 需要:cd 到redis安装目录:
+    		redis-cli.exe
+
+    	2.主从,redis在哪台机器哪台机器就是主,这里我用windows作为主
+    		Ubuntu在终端连上redis客户端: redis-cli -p "192.168.32.1"
+    	
+    	3.在Ubuntu上桌面克隆项目:
+    		git clone https://github.com/rolando/scrapy-redis.git		
+    	
+    	4.在Ubuntu上运行 内部example爬虫爬取 domz黄页,爬取的数据会存储在
+    		windows 中的redis中(主),查看 redis数据库内容: keys * 
+    		会查看到以下内容:
+    			2) "dmoz:requests"     --> zset
+				3) "dmoz:dupefilter"   --> set       ---> smembers key(查看所有set值)
+				4) "dmoz:items"        --> list     
+			用: type key  查看其类型 
+
+
+		DEMO2:
+			myspider_redis.py 
+
+		操作:
+		1.在Ubuntu上运行 第二个爬虫: scrapy crawl myspider_redis
+			会发现爬虫没动,而是启动之后停止在那里,是因为代码里面没有start_urls
+		
+		2.这个时候需要在windows 的redis客户端告知Ubuntu里的爬虫,让它干活!
+			redis 127.0.0.1:6379> lpush myspider:start_urls "http://www.dmoztools.net/"
+
+		3.Ubuntu上的爬虫接到url 立即开始爬取数据,但是只爬一条就又停下来了,
+			原因是这个爬虫代码只能爬一个url ,没有 后续操作	
+
+
+		DEMO3:
+			mycrawler_redis.py (第三个爬虫)	
+		1.将动态生成域名访问的 代码关了,def __init__(self, *args, **kwargs):
+		然后在爬虫里面添加 域名范围:   allowed_domains = ['dmoztools.net']
+		然后运行: scrapy crawl mycrawler_redis
+		
+		BUG'待解决:运行之后就出现下面的情况
+			2018-02-27 15:52:01 [scrapy] DEBUG: Ignoring response <404 http://www.dmoztools.net/public/flag?cat=Shopping%2FClothing&t=shopping&url=http%3A%2F%2Fwww.viciousenterprises.com%2F>: HTTP status code is not handled or not allowed
+			找不到页面资源?为什么?难道是反爬?
+
+
+		2.如果是正常运行,那么 ctrl + C中断任务,查看爬取量
+			然后再重新开启爬取,	验证 SCHEDULER_PERSIST = True
+			即数据中断可以从中断的地方继续爬取!
+
+
+
+   重点: 分布式爬取 --->将代码放在多台机器上跑--> 在setting.py文件中配置参数,
+   			将一个机器的redis 的 ip作为主机器,其他机器的 连接的redis的ip全部都
+   			设置成主 机器上,这样 所有爬取的数据都存储在主 机器上面,而且 ,scrapy-redis
+   			组件 会根据每台机器的闲置情况进行任务分配! 
+
+
+   			问: '我设置分布式爬取的时候, 如果全部机器都是运行同一个爬虫文件,那么 		
+   				'是 它们分别爬取 对应分配给它们的 url  request请求吗? 根据消息队列来进行?
+
+   		============================================================		
+   		setting.py的配置如下:
+
+	   		SPIDER_MODULES = ['example.spiders']
+			NEWSPIDER_MODULE = 'example.spiders'
+
+			USER_AGENT = 'scrapy-redis (+https://github.com/rolando/scrapy-redis)'
+
+			# 1.启用 去重组件
+			DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
+			# 2.启用 redis的调度器
+			SCHEDULER = "scrapy_redis.scheduler.Scheduler"
+			# 3.是否 暂停下载 爬取
+			SCHEDULER_PERSIST = True
+			#SCHEDULER_QUEUE_CLASS = "scrapy_redis.queue.SpiderPriorityQueue"
+			#SCHEDULER_QUEUE_CLASS = "scrapy_redis.queue.SpiderQueue"
+			#SCHEDULER_QUEUE_CLASS = "scrapy_redis.queue.SpiderStack"
+
+			# 5.链接数据库  ip和 port
+			REDIS_HOST = '192.168.32.1'
+			REDIS_PORT = 6379
+
+			# 4.启用redis 数据库管道
+			ITEM_PIPELINES = {
+			    'example.pipelines.ExamplePipeline': 300,
+			    'scrapy_redis.pipelines.RedisPipeline': 400,
+			}
+
+			LOG_LEVEL = 'DEBUG'
+
+			# Introduce an artifical delay to make use of parallelism. to speed up the
+			# crawl.
+			DOWNLOAD_DELAY = 1
+
+
+   		=============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

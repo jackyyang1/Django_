@@ -1,0 +1,575 @@
+Django
+
+
+
+Django：发音为 ['dʒæŋɡəʊ']
+
+
+1.简介:
+	Django是Python语言写的开源web开发框架, Django是python的一个包
+
+	特点:
+		Django的主要目的是简便、快速的开发数据库驱动的网站
+
+		Django强调代码复用, 它拥有许多功能强大的第三方插件
+		Django遵循web开发框架通用的MVC设计架构. 但是有一个专有名词：MVT
+
+
+  	MVC架构图:model , view, controller
+
+  		核心思想:解耦,增强可扩展性和可移植性
+
+
+  	MVT架构: model, view, template
+  		M:模型 读写数据库
+  		V:视图  接收请求  与M和T交互  返回应答
+  		T:模板 提供html模板
+
+  		分模块目的:解耦,尽量降低模块之间的关联
+
+
+2.虚拟环境:
+
+	新包会替换旧包,旧包写的项目就无法运行,解决办法就是按照虚拟环境
+
+	安装虚拟环境包:
+		sudo pip install virtualenv
+		sudo pip install virtualenvwrapper
+
+
+	设置虚拟环境默认生成地址:
+		编辑/home/python目录下的.bashrc文件,添加:
+
+		export WORKON_HOME=$HOME/.virtualenvs
+		source /usr/local/bin/virtualenvwrapper.sh
+
+		配置完,使用source.bashrc使生效
+
+	创建虚拟环境:
+
+		mkvirtualenv py_django(环境名称可以随意取只要能区分)  创建Python2的虚拟环境，名称是py_django
+
+		mkvirtualenv -p python3 py3_django  创建Python3的虚拟环境，名称是py3_django
+
+	查看当前环境位置;
+		which python
+
+
+	使用虚拟环境:
+
+		1.查看和使用虚拟环境:
+			workon 按两次tab
+
+		2.退出:
+			deactivate
+
+		3.删除虚拟环境:
+			deactivate 退出
+			rmvirtualenv py_django 删除
+
+
+		4.虚拟环境下安装包
+			pip install 包名
+
+		5.安装Django包:
+			pip install django==1.8.2
+
+			显示所有安装包:
+				pip list
+
+				按照列的方式来显示包:
+				pip list --format=columns
+
+
+3.创建项目
+	
+	进入虚拟环境:workon django_py3
+
+		cd 到桌面,创建文件夹pytest
+
+		创建django项目名称为test1:
+			django-admin startproject test1(项目名称)
+
+		进入test1 ,查看树状结构:
+			cd test1
+			tree
+
+	文件说明:
+	test1文件夹:项目设置包
+	manage.py:是项目运行的入口文件和管理文件
+	test1;项目配置包，与项目同名，所有的项目配置都在这里(这个是test1文件夹里面的test1)
+	init.py:是一个空文件，作用是这个目录test1可以被当作包使用
+	settings.py:是项目的整体配置文件
+	urls.py:是项目的URL配置文件(入口路由文件)
+	wsgi.py:是web服务器和django框架交互的入口
+
+
+	创建应用:
+		进入test1文件夹之后:
+		python manage.py startapp booktest(应用名称)
+
+		应用目录说明:
+
+		admin.py 后台页面设置文件
+		migrations 数据迁移文件夹
+		models.py 写和数据库相关的内容，对应于MVT中的M
+		views.py 接收请求，进行处理，和M和T进行交互，返回应答，对应于MVT中的V
+		tests.py 用于软件测试用，实际开发中有测试人员来做测试，这个文件不用管
+
+
+	设置项目依赖的python环境
+
+		which python
+		执行结果:
+			/home/python/.virtualenvs/django_py2/bin/python
+
+			将此结果复制,到pycharm中设置项目依赖的python环境
+
+
+	安装应用: (项目创建成功后安装应用才可以使用)
+			在test1中setting中 在installed app里添加'booktest'
+
+
+	开发服务器:
+		运行服务器: (一定要cd到test2文件里面输入下面命令)
+			python manage.py runserver ip:端口
+
+			默认端口为:8000可以不写
+
+			启动成功后会出现本地地址127.0.0.1:8000
+
+			用浏览器访问:localhost:8000 出现it worked 成功!
+
+			停止服务器:ctrl + c
+
+
+4.设计模型:
+	当前项目的开发都是数据驱动的,
+	django里内置了ORM框架:不用sql语句就能对数据库进行操作!curd
+
+	使用django开发:
+
+	1.在models.py中定义模型类
+	2.迁移
+
+
+	1.定义模型类:
+		在pycharm里修改booktest里的models.py文件里定义模型类
+		class BookInfo()
+		class HeroInfo()
+
+		并且在modes.py里面把语言设置成中文:'zh-CN'
+				时区:'Asia/Shanghai'
+				LANGUAGE_CODE = 'zh_CN'
+				TIME_ZONE = 'Asia/Shanghai'
+
+
+-------------------------------------------------------
+
+设计模型:
+	from django.db import models
+
+
+	# 定义模型类,一个类对应于数据库里面的一张表格
+	class BookInfo(models.Model):
+
+		# 一个类的属性对应于表格里面的一个字段
+	    btitle = models.CharField(max_length=20)
+	    bpub_date = models.DateField()
+	    def __str__(self):
+	        return "%d" % self.id
+
+	class HeroInfo(models.Model):
+	    hname = models.CharField(max_length=20)
+	    hgender = models.BooleanField()
+	    hcontent = models.CharField(max_length=100)
+	    hbook = models.ForeignKey(BookInfo)  //外键关联的是一个对象
+	    def __str__(self):
+	        return "%d" % self.id
+-----------------------------------------------------------			
+
+
+		定义好了之后迁移;
+
+		一个表相当于一个类
+		一个类里的属性相当于一个字段
+
+
+	2.迁移由两步完成:
+
+		1.生成迁移文件：根据模型类生成创建表的语句
+		2.执行迁移：根据第一步生成的语句在数据库中创建表 			生成迁移文件命令		
+		生成:
+		python manage.py makemigrations
+		执行:
+		python manage.py migrate
+********************************************
+		迁移不成功!!!怎么出现0001-inital.py模块???
+
+	安装sqliteman软件查看生成的表:(因为是安装软件,所以用sudo)
+		图形化界面:
+		sudo apt-get install sqliteman
+
+		打开:
+			命令行输入:sqliteman
+
+
+5.操作数据(命令操作)
+
+	1.通过shell命令行操作数据
+	2.通过后台表格和表单的界面操作数据
+
+	命令操作:
+		python manage.py shell
+
+
+		1.导入模块:
+			from booktest.models import BookInfo,HeroInfo 
+			from datetime import date (导入时间)
+
+
+
+
+		2.增加数据:
+		book1 = BookInfo()    //(实例化对象)
+		book1.btitle = '天龙八部'
+		book1.bpub_date = date(1982,5,6)
+		book1.save()   (保存数据到数据库)
+		注:到这里数据库里的数据已经有了
+
+		3.修改:
+		book1.btitle = '射雕英雄传'
+		book1.save()
+		注:此时射雕英雄传就取代了 天龙八部
+
+		book2.BookInfo()
+		book2.btitle = '鹿鼎记'
+		book2.bpub_date = date(1990,3,4)
+		book2.save()
+
+
+		英雄:
+		hero1 = HeroInfo()
+		hero1.hname = '郭靖'
+		hero1.hgender = False
+		hero1.hcontent = '相邻十八掌'
+		hero1.hbook = book1  //注:在设置外键的时候是赋值为一个对象!!!
+		hero1.save()
+
+		
+	    hero2.hname = '黄蓉'
+	    hero2.hgender = True    
+	    hero2.hcontent ='打狗棒法'
+	    hero2.hbook = book1  //注:在设置外键的时候是赋值为一个对象!!!
+	    hero2.save() 
+
+	    查找:
+	    books = BookInfo.object.all()  
+
+	    heros = book01.heroinfo_set ---英雄类的小写的方法,通过图书查英雄-(关联查找)
+
+		4.查找: 
+		查找多个:模型类.objects.all()
+		查找一个:模型类.objects.get(id=1)
+
+		books = BookInfo.objects.all()
+	 	books  -->找所有的图书返回一个列表-->[<BookInfo: 1>, <BookInfo: 2>]
+
+		book01 = BookInfo.object.get(id=1)
+		book01  -->查找一本书,返回一个对象--><BookInfo: 1>
+		(注:此book01 是为了区分之前的对象book1)
+
+		5.关联查找,通过对象查找它关联的所有对象
+		对象.关联对象的类名的小写_set.all()
+
+		根据图书查英雄:()
+		heros = book01.heroinfo_set.all()
+		heros
+		结果:	[<HeroInfo: 1>, <HeroInfo: 2>]
+
+		6.删除数据:
+		h.delete()
+		book2.delete()
+		(注:此book2 就是之前创建时候的book2实例对象)
+
+		注:要先创建对象然后在给对象的属性赋值,save成功之后,查看内容的时候是直接在文件夹里的
+			sqlite文件里,打开文件,里面的heroinfo 或者bookinfo里会刷新!
+
+		退出shell:quit() 或者Ctrl + D
+
+
+6.后台管理(图形化)(所有这些操作都是在test2里运行的)
+
+	1.管理界面本地化
+		在pycharm中设置setting为中文,时区为中国上海
+		'zh-CN' ,'Asia/Shanghai'
+		
+	2.创建管理员:
+		python manage.py createsupperuser
+		账号密码之类的随便输只要自己能记住
+		admin ,admin
+
+
+		启动服务器:
+		python manage.py runserver
+
+	3.登录后台:
+
+		管理员登录界面访问:localhost:8000/admin
+
+	4.设置admin.py(注册)
+
+		在booktest中的admin.py文件里操作:
+
+		from django.contrib import admin
+		from booktes.models import BookInfo,HeroInfo(如果报错,但是可以使用就没关系)
+
+		注册:
+			admin.site.register(BookInfo)
+			admin.site.register(HeroInfo)
+
+			注册完了就可以刷新看看;
+			注:在admin界面添加英雄的时候会有外键,勾选即可
+
+		在界面中想显示英雄名,必须要在booktest里的models文件中设置一个str方法
+
+		在后台界面里面可以操作:增删查改!
+
+		在admin里设置class之后 一定要添加在register里刷新之后才能生效
+
+	5.自定义显示页面
+
+		在列表页只列出了str方法的返回值，对象的其它属性并没有列出来，查看非常不方便，
+		Django提供了自定义管理页面的功能，比如列表页要显示哪些值。 打开
+		oktest/admin.py文件，自定义类，继承自admin.ModelAdmin类，属性
+		list_display表示要显示哪些属性
+
+--------------------------------------------------
+		class BookInfoAdmin(admin.ModelAdmin):
+    	list_display = ['id','btitle','bpub_date']
+
+		class HeroInfoAdmin(admin.ModelAdmin):
+	    list_display = ['id','hname','hgender','hcontent']
+
+
+		# Register your models here.
+		admin.site.register(BookInfo, BookInfoAdmin)
+		admin.site
+
+-----------------------------------------------------
+
+
+7.视图及URL(views)
+
+	1.定义视图
+	2.配置URL
+
+
+
+	1.定义视图  (在viems.py文件中定义)
+
+		from django.http import HttpResponse
+
+		def index(request):
+			return 	HttpResponse('<h1>hello</h1>')  //返回一个实例化对象   
+
+	过程:
+		1.当输入地址:localhost:8000/index时
+		2.会向test1里的setting里的root-urlconfig url查找
+		3.转到urls.py文件,url将地址处理:去掉域名,去掉'/' 剩下'index'
+			正则匹配:url('',)
+					url(r'',include('booktest.urls'))
+		4.将此地址复制到 应用booktest里的urls.py文件里(urls.py是新建的!)
+			创建index() 函数,当匹配成功,跳转到views.py文件中	
+		5.views.py文件里调用定义的视图函数index(),返回hello!
+
+	总结:
+		1.通过函数定义,函数的第一个参数是HttpRequest对象,函数需要返回一个Httpresponse对象
+		2.配置url  ROOT_URLCONF -->项目里的urls文件-->应用中的urls文件-->视图函数
+	
+
+		注:一个视图函数要对应一个urls里的连接:
+
+			views.py中:
+				def index(request):
+	    			return HttpResponse('<h1>hello world</h1>')
+
+				def index2(request):
+				    return HttpResponse('<h1>我是第二个视图函数</h2>')
+
+
+			urls.py中:
+				urlpattern = [
+					url(r'^index&',views.index),
+					url(r'^index2&',views.index2),
+				]
+
+		注:如果配置url有两个,那么正则默认会懒惰,如果第一个匹配到了,那么就不会管后面的
+			所以这时候的解决方法是:加一个开头和结尾符号
+	
+
+	3.定义模板:
+
+		配置模板路径: (配置好了就可以在视图中调用了)
+			在settings中设置:
+			TEMPLATES = [
+				'DIRS':[os.path.join(BASE_DIR,'templates')]
+
+		注:base_dir = os.path..会返回项目的路径
+
+		在templates文件夹中 的booktest文件夹中创建index.html文件
+
+		1.在项目目录(booktest文件夹下面)中创建templates(文件夹),然后在里面创建和应用同名的文件夹booktest
+		2.在setting.py文件里面设置模板的路径
+		3.在templates文件夹中的和应用同名的文件夹中创建html文件作为模板
+		4.在视图函数里面用render 方法调用模板文件
+
+		要点:1.在views中,index3()函数里的方法里添加context = {'title':'模板---标题','list':range(9)}
+				作为第三个参数,传进return,用localhost:8000/index3在浏览器中访问!
+
+
+----------------------------------------------------
+循环取值:
+    <ul>
+        {% for i in list %}
+            <li>{{ i }}</li>
+        {% endfor %}
+	</ul>    
+
+
+
+	{% for book in books%}
+		<li>{{ i }}</li>
+	{% endfor %}
+
+
+-------------------------------------------------------
+
+
+
+	通过图书来查找英雄:
+
+
+	注:html文件叫什么名字,访问的时候地址后面就接什么名字:
+		localhost:8000/booklist
+
+	  2.正则里面的分组能够将 第二个值自动传参到视图函数里面去
+	  		url(r'()',)
+
+
+
+8.完成项目:
+
+	1.定义视图:
+
+		def booklist(request):
+		    books = BookInfo.objects.all()
+		    context = {'books':books}
+		    # 第一个books是键，第二个是同名的值
+		    
+		    return render(request,'booktest/booklist.html',context)
+
+	2.在HTML文件中写入代码:
+
+	    <h1>图书列表</h1>
+	    
+	    <ul>  
+	        {% for book in books %}
+	            <li>{{ book.btitle }}</li>
+	        {% endfor %}
+	    </ul>
+
+	    注:每次循环返回的是一个对象,用对象去取里面btitle的值
+
+	 3.配置url:(views)
+	 	    url(r"^booklist$",views.booklist),
+
+
+	 4.在html中添加链接:
+	 		<li><a href="#"> {{ book.btitle }} </a></li>
+
+	 5.区分显示
+	 		<li><a href="{{ book.id }}"> {{ book.btitle }} </a></li>
+	 	localhost:8000/2	
+
+	 6.定义英雄列表函数:
+
+	 	def herolist(request,bid):
+  	 		book = BookInfo.objects.get(id=bid)
+		    # 通过书去找英雄
+		    heros = book.heroinfo_set.all()
+		    context = {'heros':heros}
+		    return render(request, 'booktest/herolist.html',context)
+
+	7.创建html:herolist.html
+		    <h1>英雄列表</h1>
+
+		    <ul>
+		        {% for hero in heros %}
+		            <li>{{ hero.hname }}</li>
+		        {% endfor %}
+		    </ul>
+
+	8.配置url:
+		   # 英雄列表
+   		 url(r'^herolist$',views.herolist),
+   		 此时还缺一个参数:bid
+
+   	9.将herolist.html更改:
+   		<li><a href="herolist/{{ book.id }}"> {{ book.btitle }} </a></li>
+
+   	10.将url更改:
+   		url(r'^herolist/(\d+)$',views.herolist),
+   		注:正则里分组,可以使两个参数都传入herolist,就使得bid被传进去函数中
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,475 @@
+3 天
+	
+	shell语言
+
+	部署项目
+
+		手动部署
+
+		自动化部署
+
+	1、 shell
+
+		1.1  什么是shell
+
+		shell是一个命令解释器，本身是一个程序，/bin/bash
+
+		打开终端，就打开了shell交互命令
+
+		第一个shell脚本
+
+			  1 #!/bin/bash
+			  2 
+			  3 # echo "hello world"
+			  4 
+			  5 pwd 
+
+			  首行是#!/bin/bash
+			  注释是 #
+			  tab键，没有意义，仅仅是好看
+
+		执行shell脚本
+
+			1、bash hello.sh
+
+			2、./hello.sh  把文件改为可执行
+
+			3、source hello.sh 
+
+				前两种会开新进程执行文件，不能共享变量，source会在当前进程中执行文件，能共享变量
+
+	2、变量
+
+		本地变量
+
+		1、name=laowang   值必须是一个整体
+
+		2、name='xiao wang'
+
+		3、name="lao wang"
+
+		echo "name is $name" 双引号可以解析里面的变量，单引号不可以
+
+
+		命令变量  运行命令，返回结果，把结果赋值给左边的变量
+
+		1、name=`pwd`
+
+		2、name=$(pwd)
+
+
+		全局变量
+
+			只能在当前shell和子shell中使用
+
+		1、  name="wang"
+
+			export name
+
+		2、  export name="wang"
+
+
+			修改/etc/profile文件，增加全局变量
+			source /etc/profile
+
+			此时增加的全局变量只能在在当前窗口使用
+
+			如果想在所有的终端使用，必须重启
+
+		查看变量
+
+			1、echo $name
+
+			2、echo "$name"
+
+			3、echo ${name}
+
+			4、echo "${name}"
+
+		删除变量
+
+			unset name
+
+		内置变量
+
+			$0  获取当前执行的shell文件的名称
+			$#  获取当前执行的shell文件时，传入的参数个数
+			$n  $1...$9 获取传入的参数，参数个数大于9，使用${10}
+			$?  获取上一条命令的返回值，0代表成功，其他值都是失败，如果上一条命令运行的是文件，返回的结果是文件中最后一条代码的返回值
+
+
+		字符串截取
+
+			${file:0:5}		从第1个字符开始，截取5个字符
+			${file::5}		从第1个字符开始，截取5个字符
+			${file:5:5}		从第6个字符开始，截取5个字符
+			${file:5}			从第6个字符开始，截取后面所有的字符
+			${file:0-5}		从倒数第5个字符开始，截取后面所有的字符
+			${file:0-6:3}		从倒数第6个字符开始，截取之后的3个字符
+
+		默认值
+
+			echo ${name:-123}  如果name没有值，取默认值，如果有值，取自己的值
+
+			echo ${name+123}   无论name是否有值，都取默认值
+
+	3、表达式
+
+		测试语句  使用echo $? 获取结果，0是成立，1是不成立
+
+			1、test 1 = 1  等号左右必须有空格
+
+			2、[ 1 = 1 ]   括号左右必须有空格
+
+		逻辑表达式
+
+			表达式1 && 表达式2   表达式1成立，表达式2才会执行，表达式1不成立，表达式2不会执行
+
+			表达式1 || 表达式2   表达式1成立，表达式2不会执行，表达式1不成立，表达式2才会执行
+
+		文件表达式
+
+			[ -f hello.sh ] 判断是否是文件
+
+			[ -d hello ] 判断是否是文件夹
+
+			[ -x hello ] 判断文件是否可执行，文件夹也是可执行
+
+		数字比较
+
+			[ 1 -eq 1 ] : =
+
+		字符串比较
+
+			[ abc == abc ]
+
+			[ abc != abc ]
+
+		计算表达式
+
+			1、$((a+b))
+
+			2、let a=a+1
+
+
+	4、常见符号
+
+			重定向符号 >  >>
+
+			echo "hello" > file.txt 覆盖
+
+			echo "hello" >> file.txt 追加
+
+
+			管道符号 |
+
+			echo "hello" | grep hello   把左边的结果当作右边的输入参数
+
+
+			& 
+
+			1、sleep 10 &  将一个命令从前台转到后台执行
+
+			2、bash testfuhao.sh >/dev/null 2>&1  把正确和错误信息都输入到黑洞文件
+
+			ping www.baidu.com >/dev/null 2>&1 &
+
+
+	5、shell编程4剑客
+
+			grep
+
+				grep命令是我们常用的一个强大的文本搜索命令。
+				命令格式详解
+				grep [参数] <文件名>
+
+				grep aaa grep.txt  (区分大小写)
+
+				grep -i aaa grep.txt  (不区分大小写)
+
+				grep -n aaa grep.txt  (显示行号)
+
+				grep -c aaa grep.txt  (只显示匹配的个数)
+
+				grep -v aaa grep.txt  (查找除了aaa的其他数据)
+
+
+			find 
+
+				命令格式：
+				find [路径] [参数] [关键字]
+				参数详解
+				-name 按照文件名查找文件。
+				-type 查找某一类型的文件，
+
+				find . -name "grep.txt"
+
+				find . -type f （查找当前目录下的所有文件）
+
+
+			sed
+
+				命令格式：
+				sed [参数] '<匹配条件> [动作]' [文件名]
+
+
+				动作详解
+				-a		在匹配到的内容下一行增加内容
+				-i		在匹配到的内容上一行增加内容
+				-d		删除匹配到的内容
+				-s		替换匹配到的内容
+
+				替换每行首个匹配内容：
+					sed -i 's#原内容#替换后内容#' 文件名
+
+				sed -i 's#sed#SED#' sed.txt
+				(-i 代表修改文件，如果不写只显示预览效果，不修改文件)
+
+				 's#sed#SED#' (s代表查找的内容替换掉，前面两个#间的内容代表要查找的内容，后面两个#间代表要替换的内容)
+
+				 '1s#sed#SED#2' 
+				 
+				 (最前面的数字代表处理哪一行，如果不写，处理所有行；
+				 后面的数字代表处理哪一列，如果不写，只处理第1列，如果写g，处理所有列）
+
+
+				 
+				在指定行号的下一行增加内容
+					格式：
+					sed -i '行号a\增加的内容' 文件名
+
+					sed -i '1a\hello' sed.txt
+
+
+					sed -i '1,3a\hello' sed.txt （在1到3行，每一行后面增加一行内容）
+
+
+				在指定行号的上一行增加内容
+					格式：
+					sed -i '行号i\增加的内容' 文件名
+
+					sed -i '1,3i\hello3' sed.txt
+
+
+				指定行号删除
+					格式：
+					sed -i '行号d' 文件名
+
+					sed '1,5d' sed.txt
+
+
+			awk
+
+				命令格式：
+				awk [参数] '[ 动作]' [文件名]
+
+				awk '{print $0，$2}' awk.txt (默认吧数据，按照空格或tab，分成多列)
+
+				awk -F ':' '{print NR,NF}' awk2.txt （-F 按照指定的分隔符，拆分数据）
+
+				awk 'BEGIN{FS=":";OFS="--"} {print $1,$6}' awk2.txt （FS指定按照什么分隔符拆分，OFS指定按照什么分隔符输出数据）
+
+
+		控制语句
+
+
+			if
+
+				语法格式
+				if [ 条件 ]
+				then
+				  	指令
+				fi
+
+
+				  1 #!/bin/bash
+				  2 
+				  3 if [ "$1" == "nan" ]
+				  4 then
+				  5     echo "输入的是男" 
+				  6 fi  
+
+			if else
+
+				语法格式
+				if [ 条件 ]
+				then
+				  	指令1
+				else
+				 	指令2
+				fi
+
+					  1 #!/bin/bash
+					  2 
+					  3 read -p "请输入用户名:" user
+					  4 if [ "$use" == "daqiao" ]
+					  5 then
+					  6     echo "登陆成功" 
+					  7 else
+					  8     echo "登陆失败"
+					  9 fi
+
+			elif
+
+				语法格式
+				if [ 条件 ]
+				then
+				  	指令1
+				elif [ 条件2 ]
+				then
+				 	指令2
+				else
+				 	指令3
+				fi
+
+
+					  1 #!/bin/bash
+					  2 
+					  3 read -p "请输入用户名:" user
+					  4 if [ "$user" == "daqiao" ]
+					  5 then
+					  6     echo "登陆成功" 
+					  7 elif [ "$user" == "xiaoqiao" ]
+					  8 then
+					  9     echo "登陆成功2" 
+					 10 else
+					 11     echo "登陆失败"
+					 12 fi
+
+
+			case 语句格式
+				case 变量名 in
+				   值1)
+				      指令1
+				         ;;
+				   值2)
+				      指令2
+				         ;;
+				   值3)
+				 	  指令3
+				         ;;
+				esac
+
+					  1 #!/bin/bash
+					  2 
+					  3 read -p "请输入用户名:" user
+					  4 case $user in
+					  5     "luban")
+					  6         echo "成功"
+					  7         ;;
+					  8     "qihao")
+					  9         echo "成功2"
+					 10         ;;
+					 11     *)
+					 12         echo "失败"
+					 13         ;;
+					 14 esa
+
+			for循环
+
+				语法格式
+				for 值 in 列表
+				do
+				   执行语句
+				done
+
+
+					  1 #!/bin/bash
+					  2 
+					  3 for num in $(seq 6)
+					  4 do
+					  5     echo "数字:$num"
+					  6 done
+
+			while循环
+
+				语法格式
+				while 条件
+				do
+				   执行语句
+				done
+
+					  1 #!/bin/bash
+					  2 
+					  3 count=0
+					  4 while [ $count -le 5 ]
+					  5 do
+					  6     echo "$count"
+					  7     let count=count+1
+					  8 done
+
+			定义函数：
+			函数名(){
+				函数体
+			}
+
+					  1 #!/bin/bash
+					  2 
+					  3 echo "shell $1 $2"
+					  4 echo "shell $#"
+					  5 echo "shell $0"
+					  6 
+					  7 hanshu(){
+					  8 echo "hello hanshu"
+					  9 echo "$1 $2"
+					 10 echo "$#"
+					 11 echo "$0"
+					 12 }
+					 13 
+					 14 hanshu e f g
+
+					 $# $n 在函数内部时，获取的值是调用函数时传递进来的
+
+					 使用source指向脚本时，如果脚本中有函数，可以直接在当前窗口调用函数
+
+				在root账户下，在指定目录中，想使用虚拟环境
+
+				export WORKON_HOME=/home/python/Desktop/code
+
+				source /usr/local/bin/virtualenvwrapper.sh
+
+	发布代码
+
+		准备环境
+
+			在windows中使用xshell连接远端服务器，配置ip、用户名、密码
+
+			通过root用户连接
+
+				vi /etc/ssh/sshd_config
+				把下面内容
+				#PermitRootLogin prohibit-password
+				改为
+				PermitRootLogin yes
+				重启ssh服务
+				service ssh restart
+
+			linux连接linux
+
+				ssh root@192.168.133.141
+
+
+			windows(使用xshell)向远端服务器linux，上传 下载
+
+				xshell连接上服务器，在服务器中安装工具  apt install lrzsz
+
+				上传：rz
+
+				下载：sz 文件名
+
+			linux和linux，上传 下载
+
+				下载：scp python@192.168.133.141:/home/python/Desktop/code/for.sh .
+
+				上传：scp abcdefg python@192.168.133.141:/home/python/Desktop
+
+
+
+
+
+
+
+
+
+
+

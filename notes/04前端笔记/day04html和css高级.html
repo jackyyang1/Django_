@@ -1,0 +1,355 @@
+resume：简历
+
+
+高级：
+
+01-表格的基本使用
+02-权重计算
+03-背景图片
+
+
+
+1.table:   <d
+	tr row 行数
+	td description 内容
+	th head 居中 加粗(通常在头行使用)
+
+	border-collapse：collapse； 边框合并，要在父类中设置！
+	 设置微软雅黑，可以使1变大
+
+
+    跨列合并: colspan  找到第几行的哪个内容, colspan="几列";多余的删除
+    跨行合并: rowspan  找到第几行的那个内容, rowspan = "几行";多余的删除
+
+    <th colspan="5">基本情况</th>
+    <!-- 将第一行的5列弄成1列，并且居中加粗，使用colspan="5"合并 -->
+
+    <!-- 因为第2行最完整，根据图片要求将第二行宽度以%形式切分 -->
+    <td width="15%">姓    名</td>
+
+
+	注：设置td   <d
+		
+
+	个人简历案例	；
+	width：15%
+	width：25%
+			15%
+			25%
+			20%
+	1.图片会默认跟文字底部对齐，可以设置浮动解决：float：left；图片居中		
+	2.图片是放在表格中，文字若设置了缩进text-indent，那么图片也会缩进，解决此需要单独将text-indent：0px；
+
+
+2.权重选择器 <d
+
+	选择器的权重：           	权重值
+	1.标签选择器				1
+	2.类和伪类选择器 			10
+	3.id选择器  				100
+	4.行内式写法				1000
+	5.！important 修饰的属性 10000
+	6.层级/并级选择器的权重会累加(.box a层级)或者（.box .con1并级）有空格！
+	7.组选择器不会累加（.box,.con1）有逗号！	
+
+	注：前提是选择同一个标签，才能比较权重
+		检查代码划线原因: 
+		1.注释掉了 2.权重值高的把低的覆盖了
+
+
+3.背景图片
+
+	注:插入图片如果图片小于父元素大小默认为平铺!!!
+
+	div.box$*2  <d
+	背景图片：
+	background-images: url("./images/bg.jpg")
+	平铺（图片比容器小）
+	background-repeat：no-repeat（不平铺，即只占一个图片位置）
+
+	位置
+	background-position：center left；9中组合
+	background-position：20px 10px；
+	或者：
+	background-position-x：20px；
+	background-position-y：50px；  
+
+	background：全部设置(盒子中引入图片)
+	     /* 图片路径(注意加引号)   平铺模式  水平方向偏移位置
+        垂直方向偏移位置  背景颜色 */
+        background:url("./images/bg.jpg") no-repeat 20px 50px green;
+	注意覆盖问题！
+	
+	案例：
+	直接选中图片检查！太小的话，左上标选中！
+	在检查里面微调，把代码改成微调的值！只要是带px的都可以微调
+
+注：插入图片跟插入背景图片是不一样的
+	background：url("./images/1.jpg") no-repeat -50px -100px;
+	
+	background-images:url("./images/1.jpg") no-repeat -50px -100px;
+
+  	电影排行案例：sprite雪碧图是一列图片，所以要调位置！
+  	雪碧图的作用是：减少服务器请求次数，注意每个小图标的规律！
+  	
+  	边框样式：实线：solid
+  			虚线：dashed
+  			点线：dotted
+
+  		border：1px dotted black；
+		注意权重值的问题，防止被覆盖！
+	        /* 每一行的雪碧图标都是从第一个开始，所以从第二个开始要上移 */
+        .list .con2{
+            background-position-y: -70px;
+
+
+5.天天生鲜
+	准备工作：
+	index.html
+	images
+	css：
+		其中css里面有reset.css和main.css
+		reset初始化默认属性，main做外链式主选择器
+
+		将字体设置为默认的字体大小：
+		h1,h2,h3,h4{
+	    font-size: 100%
+		}
+			
+	index.html:
+		<link rel="stylesheet" href="./css/reset.css">
+		<link rel="stylesheet" href="./css/main.css">
+	
+	第一部分： <d
+		1.眉头：
+
+		要点：
+			0.在外链式导入的时候css文件是两个,要先导入reset将其格式化!
+			1.在用外链式导入css的时候,如果涉及浮动,可以在类名里直接浮动 <div class="user fl">
+			2.清除焦点的高亮: outline:none;
+			3.搜索框中插入图片:
+				background:url("../images/1.jpg") no-repeat 11px 11px;    #引号能够使系统识别快速查找
+			4.文本框缩进用:text-indent: xxxpx;
+			5.去掉边框的圆角:border-radius:0px;
+			6.画圆:border-radius:50%;
+			7.块元素内行元素居中:设置块元素text-align:center;
+			8.调整行内元素高度:line-height:xxpx;
+			9.设置好大小的块元素居中:margin:0 auto;		(		上下不动,左右自适应)
+
+			10.商品分类左边的小雪碧图标,指向图标,雪碧图标在行内元素background中插入,指向图标在上一级列表background里面插入,这样就可以一个块里面插两种不同的图片,
+			其中 雪碧图标插入方法可以如下使用:
+				第二行:
+				.typelist li:nth-child(2) a{
+					background-position: 30px -138px;
+				}
+								像素位置: 左右  上下!!!
+
+			11.幻灯片区域:添加定位属性  子集相对自己定位
+				position:relative;
+			12.幻灯图片要使用绝对定位:
+				position:absolute;
+			13.幻灯片里的小指向标也使用绝对定位:
+				position:absolute;
+			14.小圆点是绝对定位
+
+			15.商品区域要设置块元素:
+				.bannergoods{
+					display:block;
+				}
+			16.单个图片商品要设置宽高和右下边框
+
+			17.最后的关于我们的  列表,要转化为行内块,让其自动排序
+				display:inline-block;
+
+	第二部分：
+		2.logo和搜索框：
+
+
+	第三部分：
+		3.商品分类：
+		3.1设置标题文字：字体，颜色，行高，背景色，宽，高，居中
+	
+			    border-radius: 50%;磨圆！！！！！
+
+		3.2分类：
+			1.ul>(li>a[href="#"]{首页}+span{|})*3
+			2.浮动解决行内间距
+			3.span（设置间隔：margin：0 20px；）
+	
+		4.商品分类及轮播器
+			商品详情列表：
+				.slide{}
+			.slide_con{}
+			注意列表边框问题，合并边框
+			
+
+			hover可以改背景色
+
+***********************************************************
+  1.小技巧:
+    /* 设置字体，可以使1变大 */
+    font-family: "Microsoft YaHei";
+	.table th{}
+
+
+2.table要点:
+    /* 表格边框合并 */
+    border-collapse: collapse;
+
+    <!-- table.table>(tr>th{$}*5)*5 -->
+	.table{}
+
+3.input自带边框属性
+	/* 清除边框 */
+	input{
+   	 border: 0;
+	}
+
+
+
+    属性	                              含义
+background-color:	            设置背景颜色
+background-image:url(images/bg.jpg)	设置背景图片地址
+background-repeat: no-repeat	设置背景图片如何重复平铺
+background-position:水平 垂直	设置背景图片的位置
+background-attachment:fixed	设置背景图片是固定还是随着页面滚动条滚动
+连写 background: url("images/bg.jpg") no-repeat 0px 0px green;
+
+
+
+
+注:子元素从父元素身上继承下来的权重值是0,任何一个标签的权重都比他高!
+
+
+*************************************************************
+
+
+*************浮动之后的行内块   和主动设置的行内块有什么区别？
+他们的默认属性都是什么啊？
+
+
+
+
+
+
+
+
+
+
+
+首页|首页|
+div  a标签 span|
+
+div ul li span|   可以浮动居中吗
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,501 @@
+产品经理负责大体产品设计，架构师cto负责框架的搭建
+
+cto--》web开发
+
+洋葱头浏览器
+
+
+主键：保证数据的唯一性，有序性
+
+
+-   子查询
+
+
+  -  需要在小括号之中，优先执行
+
+
+-- 数据库备份与恢复
+
+  指令：mysql -uroot -p python_info > ./Desktop/python_restore.sql
+    将python_info 备份到当前路径下的桌面，重命名为python_restore.sql
+
+
+   DROP TABLE IF EXISTS 'areas';
+   # 防止数据污染！！
+
+   写入数据，上锁--》写完解锁
+
+
+
+-- 数据库设计
+
+ 订单表
+   -- 商品信息
+   -- 顾客信息
+   -- 支付信息
+   -- 配送信息
+   
+     -- 三范式
+      第一范式（1NF）：分开来存
+
+      第二范式（2NF）：必须有主键，字段必须完全依赖于一个主键
+
+      第三范式（3NF）:
+
+
+    E-R模型
+      E:entry,实体
+      R:relation
+   
+      1对1
+      1对多
+      多对多
+
+
+
+- 子查询 select .... select 
+	- 需要在小括号之中, 优先执行
+	- 是一个能够独立执行的sql语句
+
+	- 标量子查询  子查询得到的结构 是一行一列
+	-- 查询班级最高身高的学生信息
+	select * from students where height = (select max(height) from students);
+	
+	-- 查询学生的平均身高
+	select avg(height) from students;
+	-- 查询出高于平均身高的信息
+	select * from students where height > (select avg(height) from students);
+
+- 列级子查询  查询的结果是一列多行
+	select ... from students where (子查询语句);
+
+     - 查询哪些学生在班级里
+	select * from students where cls_id in (select id from classes);
+     注：查询有学生在班级里也可以用下面的方法  但是有局限性
+	select * from students where cls_id in (1,2,3);
+
+	- 查询哪些班级有学生  查找的是班级的名字
+	select classes.name from classes where id in (select cls_id from students);
+    注：这里后面的条件判断不能用 students.cls_id 因为，前面没有事先声明students这个表，系统就不认识
+
+
+
+	- 通过连接查询来实现，查找有学生的班级
+	select c.name from classes as c inner join students as s on c.id = s.cls_id;
+	 # 用distinct去重
+	select distinct c.name from classes as c inner join students as s on c.id = s.cls_id;
+
+	-- 查找哪些班级没有学生
+	select classes.name from classes where id not in (select cls_id from students);
+
+- 行级子查询 
+	- 查找班级年龄最大,身高最高的学生
+	select * from students where (height,age) = (select max(height),max(age) from students);
+     注：如果当前表里没有同时具备，年龄最大，身高最高的人，那么查找的是空！
+       可以先设置最大年龄的人为最高身高，然后再用此方法查找
+         update students set height = 190 where id = 4;(将刘德华设置为最大身高) 
+      注注： 判断条件可以用括号包起来，一起判断（height，age）    
+
+
+	- 表级子查询 子查询语句查询出来的结果是多行多列
+	-- select * from students;
+	# 错误 select * from (select * from students);  -- 需要起别名
+	 注：如果直接这种把 多行多列的查询结果作为 查询对象，会出现与系统的表重名的情况，所以要改名！
+	select * from (select * from students) as temp;
+
+
+
+- 数据库备份与恢复
+	- 备份 将某一台主机的数据完成一个副本的备份 mysqldump 是liunx下的指令
+	mysqldump -uroot -p python_info > ./Desktop/python_restore.sql
+      注：打开备份的文件，可以看到 drop table if exists 'classes';
+          为了避免备份时造成数据污染，备份写入数据的时候，数据会上锁，写完之后才解锁！
+           注：备份的时候记得文件后缀要写  .sql
+
+    - 恢复  通过xxx.sql 文件将数据恢复到指定的数据库
+	1. 通过客户端连接数据库 创建一个新的数据库
+	 注;这里要新新建一个 叫做 python_restore 的空数据库，以便进行第二部
+	2. 通过xxx.sql 文件将数据恢复到指定的数据库
+	mysql -uroot -p python_restore < ./Desktop/python_restore.sql
+     注：这里是 恢复数据的时候 把输出重定向 反向输出！！！ <,6得飞起！
+         不能反过来 输入指令！，因为权限不够！！
+
+
+- 数据库设计
+程序猿  码农  张工 王工
+cto  --> web开发 
+
+订单表 
+	-- 商品信息 
+	-- 顾客信息
+	-- 支付信息
+	-- 配送信息 --> 配送员
+
+	- 三范式 
+	  第一范式（1NF）：强调的是列的原子性，即列不能够再分成其他几列。
+	  第二范式（2NF）：首先是 1NF，另外包含两部分内容，一是表必须有一个主键；二是没有包含在主键中的列必须完全依赖于主键，
+	                  而不能只依赖于主键的一部分,即字段必须完全依赖一个主关键字。
+      第三范式（3NF）：首先是 2NF，另外非主键列必须直接依赖于主键，不能存在传递依赖。
+   					  即不能存在：非主键列 A 依赖于非主键列 B，非主键列 B 依赖于主键的情况。
+
+
+	- E-R模型
+	   E表示entry，实体
+	   R表示relationship，关系
+       关系的类型包括包括一对一、一对多、多对多
+*******************************************************
+
+- 类似京东商城
+  1.创建数据库:
+    create database jing_dong;
+    use jing_dong
+  2.创建表：
+  create table goods (
+    id int unsigned primary key auto_increment not null,
+    name varchar(150) not null,
+    cate_name varchar(40) not null,
+    brand_name varchar(40) not null,
+    price decimal(10,3) not null default 0,
+    is_show bit not null default 1,
+    is_saleoff bit not null default 0
+  );
+
+  3.插入数据:
+    insert into goods values ();
+	insert into goods values ();
+    ...
+   
+
+-- 求所有商品的平均价格,并且保留两位小数
+select round(avg(price),2) from goods;
+   结果如下：
+    +---------------------+
+	| round(avg(price),2) |
+	+---------------------+
+	|             5570.57 |
+	+---------------------+
+
+
+
+-- 查询所有价格大于平均价格的商品，并且按价格降序排序
+select * from goods where price > 5570.57 order by price desc;
+- 标量子查询
+select * from goods where price > (select round(avg(price),2) from goods) order by price desc;
+ 注; 标量子查询即，有1列多行满足条件的查询，price 字段下面满足条件的有多个高于平均价的行 ！
+
+
+-- 查询类型cate_name为 '超级本' 的商品名称、价格
+select name,price from goods where cate_name = "超极本"; 错子 ‘极’
+select name,price from goods where cate_name = "超级本";
+ 结果如下：
+    +-----------------------------+----------+
+	| name                        | price    |
+	+-----------------------------+----------+
+	| x240 超极本                 | 4880.000 |
+	| u330p 13.3英寸超极本        | 4299.000 |
+	| svp13226scb 触控超极本      | 7999.000 |
+	+-----------------------------+----------+
+
+
+- 显示商品的种类
+select distinct cate_name from goods;
+  按组来显示商品种类
+select cate_name from goods group by cate_name;
+  注：按组显示 会造成，组按一定的顺序排序
+
+ 注：凡是 涉及到要去重复的，都可以用分组来显示，见distinct 见分组group！！！
+
+
+-- 显示每种类型的商品的平均价格
+select cate_name, avg(price) from goods group by cate_name;
+
+-- 查询每种类型的商品中 最贵、最便宜、平均价、数量
+select cate_name, max(price), min(price),avg(price), count(*) from goods group by cate_name;
+
+结果如下：
+	+---------------------+------------+------------+---------------+----------+
+	| cate_name           | max(price) | min(price) | avg(price)    | count(*) |
+	+---------------------+------------+------------+---------------+----------+
+	| 台式机              |   9188.000 |   2899.000 |  4821.2500000 |        4 |
+	| 平板电脑            |   3388.000 |   1998.000 |  2724.6666667 |        3 |
+	| 服务器/工作站       |  28888.000 |   4288.000 | 11363.0000000 |        4 |
+	| 游戏本              |   8499.000 |   8499.000 |  8499.0000000 |        1 |
+	| 笔记本              |   4999.000 |   2799.000 |  3732.3333333 |        3 |
+	| 笔记本配件          |   6999.000 |     99.000 |  2399.0000000 |        3 |
+	| 超级本              |   7999.000 |   4299.000 |  5726.0000000 |        3 |
+	+---------------------+------------+------------+---------------+----------+
+
+
+- 查询每种类型中最贵的商品信息，用内连接的方法实现
+select * from goods inner join (select cate_name, max(price) as max_price, min(price),avg(price), count(*) from goods group by cate_name) as temp on goods.cate_name = temp.cate_name and goods.price = temp.max_price;
+ 注; 这里将商品表 和 按 cate_name 组分类的 最高价格的表 内连接在一起！ 然后根据 cate_name,和 max_price 的唯一性 确定了，最高商品的详细信息！
+ 注：下面这个是完全体！！
+select goods.* from goods inner join (select cate_name, max(price) as max_price, min(price),avg(price), count(*) from goods group by cate_name) as temp on goods.cate_name = temp.cate_name and goods.price = temp.max_price;
+
+注：我自己写的时候把，min（price）那些全都删除了，只留下了必要的max
+   select goods.* from goods inner join (select cate_name,max(price) as max_price from goods group by cate_name) as temp on temp.cate_name = goods.cate_name and temp.max_price = goods.price;
+   结果如下：
+        +----+---------------------------------------+---------------------+------------+-----------+---------+------------+
+		| id | name                                  | cate_name           | brand_name | price     | is_show | is_saleoff |
+		+----+---------------------------------------+---------------------+------------+-----------+---------+------------+
+		|  2 | y400n 14.0英寸笔记本电脑              | 笔记本              | 联想       |  4999.000 |        |            |
+		|  3 | g150th 15.6英寸游戏本                 | 游戏本              | 雷神       |  8499.000 |        |            |
+		|  7 | svp13226scb 触控超极本                | 超级本              | 索尼       |  7999.000 |        |            |
+		|  9 | ipad air 9.7英寸平板电脑              | 平板电脑            | 苹果       |  3388.000 |        |            |
+		| 13 | imac me086ch/a 21.5英寸一体电脑       | 台式机              | 苹果       |  9188.000 |        |            |
+		| 17 | mac pro专业级台式电脑                 | 服务器/工作站       | 苹果       | 28888.000 |        |            |
+		| 18 | hmz-t3w 头戴显示设备                  | 笔记本配件          | 索尼       |  6999.000 |        |            |
+		+----+---------------------------------------+---------------------+------------+-----------+---------+------------+
+
+
+
+
+\G在SQL语句中最后面 不需要加 ; 能够让查询的结果集合中的每一列单独成行显示
+    结果如下：
+      *************************** 1. row ***************************
+	        id: 2
+	      name: y400n 14.0英寸笔记本电脑
+	 cate_name: 笔记本
+	brand_name: 联想
+	     price: 4999.000
+	   is_show: 
+	is_saleoff:  
+	*************************** 2. row ***************************
+	        id: 3
+     ....
+
+- 通过行级子查询也可以实现该需求 666
+select * from goods where (cate_name, price) in (select cate_name, max(price) from goods group by cate_name);
+
+66666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666
+*******************************************************************************
+
+- 创建商品分类表
+create table if not exists goods_cates(
+    id int unsigned primary key auto_increment,
+    name varchar(40) not null
+);
+
+ select cate_name from goods group by cate_name;
+
+- insert into xx表 () values (), (),...; 需要手动写比较麻烦
+- insert ... select
+- 子查询语句
+- 在sql中所有的语句都称为查询语句**************************************
+- 结构化查询语言
+- 查询到的数据的字段需要和插入数据表指定的字段一一对应
+insert into goods_cates (name) select cate_name from goods group by cate_name;
+  
+   结果如下：
+     	+----+---------------------+
+		| id | name                |
+		+----+---------------------+
+		|  1 | 台式机              |
+		|  2 | 平板电脑            |
+		|  3 | 服务器/工作站       |
+		|  4 | 游戏本              |
+		|  5 | 笔记本              |
+		|  6 | 笔记本配件          |
+		|  7 | 超级本              |
+		+----+---------------------+
+   注： 将一个表goods 按分类的cate_name 作为数据 （name）插入到新表goods_cates里面！！！
+        节省了大量时间，要记住这种插入的格式，alter into goods_cates (name) select...... 
+        这里select 后面的数据是修饰（name）的！！！
+
+- 连接更新
+ 
+- 根据goods_cates表来更新goods表
+update goods as g inner join goods_cates as c on g.cate_name = c.name set g.cate_name = c.id;
+
+ 注：上述方法概述为：更新+内连接+判断+ set！！！
+     上述方法的目的是将 goods 里的cate_name 变成 goods_cates 里面对应的id！！
+
+- 修改表结构
+alter table goods change cate_name cate_id int unsigned not null;
+ 注：将 goods表中的 cate_name 改为 cate_id,这TMD就是前面的方法！没变！注意这个int顺序不能变，变一点就加不进去！
+
+
+***************************************************************************
+- brand_name 品牌名称
+- 创建表 并且插入数据 一步到位  create ... select
+- 如果查找的数据的字段和表中的字段名不一样 此时会在表中创建一个新的名字一样的字段,将查询到的数据一一对应的自动创建的字段上面
+- 给brand_name 起别名, 或者将goods_brands表中的name 修改为brand_name
+create table goods_brands(
+	id int unsigned primary key auto_increment,
+    name varchar(40)
+) select brand_name as name from goods group by brand_name;
+
+注：在创建goods_brands 表的时候就将 goods 里面的brand_name 当做name 插入进goods_brands表中
+    具体方法： create table 表（） select brand_name as name from goods group...
+
+
+-  根据goods_brand表 来更新 goods表
+update goods as g inner join goods_brands as b on g.brand_name = b.name set g.brand_name = b.id;
+
+   更新后的结果大致如下：
+      select * from goods;
+		+----+---------------------------------------+---------+------------+-----------+---------+------------+
+		| id | name                                  | cate_id | brand_name | price     | is_show | is_saleoff |
+		+----+---------------------------------------+---------+------------+-----------+---------+------------+
+		|  1 | r510vc 15.6英寸笔记本                 |       5 | 2          |  3399.000 |        |            |
+		|  2 | y400n 14.0英寸笔记本电脑              |       5 | 7          |  4999.000 |        |            |
+		|  3 | g150th 15.6英寸游戏本                 |       4 | 9          |  8499.000 |        |            |
+		|  4 | x550cc 15.6英寸笔记本                 |       5 | 2          |  2799.000 |        |            |
+		|  5 | x240 超极本                           |       7 | 7          |  4880.000 |        |            |
+	注;之前插入数据的时候，cate_name ,brand_name这些都是汉字，现在通过内连接的表把他们修改成了对应的数字	
+
+
+- 修改表结构
+alter table goods change brand_name brand_id int unsigned not null;
+注：因为在最开始建表goods的时候 brand_name 这一字段的 约束条件时按 name的条件来建的，
+    现在要把它改为按数字 的数据类型的！ 所以必须修改表结构！
+
+
+- 连接多张表完成查询
+- 显示商品的完整信息
+- 连接多张表直接inner join 不需要and 或者 ,
+select * from goods as g inner join goods_cates as c on g.cate_id = c.id inner join goods_brands as b on g.brand_id = b.id;
+   坐连接也可以实现
+select * from goods as g left join goods_cates as c on g.cate_id = c.id left join goods_brands as b on g.brand_id = b.id;
+  结果如下：
+      +----+---------------------------------------+---------+----------+-----------+---------+------------+----+---------------------+----+--------+
+| id | name                                  | cate_id | brand_id | price     | is_show | is_saleoff | id | name                | id | name   |
++----+---------------------------------------+---------+----------+-----------+---------+------------+----+---------------------+----+--------+
+|  1 | r510vc 15.6英寸笔记本                 |       5 |        2 |  3399.000 |        |            |  5 | 笔记本              |  2 | 华硕   |
+|  2 | y400n 14.0英寸笔记本电脑              |       5 |        7 |  4999.000 |        |            |  5 | 笔记本              |  7 | 联想   |
+|  3 | g150th 15.6英寸游戏本                 |       4 |        9 |  8499.000 |        |            |  4 | 游戏本              |  9 | 雷神   |
+|  4 | x550cc 15.6英寸笔记本                 |       5 |        2 |  2799.000 |        |            |  5 | 笔记本              |  2 | 华硕   |
+
+  
+  - inner join
+
+insert into goods (name,cate_id,brand_id,price)
+values('惠普LaserJet Pro P1606dn 黑白激光打印机', 12, 4,'1849');
+ 注; 将一个商品存入goods表，其中他的cate_id=12， 在goods_cates表中找不到对应的！
+
+
+- left join 左外连接查询
+select * from goods as g left join goods_cates as c on g.cate_id = c.id left join goods_brands as b on g.brand_id = b.id;
+
+- 外键  约束constraint
+- 对于已经存在的表 设置外键约束--> 更新
+- 给goods表中的 brand_id 添加外键约束, goods表已经存在, 修改约束应该是用alter sql 语句
+- references: 关联或者引用
+alter table goods add foreign key(brand_id) references goods_brands(id);
+  注：给主键中的brand_id 添加外键 goods_brands
+    +------------+------------------+------+-----+---------+----------------+
+	| Field      | Type             | Null | Key | Default | Extra          |
+	+------------+------------------+------+-----+---------+----------------+
+	| id         | int(10) unsigned | NO   | PRI | NULL    | auto_increment |
+	| name       | varchar(150)     | NO   |     | NULL    |                |
+	| cate_id    | int(10) unsigned | NO   |     | NULL    |                |
+	| brand_id   | int(10) unsigned | NO   | MUL | NULL    |                |
+	| price      | decimal(10,3)    | NO   |     | 0.000   |                |
+	| is_show    | bit(1)           | NO   |     | b'1'    |                |
+	| is_saleoff | bit(1)           | NO   |     | b'0'    |                |
+	+------------+------------------+------+-----+---------+----------------+
+
+
+alter table goods add foreign key(cate_id) references goods_cates(id); # 错误有问题
+
+  注：如果 主键中存在无法与外键匹配的 字段 （cate_id = 12) ，上面添加goods_cates(id)外键就会报错23000！
+      ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`jing_dong`.`#sql-d6d_1a`, CONSTRAINT `#sql-d6d_1a_ibfk_2` FOREIGN KEY (`cate_id`) REFERENCES `goods_cates` (`id`)) 
+
+
+能否在创建表的时候就设置外键约束?
+- 在添加 cate_id外键约束的时候 必须是goods_cates表已经被创建才能够添加外键约束
+create table goods(
+    id int primary key auto_increment not null,
+    name varchar(40) default '',
+    price decimal(5,2),
+    cate_id int unsigned,
+    brand_id int unsigned,
+    is_show bit default 1,
+    is_saleoff bit default 0,
+    foreign key(cate_id) references goods_cates(id),
+    foreign key(brand_id) references goods_brands(id)
+);
+
+- 删除外键
+- alter table goods drop foreign key 外键约束的名字;
+- 如何获取外键约束的名字
+show create table goods;
+      查询结果如下：
+		  | goods | CREATE TABLE `goods` (
+		  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+		  `name` varchar(150) NOT NULL,
+		  `cate_id` int(10) unsigned NOT NULL,
+		  `brand_id` int(10) unsigned NOT NULL,
+		  `price` decimal(10,3) NOT NULL DEFAULT '0.000',
+		  `is_show` bit(1) NOT NULL DEFAULT b'1',
+		  `is_saleoff` bit(1) NOT NULL DEFAULT b'0',
+		  PRIMARY KEY (`id`),
+		  KEY `brand_id` (`brand_id`),
+		  KEY `cate_id` (`cate_id`),
+		  CONSTRAINT `goods_ibfk_1` FOREIGN KEY (`brand_id`) REFERENCES `goods_brands` (`id`),
+		  CONSTRAINT `goods_ibfk_2` FOREIGN KEY (`cate_id`) REFERENCES `goods_cates` (`id`)
+		) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8 |
+
+  注;找到 要删除的外键：goods_ibfk_2 ,然后当做foreign key 删掉
+
+alter table goods drop foreign key 外键约束的名字;
+
+-- 外键名称从表的创建语句中来查看
+alter table goods drop foreign key goods_ibfk_1;
+alter table goods drop key brand_id;
+
+ 注：删除一个外键要删两次：第一次 分别是上面的代码！！！
+
+
+
+
+学习在python调用 mysql (数据的增删改查)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

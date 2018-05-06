@@ -1,0 +1,353 @@
+
+
+微信公众号开发
+
+
+
+	
+微信公众号分三种:
+	订阅号:(个人)
+
+	服务号:(企业)
+		媒体,组织,政府-->每个月只能推送4次
+
+	企业号:(政府,事业单位)
+		...
+
+
+
+认证之后的订阅号-->具备部分接口能力
+认证之后的服务号-->具备所有接口能力
+
+
+自己注册微信公众号!!!
+
+
+
+用程序扩展公众号平台满足不了用户需求的情况!
+
+
+
+公众号消息会话:
+						http请求→
+	客户端----->微信服务器---------->公众号开发者服务器
+
+
+
+
+	URL:
+
+	token:令牌(随机字符串)
+
+	EncodingAESKey:
+
+	微信生成签名:
+		对要转发的数据与token一起进行计算,得到签名                                            
+
+	验证签名:	
+		从请求的数据中取出签名
+		计算需要的数据,连同token一起计算的
+		计算后的签名值,与请求中的签名值对比
+		如果相同,证明请求来自微信,否则非法请求
+
+
+
+测试平台登陆地址 http://mp.weixin.qq.com/debug/cgi-bin/sandbox?t=sandbox/login
+
+
+
+公网ip地址:80/wechat
+
+
+
+
+	@route("/wechat")
+	def WeChat():
+		pass
+
+	app.run(host="127.0.0.1",port=8001)
+
+
+
+将80端口进行复用:
+
+	微信请求             nginx服务器            
+	101.200.170.171--->101.200.170.171:80---->@route("/wechat")
+	/wechat8001								  def WeChat():
+													pass
+
+											  app.run(host="127.0.0.1",port=8001)
+													
+	------------------------------------------------------
+	微信测试服务器:
+		IP :101.200.170.171
+
+	账号:s80xx  (8013)
+	密码:123456a
+
+	微信服务器配置 URL:   http://101.200.170.171/wechat80xx
+				  token :自己制定(TOM)	
+
+
+	第一步 登录: ssh s80xx@101.200.170.171     #(联网)
+	第二步 创建自己的文件夹: mkdir  xx
+	第三部:workon 虚拟环境名称添加:  source ~/.bashrc
+	-------------------------------------------------------
+
+
+把本地文件复制到远程服务器中:
+	scp 源文件  目标文件
+
+	scp ./wechat.py s8013@101.200.170.171:~/自己的目录名/
+
+
+验证服务器地址的有效性:	
+	
+	参数               说明
+	signature         微信加密签名
+	timestamp         时间戳
+	nonce             随机数
+	echostr           随机字符串
+
+
+
+xmltodict的使用:
+	xmltodict.parse(xml_str)
+
+	两层字典的嵌套
+
+
+
+加代码:
+	...
+	if request.method == 'GET':
+
+		xml_str = request.args.get("echostr")
+		return echostr
+
+	else:	    # post方式也会验证三个参数
+		# post
+		# 获取请求体xml消息数据
+		xml_str = request.data
+
+		#解析xml
+		xml_dict = xmltodict.parse(xml_str)
+		req_dict = xml_dict("xml")
+
+		# 取出消息类型
+		msg_type = req_dict["MsgType"]
+
+		if msg_type == 'text':
+			# 表示文本类型消息
+			# 构造回复的消息
+			req_dict = {
+
+				"xml":{
+
+					"ToUserName":req_dict.get("FromUserName"),
+					"FromUserName":req_dict.get("ToUserName"),
+					"CreateTime":int(time.time()),
+					"MsgType":"text",
+					"Content":req_dict.get("Content"),
+				}
+			}	
+		else:	
+			# 构造回复的消息
+				req_dict = {
+
+				"xml":{
+
+					"ToUserName":req_dict.get("FromUserName"),
+					"FromUserName":req_dict.get("ToUserName"),
+					"CreateTime":int(time.time()),
+					"MsgType":"text",
+					"Content":i love him,
+				}
+			}	
+
+			xml_reqs_str = 
+
+
+
+
+
+微信授权:
+
+	粉丝---->访问weixin.com--微信服务器-->返回授权页面-->
+	-->粉丝点击确认,表示授权-->微信服务器-->重定向redirect  /index?coe=xxx
+	-->/index?code=xxx--->网页服务器-->def index()-->获取code参数,用code请求微信
+	-->获取access_token-->凭借access_token-->获取用户信息
+	-->
+
+
+
+
+
+1.在微信中配置域名:
+	网页账号:授权回调页面域名:www.itcastcpp.cn
+
+2.将网址转换
+	import urllib
+	urllib.quote(http...http...)
+
+	resp_url = xxx
+
+
+
+
+rm -r 目录名   之所以能删除目录是因为递归!
+
+
+
+
+
+我不要脸!
+
+
+
+
+
+
+
+
+
+
+准备10个过年话题!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

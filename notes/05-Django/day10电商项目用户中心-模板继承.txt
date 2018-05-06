@@ -1,0 +1,895 @@
+
+day10电商项目
+
+
+查看mysql配置:sudo vi /etc/mysql/mysql.conf.d/mysqld.cnf
+Ubuntu系统监视器:gnome-system-monitor
+
+
+安装包:django-redis-session
+pip install django-redis-session==0.5.6
+
+
+***另一种:django-redis(今天我们用这种方法来将session放在redis
+	中,注意要在虚拟环境下安装包)
+	pip install django-redis
+
+
+django缓存配置-redis (setting中)
+
+设置session放在缓存中
+
+指定登录页面的url地址
+LOGIN_URL = ''
+----------------------------------------------------------
+代码如下:
+
+	#django 缓存数据--》redis
+	CACHES = {
+	    "default":{
+	        "BACKEND":"django_redis.cache.RedisCache",
+	        "LOCATION":"redis：//127.0.0.1:6379/6",
+	        "OPTIONS":{"CLIENT_CLASS":
+	                   "django_redis.client.DefaultClient",
+	                   }
+	              }
+	        }
+
+	# 设置session存放在缓存中
+	SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+	SESSION_CACHE_ALIAS = 'default'
+---------------------------------------------------------
+
+
+用get('next',reverse()) 获取登录后要跳转到的next地址
+
+
+1.模板继承
+
+	css文件都一样,可以用模板继承实现代码复用
+
+-----------------------------------
+base父模板:
+	网页顶部欢迎信息
+	{% block title %}
+		内容包含在预留块中可以被覆盖
+	{% endblock title %}
+
+    {# 网页顶部引入文件 块 #}
+    {% block topfiles %}{% endblock topfiles %}
+
+    {# 网页顶部欢迎信息 块#}
+	{% block header_con %}
+		<div class="header_con">
+			<div class="header">
+				<div class="welcome fl">欢迎来到天天生鲜!</div>
+				<div class="fr">
+					<div class="login_info fl">
+						欢迎您：<em>张 山</em>
+					</div>
+					<div class="login_btn fl">
+						<a href="login.html">登录</a>
+						<span>|</span>
+						<a href="register.html">注册</a>
+					</div>
+					<div class="user_link fl">
+						<span>|</span>
+						<a href="user_center_info.html">用户中心</a>
+						<span>|</span>
+						<a href="cart.html">我的购物车</a>
+						<span>|</span>
+						<a href="user_center_order.html">我的订单</a>
+					</div>
+				</div>
+			</div>		
+		</div>
+	{% endblock header_con %}
+
+
+	网页顶部搜索框
+	{# 搜索框信息块 #} 
+	{% block search_bar %}
+		<div class="search_bar clearfix">
+			<a href="index.html" class="logo fl"><img src="images/logo.png"></a>
+			<div class="search_con fl">
+				<input type="text" class="input_text fl" name="" placeholder="搜索商品">
+				<input type="button" class="input_btn fr" name="" value="搜索">
+			</div>
+			<div class="guest_cart fr">
+				<a href="#" class="cart_name fl">我的购物车</a>
+				<div class="goods_count fl" id="show_count">1</div>
+			</div>
+		</div>
+	{% endblock search_bar %}
+
+	网页主体内容块
+	% block body %}{% endblock body %}
+
+    {# 网页底部html元素块 #}
+    {% block bottom %}{% endblock bottom %}
+
+	网页底部引入文件块
+    {# 网页底布引入文件块 #}
+    {% block bottomfiles %}
+    
+    {% endblock bottomfiles%}
+------------------------------------
+预留原则:
+	1.把网站首页拿过来,从上往下看
+	2.对于所有网页都具有的相同的部分,要放在父模板base.html中,对于子模板里不同的部分要在父模板中预留块,
+		并且将父模板中的对应内容删除
+	不同的预留,相同的保留,因为不同的地方要在子模板中用借用父模板预留块
+	来进行添加
+	3.对于比较小的几个页面相同的地方,单独拿出来弄一个父模板
+
+
+	四个父模板:
+	{注册,登录,首页,详情页,列表页} 继承base 
+
+	{购物车 , 提交订单, 用户中心-3页面} 继承base_no_cart
+
+	{用户中心3个页面(个人信息,订单,地址)}  继承base_user_center
+
+	{详情,列表页}  继承base_detail_list
+
+
+1.1改三个模板:
+	父模板新建好之后就可以根据父模板来改之前的login,register,index页面
+	没有的在子模板添加,有的从父模板继承
+	-------------------------------------------
+	代码如下:
+	{% extends 'base.html' %}
+
+	{% block title %}天天生鲜-登录{% endblock title %}
+	{# 对于父模板有的内容，而子模板没有的 就用空的块去重写清空内容 #}
+	{% block header_con %}{% endblock header_con %}
+	{% block search_bar %}{% endblock search_bar %}
+
+	{% block body %}
+		<div class="login_top clearfix">
+			<a href="index.html" class="login_logo"><img src="{% static 'images/logo02.png' %}"></a>
+		</div>
+
+		<div class="login_form_bg">
+			<div class="login_form_wrap clearfix">
+				<div class="login_banner fl"></div>
+				<div class="slogan fl">日夜兼程 · 急速送达</div>
+				<div class="login_form fr">
+					<div class="login_title clearfix">
+						<h1>用户登录</h1>
+						<a href="#">立即注册</a>
+					</div> <div class="form_input">
+
+						<form method="post" action="{% url 'user:login' %}">
+	                        {% csrf_token %}
+							<input type="text" name="username" value="{{ username }}" class="name_input" placeholder="请输入用户名">
+							<div class="user_error">输入错误</div>
+							<input type="password" name="pwd" class="pass_input" placeholder="请输入密码"> <div class="pwd_error">输入错误</div>
+							<div class="more_input clearfix">
+								<input type="checkbox" name="remember" {{ checked }}>
+								<label>记住用户名</label>
+								<a href="#">忘记密码</a>
+							</div>
+							<input type="submit" name="" value="登录" class="input_submit">
+						</form>
+
+					</div>
+				</div>
+			</div>
+	        {#  不能登录时，提醒用户错误信息 #}
+	        {{ errmsg }}
+		</div>
+	{% endblock body %}
+
+
+	注:记得要在每个子模板需要用到static的地方 加:{%load staticfiles%}
+
+
+1.2改用户中心的三个模板:
+	先将static中的用户中心,info,order,site三个copy到templates
+	然后根据base_user_center对其进行删改
+
+1.3定义类视图:
+	class UserInfoView(View):
+	class UserOrderView(View):
+	class AddressView(View):
+
+1.4用户中心激活显示:
+				<h3>用户中心</h3>
+			<ul>
+				<li><a href="{% url 'user:user' %}"{% if page == 'user' %} class="active" {% endif %}>· 个人信息</a></li>
+				<li><a href="{% url 'user:order' %}" {% if page == 'order' %}class="active" {% endif %}>· 全部订单</a></li>
+				<li><a href="{% url 'user:address' %}" {% if page == 'address' %}class="active" {% endif %}>· 收货地址</a></li>
+			</ul>
+
+
+
+
+
+2.装饰器:
+
+
+	def func_decorator(func):
+		def wrapper():
+			print('wrapper')
+			func()
+		return wrapper
+
+	#@func_decorator
+	def func1():
+		print('func1')
+
+	# func_decorator(func1)()
+	if __name__ == '__main__':
+		# func1()
+		# 手动调用
+		func_decorator(func1)()
+
+
+
+--------------------------------------------------
+
+3.登录装饰器login_required(重点)
+	
+	作用:
+		login_required装饰器会判断登录的状态:如果没登录,重定向到login,
+		如果已经登录,则正常执行视图
+
+	注:如果表单提交不设置action="{url 'user:login'}",login_required默认重定向跳转的地址是:http://localhost:8000/accounts/login/?next=/user/
+		需要在setting中指定一下跳转地址:
+		# 指定URL登录的地址
+		LOGIN_URL = '/user/login'
+
+
+	from django.contib.auth.decorator import login_required
+
+	@login_required
+	def my_view(request):
+		pass
+
+ 	1.我们用的是类视图,不能在视图类直接使用
+ 	在url里手动调用login_required装饰器:
+ 		url(r'^$',login_required(UserInfoView.as_view()),name='user'),
+
+
+ 	2.如果表单不设置action=""地 址,提交表单时 是向浏览器提交数据
+
+ 	3.获取登录后要跳转到的next地址,默认跳转到首页,如果获取不到,那就执行第二个参数,跳转到登录页:
+ 		next_url = request.GET.get('next',reverse('goods:index'))
+
+    4.手动调用login_required装饰器，相当于放的是login_required装饰器的返回值
+   		url(r'^$',login_required(UserInfoView.as_view()),name='user'), # 用户中心-信息页
+
+    5.在项目同级目录下创建包utiles,创建mixin.py,创建类:
+
+		from django.views.generic import View
+		from django.contrib.auth.decorators import login_required
+
+
+		class LoginRequiredView(View):
+
+		    @classmethod
+		    def as_view(cls,**initkwargs):
+		        # 调用 View父类的as——view方法
+		        view = super(LoginRequiredView,cls).as_view(**initkwargs)
+		        # 调用登录判断装饰器
+		        return login_required(view)
+
+
+		注:	1.在此类中继承的是View,重写了 as_view() 方法,也就是未登录的用户继承LoginRequiredView
+			2.此类的作用是,凡是需要登录之后才能访问的页面,就让它直接继承 LoginRequiredView() ,而不是View,      
+			3.已经登录的用户继承的是View
+
+	6.将设置好的装饰器,拿到views.py中使用:
+		from utils.mimix import LoginRequiredView
+
+		class UserInfoView(LoginRequiredView,View):
+		class UserOrderView(LoginRequiredView,View):
+		class AddressView(LoginRequiredView,View):
+
+		这个弄好之后,就可以在url配置成原来的,让它自己调用:
+		    url(r'^$', UserInfoView.as_view(), name='user'),  # 用户中心-信息页
+			url(r'^order$', UserOrderView.as_view(), name='order'),  # 用户中心-订单页
+			url(r'^address$', AddressView.as_view(), name='address'),  # 用户中心-地址页
+
+
+
+
+ 	6.5多继承
+ 		6.5.1在utils里mixin.py中再协议一个类如下,让它继承object:
+
+		# 另外一种写法，继承object
+		class LoginRequiredMixin(object):
+		    @classmethod
+		    def as_view(cls,**initkwargs):
+		        # 调用view父类的as_view方法
+		        view = super(LoginRequiredMixin,cls).as_view(**initkwargs)
+		        # 调用登录判断装饰器
+		        return login_required(view)
+
+
+		6.5.2在类视图写成这样,让用户中心视图同时继承两个类:
+		class UserInfoView(LoginRequiredMixin,View):        
+			注:多继情况下,它会按顺序取搜索调用父类方法
+
+	 	6.5.3 print(UserInfoView.__mro__) 可以查看调用顺序-->类方法!调用
+	 	登录过程,调用搜索顺序:
+	 	(<class 'user.views.UserInfoView'>, <class 'utils.mixin.LoginRequiredMixin'>, <class 'django.views.generic.base.View'>, <class 'object'>)
+	 	原理:多继承的情况下,继承的类里如果定义了super方法,那么super会调用父类方法,一直往上找,直到找不到为止
+
+	 	6.5.4三种写法对比:
+		 	# class UserInfoView(View):
+			# class UserInfoView(LoginRequiredView,View):
+			class UserInfoView(LoginRequiredMixin, View):
+
+			url(r'^$', UserInfoView.as_view(), name='user'),  # 用户中心-信息页
+			这里发生的如下:
+				UserInfoView.as_view(),调用as_view方法,自己没有,找父类LoginRequiredMixin 调里面的as_view方法,它又继承的
+				是View里的as_view方法,最终调用的此as_view方法
+
+
+ 	登录装饰器的三种写法:推荐第三种
+ 	相当于多加了一个功能,需要功能的时候直接调,不需要的时候直接继承的是View
+ 	无论继承的是哪个,返回的都是view
+
+ 	对于没有登录的用户,将其放入login_required装饰器
+
+ 	python console :蟒蛇控制台
+
+
+
+4.用户中心页面:
+	zip code 邮编
+
+	1.获取地址 get() 
+	2.通过表单提交添加地址 post()
+
+
+
+
+	1.获取地址:
+
+	    def get(self,request):
+        """显示"""
+        user = request.user  # 获取登录的用户
+        # 获取用户的默认地址
+        try:
+            address = Address.objects.get(user=user,is_default=True)
+        except Address.DoesNotExist:
+            # 用户不存在默认地址
+            address = None
+
+        return render(request,'user_center_site.html',{"page":"addr",'address':address})
+
+	2.通过表单提交添加地址:
+		2.1接收参数
+		2.2校验参数
+		2.3获取用户user
+		2.4获取地址
+		2.5添加地址:
+	        #  添加地址
+	        Address.objects.create(user=user,
+	                               addr=addr,
+	                               receiver=receiver,
+	                               zip_code=zip_code,
+	                               phone=phone,
+	                               is_default=is_default)
+	        
+            #返回应答:跳转到地址页面
+       		return redirect(reverse('user:address'))  # get方式	
+
+	注:
+	1.重定向redirect是以get 方式访问
+	2.第一次添加的地址,刷新获取,得到的是默认地址,第二次再添加地址就不是默认地址了
+	3.添加完地址可以在mysql数据库进行查询已经添加的地址:
+		mysql> select * from df_address \G;
+
+
+
+5.在user的model.py文件中自定义模型类,用来获取用户地址():
+
+	5.1模型管理器类:
+					继承
+	AddressManager --- >models.Manager
+
+			继承         继承
+	Address -->BaseModel --> models.Model	
+
+	两个类之间的关联:
+	模型管理器对象:
+	objects = AddressManager()
+	self.model--->获取self对象所在的模型类
+
+    ----------------------------------------------------
+    class AddressManager(models.Manager):
+    """地址模型管理器类"""
+    def get_default_address(self,user):
+        """获取user用户的默认地址"""
+        try:
+            address = Address.objects.get(user=user,is_default=True)
+        except Address.DoesNotExist:
+            # 用户不存在默认地址
+            address = None
+        #返回address
+        return address
+
+    在地址模型类中实例化管理器对象:    
+    class Address(BaseModel):
+        ...
+    	objects = AddressManager()
+    	...
+
+
+    注:在model中自定义地址管理器类的目的是,给地址的模型管理器objects添加获取用户默认地址的功能!	
+    -----------------------------------------------------
+    5.2动态处理地址模型管理器类: self 替换对象
+
+    	class AddressManager(models.Manager):
+		    """地址模型管理器类"""
+        	# 1.改变原有查询的结果集
+    # 		2.添加额外的方法，操作self所在的模型类对应的数据表 （增删改查）
+		    def get_default_address(self,user):
+		        """获取user用户的默认地址"""
+		        #self.model -->获取self对象所在的模型类
+		        # 在这里self 就相当与是Address.objects
+		        try:
+		            address = self.get(user=user,is_default=True)
+		        except self.model.DoesNotExist:  # ??为什么这个地方self.model 相当于是Address？？
+		            # 用户不存在默认地址
+		            address = None
+		        #返回address
+		        return address
+
+		# Address.objects.get_default_address(user)
+
+
+
+总结:
+	1.凡是有方法是重复的,就可以考虑将其封装在模型管理器类里
+	2.自定义管理器类可以根据不同的对象来创建,创建好之后直接使用,不需迁移之类的操作
+
+
+********************************************
+问题:
+ get() 有时候获取不到返回none,有时候获取不到报错
+********************************************
+
+
+6.用户中心页面:(重点)
+	历史浏览记录:
+
+	1.当用户浏览某一个商品的时候(调用详情页视图),需要添加历史浏览记录
+
+	2.访问用户中心信息页的时候,需要获取历史浏览记录
+
+	3.保存历史浏览记录数据:保存商品的id
+
+	4.历史浏览记录保存地址:redis
+	注:使用redis保存历史浏览记录,对于一些频繁操作的数据,可以考虑保存在redis中
+
+	保存数据:文件.mysql数据库,redis数据库,cookie,session
+
+	5.保存历史浏览记录使用redis中的哪一个数据类型?key-value
+		string
+		hash 
+		lister
+		set
+		zset
+
+		方法一:
+		所有用户的历史浏览记录用一条来保存,(hash):hset key 属性1 值1 属性2 值2... 
+			history: user_用户id:'1,2,3' user_用户id1:'2,3,4'  
+				hget history user_1->'1,2,3'->[1,2,3]    # 还要进行额外的字符串排序操作
+				
+		方法二:
+		每个用户的历史记录用一条数据来保存: (list):lpush key value1 value2
+			history_用户id:[1,2,3]
+			lrange history_1 0 4
+			lpush history_1 5
+			用 lrange key 0 -1 就可以获取到值
+
+		注:1.方法二不需要额外的字符串操作	
+			2.如果用户在访问第5个商品之后,又返回去浏览第1个商品,那么就需要把之前的商品1先删除,然后再重新添加进去
+
+	-------------------------------------------------------------		
+	代码如下:
+
+        from redis import StrictRedis
+        # 第一种获取redis连接方法 (StrictRedis）
+        # conn = StrictRedis(host='127.0.0.1',port=6379,db=6)
+        # 第二种获取redis数据库连接对象 （StrictRedis）
+        conn = get_redis_connection('default')
+        # 获取用户历史浏览记录id
+        history_key = 'history_%d'%user.id
+        # 获取用户最新浏览的5个商品id
+        sku_ids = conn.lrange(history_key,0,-1)  # [3,2,1]
+
+        # 第一种查询历史浏览商品信息写法：(只需遍历一次)
+        # 根据id获取商品信息 :select * from df_goods_sku where id in (3,2,1)
+        # skus = GoodsSKU.objects.filter(id_in=sku_ids)
+        
+        # skus_li = []
+        # for sku_id in sku_ids:
+        #     for sku in skus:
+        #         if sku.id == sku_id:
+        #             skus_li.append(sku)
+
+        # 第二种获取历史浏览商品信息：（需要遍历五次）
+        skus = []
+        for sku_id in sku_ids:
+            # 根据sku_id获取商品的信息
+            sku = GoodsSKU.objects.get(id=sku_id)
+            # 添加到skus列表中
+            skus.append(sku)
+
+        # 组织模板上下文
+        context = {
+            'skus':skus,
+            'page':'user',
+            'address':address
+            }
+
+
+        前端页面:
+
+           {% for sku in skus %}
+        	<li>
+                <a href="detail.html"><img src="{{ sku.image.url }}"></a>
+                <h4><a href="detail.html">{{ sku.name }}</a></h4>
+                <div class="operate">
+                    <span class="prize">￥{{ sku.price }}</span>
+                    <span class="unit">￥{{ sku.price }}/{{ sku.unite }}</span>
+                    <a href="#" class="add_goods" title="加入购物车"></a>
+                </div>
+            </li>
+            {% empty %}
+                无历史浏览记录
+            {% endfor %}    
+
+
+
+        注:1.根据id获取商品信息 :select * from df_goods_sku where id in (3,2,1)
+        	这种sql语句在mysql数据库查询数据的时候,无论你顺序是怎么样的,它都会按默认排序显示给你
+
+
+	--------------------------------------------------------
+
+问:session最大存储的数据量是多少?
+
+
+7.UserInfoView()
+
+	返回redis数据库的链接对象 strctredis (有两种方法)
+	conn = get_redis_connection('default')
+
+
+	商品图片导入:
+	src="{{ sku.image.url }}"
+
+
+
+
+
+-----------------------------------------------------
+
+明日预习:
+
+1.FastDFS
+	上传图片到服务器而不是本地
+	django的二次开发
+
+2.python对接fastdfs
+
+3.购物车保存记录
+
+文档:
+ fastdfs  安装教程
+
+
+*************************************************************
+
+django日常代码注意点:
+	
+	1.接收前端数据,校验数据的时候一定要用[]包起来判断
+		if not all([receiver,addr,phone]):
+			return render(request,'')
+
+	2.图片动态导入默认图片:
+		<img src='{{ sku.image.url }}'>
+
+
+   	3.user = request.user  # 获取登录的用户(利用每次用户发起的请求,来获取用户对象)	
+
+    4.返回应答:跳转到地址页面
+    	return redirect(reverse('user:address'))  # get方式
+
+    5.<dd>木有地址啦</dd>	
+
+    6.对于前端页面中,要通过判断来显示的内容,要准备两份,各自显示:
+
+		<ul class="user_info_list">
+		<li><span>用户名：</span>{{ user.username }}</li>
+    
+        {% if address %}
+		<li><span>联系方式：</span>{{ address.phone }}</li>
+        <li><span>联系地址：</span>{{ address.addr }}</li>
+
+        {% else %}
+		<li><span>联系方式：</span>木有</li>
+		<li><span>联系地址：</span>木有</li>
+        {% endif %}
+		</ul>
+
+	7..凡是有方法是重复的,就可以考虑将其封装在模型管理器类里	
+
+*************************************************************
+
+每日BUG:
+	1.如果出现 login(request,user)报错,那就是redis数据库没开启
+		开启:sudo redis-server /etc/redis/redis.conf
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------
+日常找bug:
+1.语法错误
+2.逻辑错误
+-----------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

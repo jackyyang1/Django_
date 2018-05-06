@@ -1,0 +1,181 @@
+
+爱家租房
+
+	1.O2O-->online to offline(线上线下)
+
+
+
+
+
+		我的订单
+		实名认证
+		客户订单
+		退出
+
+		注册: 验证码,三方发送短信
+
+
+	2.  前后端不分离--->返回完整的拥有数据的页面
+			优点-->对seo优化友好
+
+		前后端分离(ajax)---> 后端只提供数据,不负责前端页面处理
+		 		优点-->后端复用接口
+				缺点-->对seo优化不友好
+
+		SEO优化(搜索引擎优化)
+
+		搜索引擎的原理是:爬虫在后台爬取关键字-->建立关键词和网址的关联(建立索引关系)-->保存在索引数据库-->
+			-->
+
+
+	3.确定数据库表结构
+		manager = Manager(app)  通过runserver来启动服务器
+
+
+	4.flask-session扩展:
+
+
+	5.以版本的方式拆蓝图
+
+		from ihome.api_v1_0 import api  # 以启动文件目录作为当前目录
+
+	6.utils 目录(utility) 存放:自己实现的公用组件,(函数,类,模块)	
+		libs 目录(library)  存放: 第三方开发的工具包(函数,类,模块)  完整的库
+
+	7.日志 logging (python的标准日志模块)	
+		flask使用日志
+		app.logger()   # 记录日志信息
+		current_app.logger()
+
+		日志等级:
+			error 错误
+			warning 警告
+			info 通知
+			debug 测试
+
+			current_app.logger.error("数据发生了错误")
+			current_app.logger.warning()
+			current_app.logger.info()
+			current_app.logger.debug()
+
+			如果设置的 日志级别为debug(),那么下面几个都会出现
+
+
+	8.建表:
+		House
+		HouseFacility   多对多  就需要第三张表
+		Facility(设施)
+
+		HouseImage
+		area_info
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

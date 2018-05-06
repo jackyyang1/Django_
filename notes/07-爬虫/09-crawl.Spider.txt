@@ -1,0 +1,614 @@
+
+scrapyday02
+
+
+第二种spider--->crawl.Spider
+
+
+overridden : 越控 ,使优先于
+crawl: 爬行
+	
+------------------------------------------------------------------------	
+概念介绍:
+
+通过下面的命令可以快速创建 CrawlSpider模板 的代码：
+	scrapy genspider -t crawl tencent tencent.com
+
+	它是Spider的派生类，Spider类的设计原则是只爬取start_url列表中的网页，而CrawlSpider类定义了一些规则(rule)来提供跟进link的方便的机制，从爬取的网页中获取link并继续爬取的工作更适合。
+
+	CrawlSpider使用rules来决定爬虫的爬取规则，并将匹配后的url请求提交给引擎	
+
+
+
+1.底层原理
+	
+	基本爬虫basic:
+	继承于scrapy.Spider 类里封装了 Request()方法 用以请求数据
+		请求数据的时候不会过滤去重 url,所以会重发
+
+
+	CrawlSpider
+	继承于 class scrapy.spiders.CrawlSpider
+
+	1.1它会自动翻页(并且去重)
+		提取规则:rule
+		class scrapy.spiders.Rule()
+			link_extractor ---> 提取链接的对象
+			callback    ------> 回调
+			follow=None ------> 链接是否跟进提取,即如果发现还有符合要求的链接,它还会继续跟进请求
+
+	1.2.LinkExtractors 提取链接的对象:专门提取链接		
+		接收一个Response对象,并返回一个scrapy.link.Link对象
+		class scrapy.LinkExtractors()
+			allow=()  符合条件
+			deny=()   不允许(反向),优先级
+			...
+
+		class scrapy.linkextractors.LinkExtractor(
+		    allow = (),     ------>重点
+		    deny = (),
+		    allow_domains = (),
+		    deny_domains = (),
+		    deny_extensions = None,
+		    restrict_xpaths = (),
+		    tags = ('a','area'),
+		    attrs = ('href'),
+		    canonicalize = True,
+		    unique = True,
+		    process_value = None
+		)	
+
+		主要参数：
+
+			allow：满足括号中“正则表达式”的URL会被提取，如果为空，则全部匹配。
+
+			deny：满足括号中“正则表达式”的URL一定不提取（优先级高于allow）。
+
+			allow_domains：会被提取的链接的domains。
+
+			deny_domains：一定不会被提取链接的domains。
+
+			restrict_xpaths：使用xpath表达式，和allow共同作用过滤链接。
+
+		--------------------------------------------------------------------	
+		提取规则操作: scrapy shell 'http://www.baidu.com'
+			print response
+
+			1.	取所有 ".com"
+				from scrapy.linkextractors import LinkExtractors
+				links = LinkExtractors(allow=r'.com')
+				res = links.extract_links(response) # extract_links()方法是固定的
+				print(res) -->最终获取到的是所有的".com"结尾的链接
+
+			2. 取所有包含 "hao123"
+				links = linkextractors(allow=r'hao123')	
+				res = links.extract_links(response) # extract_links()方法是固定的
+				print(res)
+			
+				结果如下:
+				[Link(url='http://www.hao123.com', text='hao123', fragment='', nofollow=False)]
+
+
+
+
+2.Tencent2 案例(主要看CrawlSpider自动翻页!,一页数据监测不出来)
+	
+
+	--------------------------------------------------------------
+	知识点:
+		1.CrawlSpider去重的原理:
+		  在 CrawlSpider这个类里封装了如下方法:
+
+		    def _requests_to_follow(self, response):  ---->根据的请求方法
+		        if not isinstance(response, HtmlResponse):
+		            return
+		        seen = set()  ---->去重
+		        ...
+
+
+
+
+	--------------------------------------------------------------
+
+
+	1.Tencent3.py:
+
+		CrawlSpider与basicSpider不同的地方就是这个rules,它可以更方便爬取链接类的数据
+
+		rules = (
+		
+			# 提取符合我们要求的连接
+			# 默认值
+			1.如果有callback回调 ,默认为 false,不提取
+			2.如果没有callback回调,默认为 true ,继续提取
+
+			Rule中三个参数:
+        	1. link --> LinkExtractor
+	        2.回掉函数
+	        3.follow 是否跟进
+	        Rule(LinkExtractor(allow=r'start=\d+'), callback='tencent_item',follow=True),
+	        Rule(LinkExtractor(allow=r'start=\d+'), callback='tencent_item', follow=False), # 最后一个永远都是false
+			)	
+
+
+		注:0.Rule()本质上是递归:1.提取符合规则的链接 2.发送请求,获取响应对象(response)
+
+
+		   1.千万记住 callback 千万不能写 parse，再次强调：由于CrawlSpider使用parse方法来实现其逻辑，如果覆盖了 parse方法，crawl spider将会运行失败。
+			 因为父类中封装了 def parse(),如果这里写 parse(),那么会重写父类方法,造成无法解析
+
+		   2.如果到了最后一个页面(此处为详情页),那么 follow=False ,因为后面没有数据可以再拿了 
+
+		   3.Field()跟字典的区别是 内部封装了断言,会报错!
+
+		重点:   
+			如果数据够多,它的执行顺序是,先执行完一个页面的列表页爬取,
+			然后开始爬取'列表页'对应的'详情页'的数据,等这个	页面的数据全部爬完,跳到另一个'列表页'
+			又开始了一个'列表页'的爬取,就这样一直爬(而且,是从前往后,从后往前一起爬的,因为 在第一个'列表页'里,如果点击到最后一页,那么会跳转
+				出新的 '列表页',然后一直从后往前,直到与从前往后爬的数据重合,即全部列表页都爬完了   → ←) 
+
+		============================================================================
+
+		------------------------------------------------------------------------	
+		两种爬虫的对比:
+
+			对比项目        scrapy.Spider                    scrapy.CrawlSpider           
+
+			创建          Scrapy genspider 名  域名范围      scrapy genspider -t crawl xx xx.com 
+
+			导库          scrapy                            1.from linkextractors import LinkExtractors  
+														    2.from scrapy.spider import CrawlSpider,Rule 
+
+			类继承        scrapy.Spider                      CrawlSpider
+
+			新增            无                               rules = (Rule(LinkExtractor),callback='函数',follow=False)
+
+			解析方法       第一个函数必须是 def parse()        没有系统必须的,都是自定义的函数
+
+
+
+
+	  注:1.两种spider 各自有各自的特点: 使用的时候需要根据公司业务逻辑来决定
+
+		 2.如果获取列表页的数据,就在rules(callback=) 中回调获取列表页的方法
+			同理如果只想获取详情页的数据,而不想获取 列表页的,那么就不写列表页的callback
+		 
+		 3.在 CrawlSpider中,不能使用 meta= 将'列表页'和'详情页' 的数据放在一个页文件中,因为太乱,没办法区分
+
+
+
+
+
+3.中间件:------>添加中间件是为了反爬!
+
+		----------------------------------------------------
+		反反爬虫!!!
+		通常防止爬虫被反主要有以下几个策略：
+
+			动态设置User-Agent（随机切换User-Agent，模拟不同用户的浏览器信息）
+
+			禁用Cookies（也就是不启用cookies middleware，不向Server发送cookies，有些网站通过cookie的使用发现爬虫行为）
+
+			可以通过COOKIES_ENABLED 控制 CookiesMiddleware 开启或关闭
+			设置延迟下载（防止访问过于频繁，设置为 2秒 或更高）
+
+			Google Cache 和 Baidu Cache：如果可能的话，使用谷歌/百度等搜索引擎服务器页面缓存获取页面数据。
+
+			使用IP地址池：VPN和代理IP，现在大部分网站都是根据IP来ban的。
+
+			使用 Crawlera（专用于爬虫的代理组件），正确配置和设置下载中间件后，项目所有的request都是通过crawlera发出。
+
+
+		部分Reques源码:
+			class Request():
+				def __init__(self, url, callback=None, method='GET', headers=None, body=None, 
+                 cookies=None, meta=None, encoding='utf-8', priority=0,
+                 dont_filter=False, errback=None):
+					meta = None
+
+				self.cookies = cookies or {} --->cookie是一个字典 # 以前我们学的cookie 是一个字符串	
+				self.headers :Headers(headers or {}, encoding=encoding)
+				self._meta = dict(meta) if meta else None
+
+			method: 请求一般不需要指定，默认GET方法，可设置为"GET", "POST", "PUT"等，且保证字符串大写
+
+			meta: 比较常用,是在不同的请求之间传递数据使用的,它是字典dict类型	
+			dont_filter: 表明该请求不由调度器过滤。这是当你想使用多次执行相同的请求,忽略重复的过滤器。默认为False。
+
+			如果报错 500-->腾讯封ip--->downloaderMiddleware(设置代理)
+		
+		Response:
+			class Response(object_ref):
+    			def __init__(self, url, status=200, headers=None, body='', flags=None, request=None):
+
+		-------------------------------------------------------------------------
+	-------------------------------------------------------------------	
+	操作:
+		middlewares.py:
+		删除原来的中间件,写入下面代码 :from settings import USER_AGENT_LIST
+
+		1.user_agent
+		class UseragentMiddleware(object):
+		    # 找到 拦截request的方法
+		    def process_request(self, request, spider):
+
+		        # 随机生成user_agent
+		        user_agent = random.choice(USER_AGENT_LIST)
+
+		        # 给了系统request
+		        request.headers['User-Agent'] = user_agent
+
+		        print(user_agent)
+
+
+		2.proxy中间件
+		#  3.工作 买 调用第三方的服务接口 api url: 20000个 一次性
+		#     自己搭建web服务器; 拨号: api
+		class ProxyMiddleware(object):
+		    def process_request(self, request, spider):
+		        # 1.获取代理池中的代理
+		        # 以前proxy = {"http":"ip:port"}
+		        proxy = "http://183.207.194.221:3128"
+
+		        # 2.给了request
+		        request.meta['proxy'] = proxy
+
+
+		3.1有3个地方可以添加user_agent:
+			1.setting: ------------->USER_AGENT
+			2.downloaderMiddleware -->spiders:headers
+			3.Request --------------> scrapy.Request(headers={"USER_AGENT":xxx})
+
+
+		3.2setting中开启下载中间件:
+			DOWNLOADER_MIDDLEWARES = {
+			   'Tencent2.middlewares.Tencent2DownloaderMiddleware': 543,
+			}
+
+
+	--------------------------------------------------------------------
+
+
+
+4.cookie --->key:value
+	
+	人人网案例:  
+
+		scrapy startproject Renren 
+		cd Renren
+		scrapy genspider renren renren.com  ---->使用基本版
+
+		renren.py:
+		class RenrenSpider()
+			start_urls = ['http://renren.com.....profile'] -->个人页面
+
+
+		cookie的设置:
+			将字符串换行为字典	
+		----------------------------------------------------------------------
+		操作:
+			renren.py:
+
+			两种方式处理cookie:
+			1.方式一:
+			  将好友页cookie复制并处理:换行去掉分好  ;\s  --->  \n	 --->replace
+			  再次处理  换成键值对: ^(.*?)=(.*?)$	  --->  "\1":"\2"
+			  弄好之后放进 字典中: cookies = {}
+
+			2.方式二:
+			  将cookie字符串 进行两次split()切分,第一次用 split(";") 切成列表,遍历循环,再次切分
+			  split("="),并且将气氛好的 [0] 作为键,[1]作为值,放入字典中
+
+    			cookie_str = "anonymid=jd9y3aflmhjkvg; depovince=GW; jebecookies=fce271ef-3436-444c-938d-c1489027ccf4|||||; _r01_=1; JSESSIONID=abchoWCWKYhjN7cYadLfw; ick_login=ef7bc339-abd1-481b-8a1b-dcbdeeb0a0ec; _de=26208FA2D989A0877B5C16D039981C77; p=7b9ebf8d304df1826729d626aec011271; first_login_flag=1; ln_uact=13163752086; ln_hurl=http://hdn.xnimg.cn/photos/hdn521/20180123/1920/h_main_h0fT_9702000b8b2d195a.jpg; t=c4782fa7f2b636a7abc1b757caf87fc01; societyguester=c4782fa7f2b636a7abc1b757caf87fc01; id=963461671; xnsid=9af3d489; ch_id=10016; ver=7.0; loginfrom=null; jebe_key=c4c2dff1-e3ce-472b-9e69-5d892c7aaff1%7Ced3779cd836a9601979d8155c65ea09d%7C1517818798494%7C1%7C1517818794778; wp_fold=0; XNESSESSIONID=aef9ff5facb7; l4pager=0"
+			    cookie_list = cookie_str.split(";")
+			    cookie_dict = {}
+			    for item in cookie_list:
+			        cookie_dict[item.split("=")[0]] = item.split("=")[1]
+
+
+			其他代码见下方 :       
+
+		    def start_requests(self):
+		        for url in self.start_urls:
+		            # 自定义带cookie的request对象
+		            yield scrapy.Request(url=url,cookies=self.cookies,callback=self.parse)
+
+		    def parse(self, response):
+		        filename = response.xpath('//title/text()').extract_first()
+		        with open(filename + ".html",'w') as f:
+		            f.write(response.body)
+
+		    运行测试: scrapy crawl renren --->写出两个 "好友 html" 文件        
+
+		   	-------------------------------------------------------------- 
+		   	前情:
+			   	response.body  --->是str 格式,所以可以直接写入到html
+			   	response.text  ---> 在python3中是 unicode 格式,在python2中是 ascii 格式,
+			   	运行会报错或者乱码,那么怎么解决这种小范围编码问题呢?
+
+
+	   		答: 两种:
+	   			1.在文件开头指定一下编码方式: 
+	   				# import sys
+					# reload(sys)
+					# sys.setdefaultencoding("utf-8")
+
+	   			2.使用codesc:
+				 	如果想不改变系统的编码格式,单独改变写入文件的编码格式就需要用codesc
+				
+					with codesc.open('222.html','w',encoding="utf-8") as f:
+						f.write(data)
+
+					open() 和 codesc.open(,,encoding=)唯一的区别就是 codesc可以多一个参数:encoding
+
+			----------------------------------------------------------------------	
+
+
+
+5.人人网模拟登陆:
+
+	---------------------------------------------------------------------
+	使用框架发送POST请求:
+
+		可以使用 yield scrapy.FormRequest(url, formdata, callback)方法发送POST请求。	
+	
+		如果希望程序执行一开始就发送POST请求，可以重写Spider类的start_requests(self) 方法，并且不再调用start_urls里的url。
+		
+		--------------------------------------------------------------------
+		操作;
+		1. 人人网登陆页面,反键检查,表单提交地址: action = "http://www.renren.com/PLogin.do"
+			如果前端页面这个提交地址没写,那么只能靠抓包来提取 提交地址了!
+
+
+
+				class RenrenSpider(scrapy.Spider):
+			    name = 'renren2'
+			    allowed_domains = ['renren.com']
+			    # 登录提交的地址 :action="xxxPLogin.do"
+			    start_urls = ['http://www.renren.com/PLogin.do',
+			                 ]
+
+			    formdata = {
+			        "email":"13163752086",
+			        "password":"584520"
+			    }
+
+			    # 提交表单,验证登录 POST请求
+			    def start_requests(self):
+			        for url in self.start_urls:
+			            yield scrapy.FormRequest(url=url,formdata=self.formdata,callback=self.parse)
+
+			    # 访问好友页面
+			    def parse(self, response):
+			        # scrapy 自动保存cookie
+			        # 继续需要请求的好友的url 链接
+			        url = 'http://www.renren.com/963459085/profile'
+			        yield scrapy.Request(url=url,callback=self.profile_item)
+
+			    def profile_item(self,response):
+			        filename = response.xpath('//title/text()').extract_first()
+			        with codecs.open(filename + '33.html','w',encoding="utf-8") as f:
+			            f.write(response.text)
+
+			注:此爬虫 实现了两个功能:1.模拟浏览器发送 post请求,验证登录
+					2.登录之后访问好友的url地址,并将其页面写入 html文件
+					这两个步骤都是通过框架来完成的!
+
+					GET请求的 scrapy方法是: scrapy.Request(url=,callback=)
+					POST 请求的scrapy方法是: scrapy.FormRequest(url=,formdata=,callback=)
+		
+		---------------------------------------------------------------------
+
+
+
+
+6.模拟登陆GitHub:
+
+	使用FormRequest.from_response()方法模拟用户登录
+
+	使用Scrapy抓取网页时，如果想要预填充或重写像用户名、用户密码这些表单字段， 可以使用 FormRequest.from_response() 方法实现。
+
+
+	模拟登陆: 章鱼猫登陆页面 获取formdata 数据
+
+		formdata = {
+			"commit":"Sign in",
+			"utf-8":√,
+
+		}
+
+		-----------------------------------------------------------------
+		代码如下:
+			class GithubSpider(scrapy.Spider):
+			    name = 'github'
+			    allowed_domains = ['github.com']
+			    # 登录提交的地址 :action="xxxPLogin.do"
+			    start_urls = ['https://github.com/login']
+
+			    # 访问好友页面
+			    def parse(self, response):
+			        # scrapy 自动保存cookie
+			        formdata = {
+			            "commit": "Sign in",
+			            "utf8": "✓",
+			            "authenticity_token": response.xpath('//*[@id="login"]/form/div[1]/input[2]/@value').extract_first(), # xpath获取"authenticity_token"
+			            "login": "liujie646000730",
+			            "password": "liujie123",
+			        }
+			        print(formdata)
+
+			        url = 'https://github.com/session'
+			        yield scrapy.FormRequest(url=url,formdata=formdata,callback=self.detail_item)
+
+			    def detail_item(self,response):
+			        # 用正则匹配 看 是否登录成功,即找到自己的登录名为成功
+			        res = re.findall(r'liujie646000730',response.body,re.I) # 忽略大小写
+			        print(res)
+
+		注:1.表单提交地址需要自己查看: <form  action = "/session"	
+			2.github里提交表单时, "authenticity_token" 字段是每次都生成,需要每次都通过 response.xpath()
+				来获取!
+
+		---------------------------------------------------------------------
+
+
+7.Log配置(了解)
+	log 五个等级:
+			CRITICAL  --->致命的  # 此等级所有log信息都能查看到
+			ERROR
+			WORNING
+			INFO
+			DEBUG
+
+	可以在setting文件中设置等级: LOG_LEVEL = 'INFO' # 此时看不到DEBUG, 		
+				设置log日志文件: LOG_FILE = './github.log'
+
+
+8.scrapy的setting常用设置(了解)
+
+	设置最大并发量, 效率取决于硬件
+
+	setting中:
+	CONCURRENT_REQUESTS = 32 设置最大队列数量为32,它会跑的更快!
+	CONCURRENT_REQUESTS = 3200000 但是由于电脑配置有上限,并不是越大越快!
+
+	延迟发送: delay = 3
+	
+	spider中间件:
+		SPIDER_MIDDLEWARES = {
+		   'Renren.middlewares.RenrenSpiderMiddleware': 543,
+		}
+
+	下载中间件:
+		DOWNLOADER_MIDDLEWARES = {
+		   'Renren.middlewares.RenrenDownloaderMiddleware': 543,
+		}
+	
+	扩展:
+		EXTENSIONS = {
+		   'scrapy.extensions.telnet.TelnetConsole': None,
+		}	
+
+	开启管道:
+		ITEM_PIPELINES = {
+		   'Renren.pipelines.RenrenPipeline': 300,
+		}	
+
+	剩下的setting中的代码是缓存相关的	
+
+
+9.作业:
+	1.阳光热线问政平台
+
+	2.新浪分类资讯
+
+
+	
+	request.meta['proxy'] = ''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	问:1.'	**解析对象的列表,获取内容的列表 取值是不一样的!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

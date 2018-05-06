@@ -1,0 +1,437 @@
+
+
+html可以指定编码格式  trust
+
+
+编码问题:
+
+	1.url :  汉字转码-->urllib.urlencode()
+
+
+	2.python2---str       非 unicode
+				unicode      unicode
+
+	  python3 ---str        unicode			
+	  			bytes    非 unicode
+
+	  2.1在python3 中,不是 bytes 类型就是 str 类型,经过读写操作的是 bytes类型
+	  我们将其解码 decode() , 我们能读出来的这种 叫 str ,
+	  str -->encode() -->bytes 
+	  bytes --> decode() --> str   # 无论是 gbk,utf-8转换结果都一样
+	  # 但是不同类型的编码出来的就要用对应的方法解码
+
+	  2.2python2中,str 分为两种,一种是 str(非unicode编码),一种是unicode编码
+	  	str 在 编码或者解码之前,需要将其转换为 unicode ,才能编码解码
+	  	str
+	  
+	  2.3注意: python2中字符串存在 编码类型问题,即 unicode (字母) 和 非 unicode(汉字)
+	  		所以存在 '转码' 这么一说,要encode,decode 必须要先 转码成 unicode
+	  		'转码'  和  '编码' '解码' 是两种概念!
+
+
+	1.判断是不是Unicode 字符
+	2.如果不是  decode-->unicode,如果是就不管
+	3.python3 中字符串都是 unicode 编码的,不需要转码成 unicode
+	4.python2 中的 unicode 与python3 中的 unicode 不一样
+		3中 两个 字节是一个字
+
+
+	要编码,先解码, 编码是什么格式就需要用什么格式来解码
+	decode  encode
+
+	报错:TypeError: write() argument must be str, not bytes
+
+-----------------------------------------------------------
+requests模块:
+
+
+	热映:
+		动作片
+
+
+		1.正则处理 地址为字典 ^(.*?)=(.*?)$  --> '\1':'\2',
+			find-->replace -->
+								'type_name':'动作',
+								'type':'5',
+								'interval_id':'100:90',
+								'action':'',
+
+			注:Ctrl + h 打开,要点开小太阳
+
+		2.XHR只显示请求网页,css,js,image就不显示了,但是有些不是放在这里的
+			filter  也可以筛选:top
+
+		3.jsonView 处理json格式数据               列表和字典是python对象???
+		
+		4.普通抓取豆瓣电影
+			# 这种情况并不能获取到数据,是因为反爬了,所以要模拟ajax请求来发送获取数据
+
+		5.抓取豆瓣电影列表get
+			ajax -->99% 都是ajax 来请求   -->json数据(轻量级)  
+										-->xml (冗余,大量数据) 	
+			
+			每次下拉,下拉条快要到底的时候会向上跳一段,然后请求了如下 0-19 总20条数据,
+			并且以array的 json格式返回的:							
+			[{rating: ["8.3", "45"], rank: 81,…}, {rating: ["8.3", "45"], rank: 82,…},…]
+	
+			检查,真实的请求地址:
+			Request URL:https://movie.douban.com/j/chart/top_list?type=5&interval_id=100%3A90&action=&start=0&limit=20
+
+			我们用代码模拟发出上面的请求参数,即可拿到返回的json数据
+
+		----------------------------------------------------
+
+
+
+		6.百度翻译--->反爬
+			检查:
+
+			sign 是反爬的标志
+
+			XMLHttpRequest -->表名是ajax请求
+
+			# 注 :百度翻译 也被反爬了,这里只能模拟手机来发送数据
+		    # 1.url POST ;手机端  user-agent 需要手机端的浏览器
+			formDATA:
+				query:你好
+				from:zh
+				to:en
+
+		    # 创建对象  --> data 是Requset的一个内置参数
+		    request = urllib2.Request(url,data=formdata_str, headers=headers)
+		    data 不传的话,就相当于没有请求翻译的对象,返回值到时候也会是空,保存为:out of range
+
+
+
+		7.POST 请求	
+			Requeuts()-->源码中的data就是来接收POST请求参数的
+
+			getcode() 是返回状态码
+
+			如果是用app 发送的请求,注意修改手机端 User-Agent
+
+			将翻译结果输出:转字典   json与字典的转换见图!!!上下左右!
+
+			data.['trans'][0]['dst']
+
+
+		8.ssl:
+		
+			url = 'https://www.12306.cn/mormhweb/'  # 不加s 会看不到ssl验证错误
+			注:如果网站不加 /mormhweb/ 会重定向失败
+
+			不忽略证书就会报错:
+			ssl.CertificateError: hostname 'www.12306.cn' doesn't match u'kyfw.12306.cn
+
+			此时需要让系统忽略证书:
+				import ssl
+				context = ssl._create_unverify_context()
+				urlopen(url,context=context)
+
+			注: 所有遵循https 协议的网站都需要 ca 证书
+
+
+		9.customhandle
+			自定义urllib2中的 urlopen()方法:
+
+			1.创建处理器:  # 不同的处理器有不同的功能 
+				Http_handler	= urllib2.HTTPHandler()  # 这里默认本地,默认请求60s
+			2.根据处理器创建 opener:
+				opener = build_opener(处理器)
+			3.调用open()方法:
+				response = opener.open(rq) --->相当于 urllib2.urlopen(rq)
+
+
+		-------------------------------------------------------------	
+
+				 代理商
+		浏览器 --->代理---->web server
+				  DNS
+
+		国内高匿名代理
+			尽量不用透明
+
+		各大代理网站:(建议国外,块!)	
+		1.西刺免费代理 2.快代理
+		3.www.gatherproxy.com (国外的免费代理)
+
+			lantern蓝灯VPN:免费vpn
+
+		注:代理的作用是防止本机ip被封
+
+
+		------------------------------------------------------------------
+			
+		10.proxyopener
+			加代理的opener
+
+			1.创建带有代理 功能的处理器
+				proxy = {'http':'202.103.14.155:8118'}
+				proxy_handler = urllib2.ProxyHandler(proxy)
+
+			2. 根据处理器 创建opener
+				opener = urllib2.build_opener(proxy_handler)
+
+			3.open()
+			    request = urllib2.Request(url)
+				response = opener.open(request)
+
+
+			407error-->代理错误:(未验证,没钱了)
+			urllib2.HTTPError: HTTP Error 407: Proxy Authentication Required
+
+			代理:
+				免费代理:
+			    	proxy = {'http':'122.227.43.196:3128'}
+				付费代理:
+					money_proxy = {
+						"协议":username:pwd@ip:port
+					}
+
+
+		11.webauth
+			url --->统一资源资源定位符,可以通过确定的路径来找到唯一资源	(如:深圳/保安区/留仙一路/xx小区/xx公寓/616室/张三)	
+			uri --->统一资源标志符,就是在某一规则下能把一个资源独一无二地标识出来。(如身份证是:123456的张三)
+
+			url是uri的一种实现方式,是uri的一个子集
+
+			服务器中账号密码 验证
+
+			1.密码管理器 
+				add_passpwd(url,password)
+
+			2.创建web认证的处理器
+
+			3.根据处理器 生成opener
+			4.open
+
+
+
+
+		12.renrencookie (抓取cookie获取数据)
+			cookie
+			url	
+			你看到的不一定是你想要的!
+			手动Cookie
+
+			人人网登录是用'POST' 提交formdata 表单的格式提交登录的,登录的
+				地址加密了,可以查一查老的登录接口,如: login_url = 'http://renren.com/PLogin.do'
+				新接口,老接口都会一直在用,所以老接口也可以登进去
+
+
+			1.代码登录
+			2.cookie
+			3.带着cookie发送,跳转到指定页面
+
+			domain 域名
+
+		13.renrencookie2 (利用cookie模拟登陆人人网)
+			1.url 
+				1.url
+				login_url = 'http://renren.com/PLogin.do'
+				profile_url = 'http://www.renren.com/410043129/profile'
+
+				2.cookjar 保存cookie
+				cookiejar = cookielib.CookieJar()
+
+				3.创建handler
+			    handler = urllib2.HTTPCookieProcessor(cookiejar)  # 注:不是httphandler
+
+			    4.opener 
+			     opener = urllib2.build_opener(handler)
+
+			2.request
+				headers = {}
+			    formdata = {
+			        "email": "13163752086",
+			        "password": "584520"
+			    }
+			    转码
+
+			3.发送请求
+				opener.open(request)
+
+			4.二次发送profile请求
+				opener.open(profile_url)   # 这个是好友页请求,需要保存
+
+
+		    注:1.第一次发生请求是登录请求,然后顺便会生成cookie,CookieJar就保存了cookie
+		    	 第二次请求是好友页面请求,会将cookie一起提交,来验证登录状态
+
+		    	2.爬下来的数据要关闭网络,然后再运行html文件,因为浏览器检测到
+		      	 用户未登录,首先会去网站登录,而不是读取文件中的登录的状态,爬取的数据登录访问的好友页面
+		      	 类似于访问静态页面
+
+
+
+		14.httperrorurlerror(代理池)(利用HTTPError和URLError)
+			URLError产生的原因主要有:
+				1.没有网络连接
+				2.服务器连接失败
+				3.找不到指定的服务器
+
+
+			HTTPError 是 URLError的一个子类
+			
+			err.code 异常的状态码
+				200 成功
+				300 重定向
+				400 失败
+				500 服务器问题
+
+			-----------------------------------------------	
+			    try:
+			        response = urllib2.urlopen(url)
+			    except urllib2.HTTPError,err:
+			        print err.code
+			    except urllib2.URLError,err:   # 服务器错误返回的错误
+			        print URL_ERROR_CODE   # urlerror 没有状态码,它是最高级父类
+			    else: # 正常的情况下返回的状态码
+			        print response.code
+
+			注: 以后用免费代理,有些能用,有些不能用,可以用捕获异常的方式来
+				对不能用的进行处理
+
+
+
+		15.requests模块的使用介绍!!!!!!	
+			import requests
+
+		    1.get请求
+		    url = ""
+		    params = {'pw':10}
+		    formdata = {'pw':10}
+		    
+		    requests.get(url,params=params)  # get 是params
+
+		    2.post请求 
+		    requests.post(url,data=formdata)  # post 是data
+
+		    3.url转码  requests  自动转码,不需要urlencode()了
+
+		    4.ssl 证书
+		    requests.get(url,verify=False) # false跳过验证
+
+		    5.proxy (代理)
+		    proxy = {}
+		    requests.get(url,proxies=proxy)  # 复数形式
+
+		    6.webauth (认证)
+		    pwd = ('user','pwd')   # 元组形式
+		    requests.get(url,auth=pwd)  # auth
+
+		    7.cookie (自动登录跳转)
+		    # 保存cookie
+		    session = requests.session() # 这个session是封装了session()的requests对象
+
+		    session.post('login_url')  # post 的登录请求
+
+		    session.get('profile_url')  # get获取好友页面
+    
+
+			注:在python2中如果安装requests模块出现由于ascii码原因的报错
+				可以用 Path\easy_install.exe requests 切换到对应路径下安装requests模块!
+
+			-------------------------------------------------------------------
+
+
+		作业:
+			代理池:
+			proxy_list = ['1','2','3']
+
+			for proxy in proxy_list:
+
+				if (code==200):
+					can_use_list.append()
+
+
+		内涵段子-->gbk编码的文本
+					
+-----------------------------------------------------
+URLERROR产生的原因:
+
+
+
+
+---------------------------------------------------------
+小结:
+	1.类似登录请求,这样的属于表单提交的POST请求
+	这个时候,需要将提交表单的那一步的 关键字得到
+	formdata = {
+		"name":"xxxx",
+		"password":"xxx"
+	}	
+
+	然后一起塞到 request对象 里的 data= 字段里
+	一句话,关键是要 1.看formData表单 里字段长什么样? 2.表单提交的地址是什么
+
+
+	2.处理器handler ,处理器的功能多种多样
+		自定义的处理器可以用来保存cookie等
+		然后用处理器创建的opener 可以取代urllib2 来进行open操作,
+		即向指定网页发送请求
+
+
+	3.X-Requested-With: XMLHttpRequest ：表示Ajax异步请求。
+
+	4.有些网页内容使用AJAX加载，这种数据无法直接对网页url进行获取。只要记得，AJAX一般返回的是JSON，只要对AJAX地址进行post或get，就能返回JSON数据了。
+
+		如果非要从HTML页面里获取展现出来的数据，也不是不可以。但是要记住，作为一名爬虫工程师，你更需要关注的是数据的来源。
+
+	5.cookie 作用是服务器用来记录用户的! 	
+
+
+---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

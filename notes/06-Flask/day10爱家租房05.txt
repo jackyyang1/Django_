@@ -1,0 +1,477 @@
+
+
+flask_ihome
+
+
+
+1.登出logout
+	在static/js/ihom/my.js中将待代码补全,完成登出视图函数
+
+
+	----------------------------------------------------------------
+	在passport中定义检查登录状态,登出的视图函数:
+
+		@api.route("/session",methods=['GET'])
+		def check_login():
+		    """检查登陆状态"""
+		    # 尝试从session中获取用户名(session中保存了用户的登陆状态)
+		    name = session.get('user_name')
+		    # 如果session中存在name，说明用户已经登陆，如果没有，说明未登录
+		    if name:
+		        return jsonify(errcode=RET.OK,errmsg="true",data={"name":name})
+		    else:
+		        return jsonify(errcode=RET.SESSIONERR,errmsg="false")
+
+
+
+		@api.route("/session",methods=["DELETE"])
+		def logut():
+		    """登出"""
+		    # 清除ession的数据
+		    session.clear()
+		    return jsonify(errcode=RET.OK,errmsg="OJ8K")
+
+
+	-------------------------------------------------------------	    
+	前端index.js中:
+
+			$(document).ready(function(){
+	    
+		    //检查用户登陆状态
+		    $.get("/api/v1.0/session",function (resp) {
+		        
+		        if (resp.errcode == "0") {
+		            //如果用户登陆，显示登陆的用户信息
+		            $(".top-bar>.user-info>.user-name").html(resp.data.name);
+		            $(".top-bar>.user-info").show();
+		            
+		        } else {
+		            //没有登陆就显示 注册，登陆
+		            $(".top-bar>.register-login").show();
+		        }    
+		    }, "json");
+	    
+
+
+		注:1."json"在前端回调函数后面使用,指明这个数据格式是json格式
+			2.logut()函数时"DELETE"请求方式,会被csrf拦截,需要在前端传递参数的时候将csrf_token一起传过来
+
+
+		问': $(".top-bar>.user-info>.user-name")?这是什么意思?
+
+
+
+2.图片服务
+	七牛-->类似于fastDFS
+	www.qiniu.com
+
+	创建存储空间-->flask_ihome-->华东区-->外链默认域名-->
+	文档-->上传文件-->SDK-->python/SDK-->pip install qiniu(已经安装)
+
+	file_obj = request.file.get() -->七牛拿到前端传送的文件对象
+	file_obj.save() -->七牛自己封装了获取二进制数据的方法-->put_data:
+
+	    ret,info = put_data(token, key, file_data)
+	    print(info)
+	    print("-"*20)
+	    print(ret)   # 生成的唯一标示，也是文件名
+
+
+	七牛封装的上传文件的工具包put_data,put_stream
+
+	操作:在utils目录下新建storage.py,将七牛的配置接口代码拿过来,补充完整
+
+	个人面板-->access_key 和secret_key拿过来-->放在上面
+
+	测试上传: 将1.png 放在storage.py同级目录-->
+		if __name__ == '__main__':
+		    with open('./1.png','rb') as file:
+		        file_data = file.read()
+		        storage_image(file_data)
+
+		-->执行代码-->将七牛生成的图片名复制,然后将域名和文件名拼接访问图片:
+			http://p2lhi190t.bkt.clouddn.com/FsJybcF9_Qh6y1tPtuB_OIGYqdPa
+		----------------------------------------------------------------------------	
+
+
+	2.1	上传头像	
+		127.0.0.1:5000/profile.html
+		多媒体表单格式--->enctype="multipart/form-data"-->文件,图片
+
+		2.1.1后端代码:
+			1.自定义装饰器utils目录下commons.py:
+				def login_required(view_func):
+				    """登陆验证装饰器"""
+				    def wrapper(*args,**kwargs):
+				        # 判断用户的登陆状态
+				        user_id = session.get("user_id")
+				        g.user_id = user_id  # 用g对象将user_id保存起来,传递到视图函数中直接使用 
+				        if user_id is not None:
+				        # 如果用户已经登陆，执行视图函数
+				            return view_func(*args,**kwargs)
+				        else:
+				        # 如果用户未登录，返回json数据，告知前端
+				            return jsonify(errcode=RET.SESSIONERR,errmsg="用户未登录")
+
+				    return wrapper
+
+
+			2.users.py中视图函数
+				# 两个装饰器同时装饰一个函数的时候，要明确先后顺序
+				@api.route('users/avatars',methods=["POST"])  
+				@login_required    # 这个装饰器是自定义的 用来判断用户是否登陆的装饰器
+				def upload_avatar():
+				    """保存用户的头像
+				    参数：头像图片  user—id  通过g对象获取"""
+				    # 获取头像数据（图片文件对象）
+
+		2.1.2前端代码:
+
+			$(document).ready(function () {
+			    $("#form-avatar").submit(function (e) {
+			        e.preventDefault();  // 阻止事件冒泡
+
+			        // 利用jquery扩展jquery.form.min.js向后端发送表单数据，补充回调函数
+			        $("#form-avatar").ajaxSubmit({
+			            url:"/api/v1.0/users/avatars",
+			            type:"post",
+			            dataType:"json",    //data 和 ContentType不用管
+			            headers:{
+			                "X-CSRFToken":getCookie("csrf_token")
+			            },
+			            success:function (resp) {
+			                if (resp.errcode == "4101") {
+			                    //用户未登录
+			                    location.href = "/login.html";
+			                }
+			                else if (resp.errcode == "0") {
+			                    //上传头像成功
+			                    image_url = resp.data.avatar_url;
+			                    // 设置img标签属性
+			                    $("#user-avatar").attr("src",image_url);
+			                } else {
+			                    alert(resp.errmsg);
+			                }
+
+			            }
+			        })
+
+			   		})   
+				})
+			注:前端中预留了位置,上传头像成功之后,在前端的img位置标签设置,img的属性src为 七牛域名+图片名,会显示上传好的图片
+
+			访问:127.0.0.1:5000/login.html-->登录-->个人中心-->修改-->上传头像-->确认
+
+		--------------------------------------------------------------
+		知识点:
+
+
+		装饰器: import functools	--->@functools.wraps
+
+			1.装饰器在装饰函数的时候,被装饰的函数demo()在被调用的时候,完全变成了wrapper()函数
+			demo本身的功能被遮盖了, 可以在wrapper()函数上先装饰一个@functools.wraps(func)
+			warps的作用是间隔wrapper()函数的相关属性设置为被装饰函数func的属性
+
+			
+
+		   	2.g对象(传参): user_id-->装饰器用到了,登录验证也用到了-->在装饰器的地方用g对象将user_id保存-->
+					装饰器在装饰视图函数的时候,视图函数可以直接使用user_id	
+					  user_id = g.user_id  # 在装饰器里g对象里保存了user_id这个参数，这里直接使用
+
+
+		----------------------------------------------------------------
+		测试装饰器使用functools.wraps的原理:(必会)
+
+				import functools
+
+				方式一:自动
+				def demo_decorate(func):
+				    """装饰器说明"""
+				    # wraps的作用时将wrapper函数的相关属性恢复设置为被装饰函数func属性
+				    @functools.wraps(func)   # doo -->doo
+				    def wrapper(*args,**kwargs):
+				        """装饰器内层函数说明"""
+				        pass
+				    return wrapper
+
+				方式二:手动
+				# def demo_decorate(func):
+				#     """装饰器说明"""
+				#     def wrapper(*args,**kwargs):
+				#         """装饰器内层函数说明"""
+				#         pass
+				#     # 可以手动设置恢复被装饰的函数func属性
+				#     wrapper.__doc__=func.__doc__ # 设置为原来函数的doc属性
+				#     wrapper.__name__=func.__name__ # 设置为原来函数的name属性
+
+				#     return wrapper
+
+				被装饰的函数doo,即传进wrapper的func    
+				@demo_decorate   # doo--》wrapper
+				def doo():
+				    """doo说明信息"""
+				    pass
+
+
+				if __name__=='__main__':
+				    print(doo.__name__)  # 函数的名字
+				    print(doo.__doc__)   # 函数的说明文档
+				    # print(doo.__module__)	
+
+			说明:如果不处理,直接使用装饰器,装饰函数,那么函数的__name__,__doc__等属性都会变成wrapper()装饰器的,
+				如果调用 @functools.wraps(func) 或者自定义变回func(doo)本身的属性,那么此时打印的才算doo的属性	    
+		----------------------------------------------------------------------
+
+
+
+3.房屋模块
+
+	3.1在houses.py文件中定义视图函数:-->定义视图提供城区的资源信息
+
+		@api.route('/area_info',methods=['GET'])
+		def get_area_info():
+		    """获取城区信息"""
+		    # 查询数据库
+	    
+
+	3.2在 models.py中将class Area() 类中添加方法
+	    def to_dict(self):
+	        """将对象转换为字典"""
+	        d = {
+	            "aid":self.id
+	            "aname":self.name
+	        }
+	        return d    #注:这里要返回,不然用postman会返回null
+
+	3.3将数据sql文件导入mysql中,添加房源信息
+
+	访问:postman使用GET请求方式->headers-->测试数据sql(添加进数据库)
+
+	BUG': to_dict() 方法少了 return d将字典返回,结果postman 用get查询的都是 null
+
+	-----------------------------------------------------------
+	3.4房屋模块当中的缓存问题:
+
+
+		jsonify性能比较慢,需要处理下,让直接传拼接后的字符串
+			所以涉及到大型数据查询的时候尽量不用jsonify,而是自己定义拼接,来完成jsonify的操作
+		-------------------------------------------------------------
+		操作:
+		3.4.1定义好houses.py中的视图函数之后
+			@api.route('/area_info',methods=['GET'])
+			def get_area_info():	
+
+		3.4.2用postman测试,用get请求方式send获取数据
+		
+
+		注:1.这里用redis作为缓存的数据库,考虑到要查询的数据是一个json字符串整体,我们这里就用
+			redis中的字符串类型来将数据保存在一个类似于大字典的字符串中,方便取用,查询的时候直接返回,前端接收的
+			刚好也是json字符串格式的数据,完美匹配,就不需要考虑 list ,hash 类型的数据了
+
+		   2.第一次获取到数据是查询的,第二次获取数据是从redis中缓存中获取的
+
+		   3.方式一和方式二视图函数的区别是,一个直接返回完整的字典数据,一个要占位拼接],但不管哪种方式,都需要拼接,状态和指明json格式-->return resp_json_str,200,{"Content-Type":"application/json"}
+		   		方式一:   
+		   			resp_json_str = '{"errcode":"0","errmsg":"查询成功","data":{"areas":%s}}' % areas_json_str
+ 
+				方式二:    # 封装一个完整的大字典，包括状态信息
+    				resp_dict = dict(errcode=RET.OK,errmsg="查询成功",data={"areas":areas_dict_li})
+
+    		4.使用第二种方式,postman访问之后,(删除之前的redis缓存)会在redis中保存新的缓存记录,与之前
+    			换存的区别是多了 errcode,errmsg等信息		
+
+		BUG': return resp_json_str,200,{"Content-Type":"application/json"} # 自己拼接响应头，不用jsonify去完成，jsonify性能没这个快
+			这个 Content-Type 如果写成了"ContentType",那么用postman获取数据就是获取的 16进制数据,而不是 汉字
+		-----------------------------------------------------------------
+	重点()关于缓存的知识点:
+
+			缓存数据的同步问题:
+			解决缓存数据不一致的问题(同步):
+
+			1.在修改mysql真实数据的同时,去缓存中修改数据-->(删除缓存)
+			2.对缓存(一定要)设置有效期-->如果不设置有效期,那就是永久有效,新数据就不能同步,生效
+
+
+			不哟怕时间太短了!!-->如果缓存有效期为2分钟-->如果短期访问量巨大-->首先会引导到缓存中
+			-->2分钟内用户访问就不用查询数据库->这将极大的减小数据库查询的压力!	
+
+		-----------------------------------------------------	
+
+
+		3.4.3操作前端:
+
+面试可能会-->前端模板:art-template(js实现的模板)   腾讯开源
+					作用:用来处理大量需要遍历的数组的纯前端工具
+
+			--------------------------------------
+			art-template格式:		
+
+				<script type="text/html" id="areas-tmpl">
+					{{ each areas as area }}
+					...
+					{{ /each }}
+				<script>	
+			----------------------------------------	
+			操作:
+			3.4.1在newhouse.html中将 <option value="1">东城区</option>...
+        		全部取出,放在<script>标签中,只留一个
+        		在如下操作:
+                            <script type="text/html" id="areas-tmpl">
+                                {{ each areas as area }}
+                                <option value="{{ area.aid }}">{{ area.aname }}</option>
+                                {{ /each }}
+                            </script>
+                              
+			3.4.2在newhouse.html中设置<script src=> 用jQuery扩展将newhouse.js包含在原html渲染文件中
+			    {# 腾讯的art-template文件 #}
+			    <script src="/static/js/template.js"></script>
+
+
+			3.4.3newhouse.py中的代码:
+			
+				$(document).ready(function(){
+				    // $('.popup_con').fadeIn('fast');
+				    // $('.popup_con').fadeOut('fast');
+
+				    //向后端get请求城区信息(从后端视图路径访问)
+				    $.get("/api/v1.0/area_info",function (resp) {
+				        if (resp.errcode == "0") {
+				            //渲染模板
+				            //                          模板名       模板变量
+				            var area_html = template("areas-tmpl",{areas:resp.data.areas});
+				            //填充到页面中
+				            $("#area-id").html(area_html);
+
+				        } else {
+				            alert(resp.errmsg);
+				        }
+				    },"json"); //按照json来解析数据
+				});    
+
+
+			访问:http://127.0.0.1:5000/newhouse.html,在检查源代码中查看填充的 房源信息
+
+
+	-----------------------------------------------------------
+作业:发布房屋,主页
+
+-**************************************************************
+
+小结:
+	1.在后端接收的前端json字符串数据之后,需要取出其中的值,
+		flask中封装了方法 get_json(),可以将前端传过来的json字符串转换为 'dict'字典类型
+		这样就可以直接取值了
+
+
+		# POST /users
+		@api.route('/users',methods=["POST"])
+		def register():
+		    """注册"""
+		    # 获取参数 ： 手机号，短信 ，密码，确认密码 --》 请求体（json格式
+		    req_dict = request.get_json()
+		    print(type(req_dict))
+
+		    mobile = req_dict.get("mobile")
+		    sms_code = req_dict.get("sms_code")
+		    password = req_dict.get("password")
+		    password2 = req_dict.get("password2")
+
+
+	2. redis指令集
+	 http://redisdoc.com/index.html
+	http://redis-py.readthedocs.io/en/latest/#indices-and-tables
+
+	3.装饰器:
+		在使用装饰器的时候,如果要传递参数,装饰器要 return 参数,被装饰的视图函数也要
+		return 参数,这样参数才能被传递出去给前端,被装饰的函数就像一个傀儡,看似是自己,
+		实际执行的是装饰器的内部函数
+
+
+	4.python当中一切皆对象,函数本身也是一个对象	
+
+
+	5.MySQL数据库-->磁盘型数据库-->存取速度有限
+	  redis数据库-->内存型数据库-->存取速度较快	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

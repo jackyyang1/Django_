@@ -1,0 +1,468 @@
+html:xt + tab
+
+前端
+
+
+ UI：
+    Photoshop
+ 
+ 布局成页面：
+	html语言
+
+	css语言
+
+ 页面开发：JavaScript 简称JS
+
+ js的框架jQuery
+
+
+
+
+***************************************************
+ html：
+   HyperText Mark-up Language，超文本（超链接）标记（标签）语言
+	标记型语言！！！
+
+   基本结构：
+
+    <!DOCTYPE html>              # 文档声明 （帮助浏览器能正确显示网页）
+    <!-- html根标签 -->
+    <html lang="en">             # lang ="en"英文  lang="zh-CN"中文
+        <head>            
+            <meta charset="UTF-8">    # meta charset="utf-8" 字符集
+            <title>网页标题</title>
+        </head>
+        <body>
+              网页显示内容
+        </body>
+    </html>  
+
+
+<标签>元素<标签>
+
+
+HTML 文档类型
+  目前常用的两种文档类型是xhtml 1.0和html5
+
+  xhtml 1.0：此版本文档用sublime text创建方法： html:xt + tab
+
+  html5：
+     用sublime text创建方法： html:5 + tab 或者 ! + tab
+
+ 
+
+
+ html标签特点：
+   1.成对出现：<div></div>
+   2.单个出现:<br />
+   3.嵌套:<head><title></title></head> #嵌套子标签需要一个tab缩进
+   
+
+  注释：
+    <!-- 1.这是注释的格式 -->
+	注释的快捷键是：Ctrl / 
+	注:注释只能一整行一整行使用
+
+ html标题：
+ 	<!-- Alt + shift + 上/下 --> 可以复制选择的行
+ 	<h1>段落1</h1>
+ 	<h2>段落2</h2>
+ 	<h3>段落3</h3>
+ 	<h4>段落4</h4>
+ 	<h5>段落5</h5>
+ 	<h6>段落6</h6> 
+ 	哈哈哈				<!-- 谷歌默认字体16号     -->
+
+ 段落：paragraph
+ 	<p>
+ 	标签定义一个文本段落，一个段落含有默认的上下间距，段落之间会用这种默认间距隔开
+ 	</p>
+
+ 换行：<br />   #自开自闭 break
+
+
+字符实体：
+	&nbsp; 空格
+	&lt; 小于号
+	&gt; 大于号
+	&amp; &符号
+
+ 空格：（段落的开头的缩进）
+   &nbsp;&nbsp; 
+   （在谷歌浏览器中6个&nbsp;是两个中文字，其他浏览器不同）
+
+  大于小于；
+  <!-- “<” 和 “>” 的字符实体为 &lt; 和 &gt;  -->
+    <p>
+    3 &lt; 5 <br>    # 3 < 5
+    10 &gt; 5		# 10 > 5
+    </p>
+
+    应用：
+     今天我们学了段落标签,段落标签是这样写的&lt;p&gt;&lt;/p&gt;
+     今天我们学了一个空格的字符实体,它是这样写的&amp;nbsp;
+
+
+修改名字：fn + f2
+
+  图片标签：
+    <img>标签可以在网页上插入一张图片，它是独立使用的标签，它的常用属性有：
+    scr属性：定义图片的引用地址
+    alt属性：定义图片加载失败时显示的文字
+
+    <img src="./images/pic.jpg" alt="图片加载失败显示的字" title="鼠标悬停在图片上时显示的字"/>
+
+	或者网络图片：<img src="图像URL" />
+
+    绝对路径和相对路径：
+		相对路径：“../images/pic.jpg” 	                                 示当前目录下的上一级目录下的images文件夹中的pic.jpg的图片。
+		“./pic.jpg” 表示当前目录下的pic.jpg的图片,可以省略！
+
+
+	 链接标签:
+	  <a>标签可以在网页是上定义一个链接地址，它的常用属性有：
+ 		（单词缩写：  anchor 的缩写 。基本解释 锚, 铁锚，锚链接）
+
+ 		href属性 定义跳转的地址 （超文本引用hypertext reference）
+ 		<a href="03-标题标签.html" target="_blank">更多</a>
+ 		 # 页面会显示更多，如果点击“更多”，会跳转到"03-标题标签.html"这个页面
+		href='#' “#”是它本身不刷新，
+ 		  如果想让图片跳转页面：把“更多”替换为
+
+ 		<a href="http://www.baidu.com">
+ 		      <img src="./images/pic.jpg" alt="产品图片" title="提示文字" />
+		</a>
+
+ 		title属性 定义鼠标悬停时弹出的提示文字框
+
+ 		target属性 定义链接窗口打开的位置，target：用于指定链接页面的打开方式，其取值有self和blank两种，其中_self为默认值，_blank为在新窗口中打开方式。
+
+
+
+  块标签：
+  <!-- 有语义标签：a，p -->
+  <!-- div  span  主要是用来布局的 -->
+	<div>标签 块元素，表示一块内容，无语义（division，分割）
+		<div>哈哈</div>
+	<span>标签 行内元素，表示一行中的一小段，无语义
+
+	1、<em> 标签 行内元素，表示语气中的强调词
+	2、<i> 标签 行内元素，表示专业词汇
+	3、<b> 标签 行内元素，表示文档中的关键字或者产品名
+	4、<strong> 标签 行内元素，表示非常重要的内容
+
+	注：
+	<div>它没有<span>span标签的作用来包裹一段文字中的某几个文字
+        对它做特殊设置主要是布局页面用的</span>  把内容进行分块
+        方便布局 方便调整位置</div>
+
+  今日头条格式：
+
+	<body>
+		<div>
+			<!-- 1.头部 -->
+			<div>
+				<!-- 1.1标题 -->
+				
+				<!-- 1.2更多 -->
+
+			</div>
+			<!-- 2.图片 -->
+			
+			<!-- 3.描述 -->
+			<p>
+			</p>
+		</div>
+	</body>
+
+
+
+*************************************************************
+ CSS入门
+ Cascading Style Sheets，意思是层叠样式表
+
+ css的定义方法是：
+ 选择器 { 属性：值； 属性：值； 属性：值；
+
+
+CSS引入页面的方式有三种:
+
+1. 行内式(style)
+ <!-- 行内式 style属性  不推荐使用 -->
+ <div style="color:red;background-color:blue;">div标签</div>
+
+2. 嵌入式写法(写在<head></head>>里面)
+   用于网站的首页 或者上课
+   例：
+   <style type="text/css">
+		div{
+			color: red;
+			background-color: greenyellow;
+		}
+   </style>
+
+3.外链式写法：
+   css和html彻底分离   css可以复用
+   <link rel="stylesheet" type="text/css" href="">
+
+   例：
+       <!-- 外链式   css和html彻底分离  css可以复用
+    层叠样式表
+    级联样式表
+    样式表
+    -->
+    <link rel="stylesheet" href="./css/style.css">
+
+*************************************************************
+
+css选择器：
+
+  <style>
+  		1.标签选择器
+  		做真实网页项目时  做标签样式时使用
+  		此种选择器影响范围大，一般用来做一些通用设置，或用在层级选择器中。
+		div{color: red;}
+
+  </style>
+
+
+  2.类选择器    使用最多    前面有小点
+	.box{color:red;}
+
+	注：选择box类，设置为红色
+	注：一个类可以应用于多个元素，一个元素上也可以使用多个类
+	例：
+		<h3 class="blue big box">....</h3>  （这是多个类）
+
+
+	3.层级选择器
+		.box p{
+			color:green;
+		}
+	注：选择box类下的p标签设置为绿色！	  
+    注：段落p标签 最好不要嵌套其他标签！
+
+总结：
+	选择器是根据一定的标识来进行选择的：
+	1.标签：div{}
+	2.类：class的值:.box{}
+	3.层级：类里面还有对应的标识：.box p{}
+********************************************************
+    <style>
+          /*1.标签选择器
+          做网页项目时  做标签样式重置时使用此选择器  */
+        div{
+            color: red;
+        }
+        /* 2.类选择器
+        使用最多  前面要加点 选中类名叫box的标签 */
+        .box{color:green;}
+
+        /* 3.层级选择器： 层级/后代 */
+        .box2 p{color: blue;}
+
+    </style>
+
+注:一个<head></head>中可以同时存在多个选择器，只要选择器能在body中	找到对应要修饰的内容的标签
+*******************************************************
+
+css常用样式属性：
+  <!-- alt+shift+f  代码格式化 自动对齐 -->*****（重要）
+	<style>
+		.box{
+			/* 文字颜色*/
+			color:red;
+			/* 字体大小*/
+			font-size:30px;       #px是像素
+			/*背景颜色*/
+			background-corlotreen;
+			/* 字体加粗*/
+			font-weight: bold;
+			/*行高*/
+			line-height: 10px;
+			
+		}
+	</style>
+
+
+常用属性02：（画框框）
+	
+    <style>
+        .box{
+            /* 设置元素/内容的宽度 */
+            width: 200px;
+            /* 设置高度 */
+            height: 200px;
+
+            /* 设置元素的边框
+            第一个值是边框粗细
+            第二个值是边框样式
+            第三个值是边框颜色 */
+            /* border:10px solid black; */
+
+            border-left: 10px solid red;
+            border-top: 10px solid blue;
+            border-bottom: 10px solid yellow;
+            border-right: 10px solid purple;
+            
+            background-color: green;
+
+        }
+    </style>
+
+margin外边距属性：（距离网页边缘的距离）
+	
+	<style>
+        .box{
+            /* 设置元素/内容宽度 */
+            width: 200px;
+            /* 设置高度 */
+            height: 200px;
+
+            /* 设置元素的外边框 */
+            border:20px solid pink;
+
+
+            background-color:greenyellow;
+            
+            /* 四边的外边距都是20px */
+            /* margin: 20px; */
+            /* 一般只设置 左上的外边距
+            外边框不会影响元素的真实大小，只会影响他的位置*/
+            /* margin-top: 20px;
+            margin-left: 50px;
+            margin-bottom: 50px;
+            margin-right: 50px; */
+
+            /* 上下   左右 */
+            /* margin: 20px 100px; */
+
+            /* 上  左右  下 */
+            /* margin: 20px 10px 20px;  */
+
+            /* 上  右  下  左  顺时针 */
+            margin: 20px 50px 20px 50px;
+
+
+            /* 水平居中 */
+            /* margin:0px auto; */
+        }
+
+
+padding: (边框距离内容的距离)
+
+    <style>
+        .box{
+            /* 设置元素/内容宽度 */
+            width: 200px;
+
+            /* 设置 元素高度*/
+            height: 200px;
+
+            /* 设置元素的边框
+            1表示 粗细
+            2表示 样式
+            3表示 颜色 */
+            border: 50px solid green;
+
+            background-color: lightblue;
+
+            /* 内边距 就是让里面的内容和元素的边框
+            边界有一定距离 */
+            /* padding:20px; */
+            /* 上下  左右 */
+            /* padding: 20px 40px; */
+            /* 上 左右 下 */
+            /* padding: 20px 40px; */
+            /* 上  右  下 左  顺时针 */
+            padding: 10px 20px 30px 40px;
+        }
+    
+    </style>
+
+
+今日头条美化：
+
+    <style>
+        .box{
+            /* 1.最外面大框架 */
+            /* 设置元素宽度 */
+            width: 285px;
+
+            /* 设置元素高度 */
+            height: 310px;
+            /* 设置外边框：宽，样式，颜色 */
+            border-top: 1px solid #c8dcf2;
+            border-left: 1px solid #c8dcf2;
+
+            margin: 10px auto;}
+
+            /* 背景颜色 */
+            /* background-color: pink; */
+
+            /* 2.头部div */
+        .head{
+            height: 40px;    
+        }
+
+        /*3. 设置”今日头条“ */
+        .head h1{
+            font-size:16px;
+            font-family: "Microsoft YaHei";
+            color: #172c45;
+            
+            /* 浮动 可以让元素排在一行 */
+            float: left;
+            /* 设置下划线 */
+            text-decoration: underline;
+        }
+
+        /*4. 设置"更多" */
+        .head a{
+            font-size: 12px;
+            font-family: "Microsoft YaHei";
+            color: #172c45;
+
+            /* 右浮动 */
+            float: right;
+
+            /* 行高 */
+            line-height: 40px;
+        }
+        
+        /*5. 设置段落p */
+        .box p{
+            color: #737373;
+            font-size: 12px;
+            font-family: 'Microsoft YaHei';
+
+            line-height: 20px
+        }
+
+
+    </style>
+
+
+
+
+  注：	垂直外边距会合并8个px
+
+
+
+	*********************************************************
+	了解：
+
+	### 水平线标签(认识)
+
+单词缩写：  horizontal  横线  hr
+
+在网页中常常看到一些水平线将段落与段落之间隔开，使得文档结构清晰，层次分明。这些水平线可以通过插入图片实现，也可以简单地通过标签来完成，<hr />就是创建横跨网页水平线的标签。其基本语法格式如下：
+
+```html
+<hr />是单标签
+
+---------------------------------
+设置下划线:
+
+              /* 设置下划线 */
+            text-decoration: underline;

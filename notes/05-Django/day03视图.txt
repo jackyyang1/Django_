@@ -1,0 +1,935 @@
+
+django视图
+
+
+1.URL配置
+
+	在浏览器的地址栏中输入网址请求网站，url匹配网址，找到对应的视图函数
+	url配置的目的是建立url和视图函数的对应关系。
+
+
+	1.URL配置过程(重点)
+
+		1、settings.py中，指定入口urls文件(项目创建时自动配置的)
+			ROOT_URLCONF = '项目.urls'
+
+		2.在项目中urls.py中，包含到应用的urls.py
+			url(正则, include('应用.urls'))
+
+		3.应用中urls.py中，调用views.py对应的函数
+			url(正则, views.函数名)
+
+
+	2.URL函数
+		URL函数两个参数: 正则表达式 , 处理动作
+
+		配置url时，有两种语法格式：
+
+		a) url(正则表达式，视图函数名)
+		b) url(正则表达式，include(应用中的urls文件))
+
+
+---------------------------------------------------------
+访问的时候:localhost:8000/aindex?1233
+
+	在访问的时候:
+		1.项目里的setting.py文件中的url()自动切掉localhost:8000
+		2.setting.py文件中的url()中匹配r'^a',后面的index不管,
+		3.在应用在中的urls.py中匹配r'^index',后面的'?123'不管
+
+
+
+
+---------------------------------------------------------
+	3.正则表达式书写规则
+		1.正则前面要加'r'
+		2.正则前面不要加'/',后面可加可不加,根据项目需求
+		3.跟无关紧要的东西用'?'连接
+
+		正确：index/
+		正确：index
+
+
+	4.URL中取值
+
+		从URL中获取值,需要在正则中使用分组,获取值分两种方式:
+
+		1.位置参数  参数位置不能错
+		2.关键字参数  参数的位置可以变,跟键值保持一致即可
+
+		注意：两种参数的方式不要混合使用，在一个正则表达式中只能使用一种参数方式
+
+		18  188
+
+		1使用位置参数
+
+			urls配置:
+			url(r'^(\d+)/(\d+)/$', views.index)
+
+
+			视图中配置:
+			def index(request, value1, value2):
+			      context = {'v1':value1, 'v2':value2}
+			      return render(request, 'booktest/index.html', context)
+
+
+		2.使用关键字参数
+
+			urls配置:
+			url(r'^(?P<canshu1>\d+)/(?P<canshu2>\d+)/$', views.index),
+
+
+			视图中配置:
+			def index(request, canshu2, canshu1):
+			      context = {'v1':canshu1, 'v2':canshu2}
+			      return render(request, 'booktest/index.html', context)
+
+
+2.错误视图
+
+	Django内置处理HTTP错误的视图，主要错误及视图包括：
+
+	404错误：page not found视图 url匹配不成功会发生404错误
+	400错误：bad request视图 来自客户端的安全方面非法操作会引发400错误
+	500错误：server error视图 在视图中代码运行报错会发生500错误
+
+	只需要在模板中定义指定html文件即可，不需要配置URL和准备视图，
+	之前的模板路径配置正确就行了。
+
+	404.html(要放在templates文件下,而不是booktest文件夹里!)
+
+
+	想看到错误视图，需要修改settings.py文件的DEBUG项，否则默认还是显示调试的错误信息，
+	这个调试的错误信息是针对开发人员的，不能给用用户看到。
+
+	DEBUG = False  修改!
+	ALLOW_HOST=['*']  修改为允许任何主机访问!
+
+
+3.HTTPrequest对象
+
+	--------------------------------------------
+	查看http报文:view source
+	头信息, 地址,协议版本
+	Cookie:sessionid=ldy7vvjig5v6l8vewi63y49gjjiel8jl; csrftoken=0of9Qb4upDetUuKWyT2ibWa2jY1qtDOF; Pycharm-7fbbb1f7=505e37c6-adde-4463-b616-7d4174d5163b
+
+
+	-----------------------------------------------
+
+
+	*服务器接收到http请求后，django框架会自动根据报文创建HttpRequest对象
+	*视图的第一个参数必须是HttpRequest类型的对象
+	*在django.http模块中定义了HttpRequest对象的API
+	*使用HttpRequest对象的不同属性值，可以获取请求中多种信息
+
+    18/188
+
+
+    1.QueryDict对象
+
+		*QueryDict对象定义在django.http.request中,HttpRequest对象
+			的GET、POST属性都是QueryDict类型的对象
+		*与标准python字典不同，QueryDict类型的对象可以用来处理同一个键带有多个值的情况
+		*QueryDict类型的对象，键和值都是字符串类型
+		*键是开发人员在编写代码时确定下来的,值是根据数据生成的
+		*QueryDict类型的对象不是字典，仅仅是类似字典的对象而已
+
+			不是字典
+
+		1.get()方法:
+
+			根据键获取值，如果一个键同时拥有多个值将获取最后一个值,
+			如果键不存在则返回None值，可以设置默认值进行后续处理。
+
+			dict.get('键',默认值) # 如果不存在键对应的值，且没有设默认值，返回none
+			dict['键']  # 简写方式，如果不存在键对应的值，会报异常
+
+
+		2.getlist()方法
+
+			根据键获取值，值以列表返回，可以获取指定键的所有值，
+			如果键不存在则返回空列表[]，可以设置默认值进行后续处理。
+
+			dict.getlist('键',默认值)
+
+
+		shell脚本测试:
+			进入shell:
+				python manage.py shell
+
+			from django.http.request import QueryDict
+			dict = QueryDict('a=1&b=2&a=3')
+
+			思考:	老师为什么要在dict = QueryDict('a=1&b=2&a=3a=python') 加a=python
+
+
+			1.取单个值:
+				dict.get('a')   -->'python'
+				dict.get('b')   --> '3'
+				(取到的是单个字符串)
+
+			2.取多个值:
+				dict.getlist('a')  :返回一个列表:['1','python']
+
+
+			3.取不存在的值:
+				dict.get('c')  :返回none
+
+			4.设置默认值:(键'c',本身不存在)
+				dict.get('c',250) : -->250
+
+
+			***QueryDict取到的键和值都是字符串!!
+				注:如果querydict的对象有多个值,用get()只能得到最后一个值
+
+	2.GET属性
+
+		获取地址栏'?'后面的数据,用到HTTPrequest对象的GET属性,
+			获取到的是一个querydict对象
+
+			http://127.0.0.1:8000/get?a=10&b=20&a=python
+
+
+		获取请求参数:
+
+		1.配置URL:
+			url(r'^get$', views.get),
+
+		2.定义视图:
+			def get(request):
+			  # 通过GET属性获取地址栏上的数据，获取的QueryDict对象
+			  dict = request.GET
+
+			  a = dict.getlist('a') # 返回所有值
+			  b = dict.get('b')
+
+			  context = {'a':a,'b':b}
+			  return render(request, 'booktest/get.html', context)
+
+		3.定义模板,在浏览器中请求地址测试
+			  
+			祝福页面,通过地址栏设置祝福语
+
+			1、配置URL
+				  url(r'^wish$', views.getwish)
+
+			2、定义视图
+				def getwish(request):  
+					-->通过GET属性得到地址栏提交的数据(重要)  
+				    dict = request.GET
+				    name = dict.get('name')
+				    list = dict.getlist('a')
+				    textlist = ['生日快乐', '节日快乐', '学习进步', '四季发财']
+				    str = ''
+				    for i in list:
+				        str += textlist[int(i)] + '  '
+				    context = {'name': name, 'wish': str}
+
+				    return render(request, 'booktest/wish.html', context)
+
+			3、定义模板，在浏览器中请求地址测试
+
+				<!DOCTYPE html>
+				<html lang="en">
+				<head>
+				    <meta charset="UTF-8">
+				    <title>Title</title>
+				</head>
+				<body>
+				    <h2>祝:{{ name }}</h2>
+				    <h1>{{ wish }}</h1>
+				</body>
+				</html>
+
+
+		访问:浏览器中输入:localhost:8000/wish?name=老王&a=1&a=3
+
+
+	3.POST属性:
+	
+		使用form表单提交请求时，method方式为post则会发起post方式的请求，
+		需要使用HttpRequest对象的POST属性接收参数，POST属性返回QueryDict
+		类型的对象。		
+
+		form表单提交参数方式:
+			name属性作为'键': value属性作为'值'
+	
+			*如果没有name属性,则不能提交(可以用get属性验证,去掉一个input的name属性,name这个input将提交不了)
+			*CheckBox会使name一次提交多个值
+
+
+		表单提交案例:
+			1.准备表单模板:post.html
+				method='post',按照post方式提交表单!
+				action='' 不写地址就默认提交到本页面,可以指定提交地址
+				 见教材
+
+			2.配置URL
+
+				# post请求的POST属性:准备表单
+				url(r'^post/$',views.post),
+				# 获取表单提交的参数
+				url(r'^post1/$', views.post1),
+
+
+			3.创建视图(*****)
+				*要准备两个视图,一个用来返回表单页面(post模板),
+				一个处理表单提交的请求(post1模板)*
+-------------------------------------------------------------
+				# post请求的POST属性：准备表单
+				def post(request):
+				    return render(request, 'booktest/post.html')
+
+				# 获取表单提交的参数
+				def post1(request):
+
+					--通过POST属性得到表单提交的数据(重要)
+				    dict = request.POST
+				    username = dict.get('username')
+				    password = dict.get('password')
+				    gender = dict.get('gender')
+				    hobby = dict.getlist('hobby') # 一键多值
+				    context = {
+				                'name':username, 
+				                'pwd':password, 
+				                'gender':gender, 
+				                'hobby': hobby
+				              }
+				    return render(request, 'booktest/post1.html', context)
+--------------------------------------------------------------------------------
+
+		
+		要想让表单提交:
+			1.需要将MIDDLEWARE_CLASSES里面的 下方 代码注释掉(如果不注释掉会出现页面Forbidden)
+			'django.middleware.csrf.CsrfViewMiddleware',  # 安全中间件
+
+			↑-->因为django的机制是默认不让表单(form)以'post'方式提交!↑
+
+			2.开启调试模式:debug = true
+
+
+
+		**(重点)
+		过程:当在浏览器访问地址:localhost:8000/post 的时候,匹配到post.html的页面并且显示出来,
+			当输入数据,点击提交数据的时候,(提交地址action='post1',method='post'),提交之后的数据,
+			会通过匹配,到达post1.html的页面并且显示出来! (而且此时之前输入的地址跳转为localhost:8000/post1),
+			这是全局刷新,我们还可以通过菊部刷新来达成此成就,如下ajax请求!
+
+
+
+		思考: post1提交数据为什么会失败?????(因为,两个视图函数返回的地址是不一样的,一个是post,一个是post1)
+
+		注:
+			1.检查:form data如果有数据那么表示前端没问题, 
+			2.在提交的一瞬间,Network-->Name-->Headers-->From Data可以看到表单提交的数据!!
+			3.开发的时候要开启 DEBUG模式(开发者模式) 设置为True,给用户使用的时候要设置为False,因为要显示404,500,505等
+			4.输入自动补全:<label>姓&nbsp;&nbsp;&nbsp;名：</label><input type="text" name="username" autocomplete="off" />
+				设置autocomplate ='off',可以关闭自动补全
+
+
+
+4.HTTPresponse对象
+
+	1.视图在接收请求并处理后，必须返回HttpResponse对象或子对象:JsonResponse和HttpResponseRedirect
+	2.在django.http模块中定义了HttpResponse对象的API
+		(这句话的意思是:需要使用的时候要导入模块:from django.http import HttpResponse,JsonResponse,HttpResponseRedirect)
+
+	3.HttpResponse对象由开发人员创建
+
+-------------------------------------------------------
+了解:
+查看HttpResponse返回的数据信息如下:
+
+Respouse Headers:	
+	HTTP/1.0 200 OK
+
+	Date: Sun, 10 Dec 2017 07:52:04 GMT
+
+	Server: WSGIServer/0.2 CPython/3.5.2
+
+	Content-Type: text/html; charset=utf-8
+
+	X-Frame-Options: SAMEORIGIN
+--------------------------------------------------------
+
+
+	常用方法:
+		set_cookie：设置Cookie信息
+		delete_cookie：删除指定的key的Cookie
+
+
+
+	HttpResponse响应内容示例(重点)
+
+		1.直接响应数据:
+			from django.http import HttpResponse
+			# 直接返回数据
+			def testproject(request):
+			    return HttpResponse('value')
+
+
+		2.调用模板-完整写法(了解(render函数做了下面三件事情)
+			from django.http import HttpResponse
+			from django.template import loader,RequestContext
+
+			def test(request):
+			    # 1.定义上下文
+			    context=RequestContext(request, {'key':'value'})
+			     # 2.获取模板
+			    template=loader.get_template('booktest/test.html')
+			    # 3.渲染模板
+			    return HttpResponse(template.render(context))
+
+
+		3.调用模板-简写(重要)(render函数对上面完整写法进行了封装)
+			from django.shortcuts import render
+
+			def test(request):
+			    # 定义上下文
+			    context = {'key':'value'}
+			    # 获取模板，渲染模板，让模板语言执行
+			    return render(request, 'booktest/test.html', context)
+
+
+
+两个子对象:
+
+	1.JsonResponse (大儿子,菊部刷新)
+
+		JsonResponse继承自HttpResponse，被定义在django.http模块中接收字典作为参数。
+		使用场景(作用)：当页面的需要制作ajax效果时(局部刷新)，需要用到JsonResponse对象，
+						它可以返回json数据格式。
+
+			理解:当使用ajax局部刷新的时候,会产生JsonResponse对象
+
+
+
+		1、定义图书模型类，可以使用上次定义的模型类。
+
+		2、设置视图：定义两个视图,一个视图返回包含ajax程序的页面,一个视图返回
+			json格式的字符串
+
+			def json1(request):
+			    return render(request, 'booktest/json.html')
+
+			def json2(request):
+
+				# 将所有 图书对象取出来,然后把对象作成json的字符串
+			    books = BookInfo.objects.all()
+			    # 弄个空列表,待会遍历出字符串之后装进来,然后当做参数传进ajax中
+			    list = []
+			    for book in books:
+			        list.append({'btitle':book.btitle, 'bpub_date':book.bpub_date})
+			    return JsonResponse({'list':list})
+
+
+		3、创建static文件夹,在文件夹中创建js文件夹,将jQuery文件放入其中,配置url
+
+
+		4、配置静态文件夹，模板中要引用jquery函数库，目的是使用这个函数库里面封装好的ajax函数，
+			jquery属于静态资源，这样的静态资源一般放在一个静态文件夹中，
+
+			名称为“static”，静态文件中直接放在项目目录下：
+
+			还需要在settings文件中设置静态文件夹的路径：(如果没设置,会报错:$ is not defined)
+
+				STATICFILES_DIRS = [
+				    os.path.join(BASE_DIR, 'static'),
+				]
+
+			放在setting.py的最后就好了
+
+
+			注:测试jQuery文件导入成功,<script>alert($)</script>,如果弹窗成功则成功
+				如果不成功,那么是调试模式没开启, DEBUG = True,
+
+		5、定义模板json.html:
+
+			        $(function () {
+
+
+            {# 给按钮添加点击事件，点击按钮发送ajax请求#}
+            $('#btn').click(function () {
+
+            $.ajax({
+                'url':'/json1',
+                'type':'get',
+                'dataType':'json'
+            }).done(function (dat) {
+				{# console.log(dat.list);#}
+				{# alert(dat.name)#}
+
+                var list = dat.list;
+                var str = '';
+
+                for (var i=0;i<list.length;i++) {
+
+                    str += '<li>' + list[i].btitle + '-----' + list[i].bpub_date + '</li>';
+
+                }
+                {# 将列表中的内容替换 #}
+                $('.list').html(str);
+
+
+            }).fail(function () {
+                alert('ajax请求不成功，请重试');
+            })
+            })
+        	})
+
+
+		<body>
+		    <h1>通过ajax获取数据</h1>
+
+		    <input type="button" value="显示信息" id="btn">
+		    <ul class="list"></ul>
+
+		</body>
+
+
+
+	过程: (ajax实现局部刷新)
+		在浏览器地址栏输入地址,向django网站发送请求,网站接收请求(显示视图1),
+		点击按钮,触发ajax程序,ajax向django发送单独请求,获取数据后返回,并显示在页面上!
+		ajax返回的是json类型数据,所以返回的是JsonResponse对象!
+
+
+	注:1.实际开发中,模型类不用迁移,因为表结构已经确认下来了,迁移会修稿表结构
+		2.用ajax实现局部刷新:点击显示信息,数据能够在页面显示(图书信息),而且保持地址不变
+		3.json数据为 {}双引号包起来的键值对形式,而且json数据里面不能有方法即 get()这种!
+		4.json中的数据类似于字典{}(在js中字典就是对象),但里面的数据是对象,要操作里面的数据可以直接 :data.name	
+			这种,通过操作对象属性的方式来操作数据!
+		5.return JsonResponse({'list':list}) 只能返回键值对,不能返回方法,所以只能这就限制了
+			ajax请求只能实现简单的数据请求!(ajax请求数据是同域的)	
+
+		6.跨域请求数据:
+			跨域请求是返回jsonp数据,就是 return HttpResponse(jsonpcall{"name":"tom"})
+			在html页面引入返回的jsonp数据:<script>src='/jsonpdata'</script>
+
+			注:跨域请求
+
+
+day04o(*￣︶￣*)o
+
+	2.HttpResponseRedirect	(二儿子,重定向)
+
+		当一个逻辑处理完成后，不需要向客户端呈现数据，而是转回到其它页面，如添加成功、修改成功、
+		删除成功后显示数据列表，而数据的列表视图已经开发完成，此时不需要重新编写列表的代码，
+		而是转到这个视图就可以，此时就需要模拟一个用户请求的效果，从一个视图转到另外一个视图，
+		就称为重定向。
+
+		Django中提供了HttpResponseRedirect对象实现重定向功能，这个类继承自HttpResponse，
+		被定义在django.http模块中。(在使用时要导入)
+
+
+		示例:
+		1在booktest/views.py文件中定义视图red1，代码如下:
+
+			from django.http import HttpResponseRedirect
+			...
+			# 定义重定义向视图，转向首页
+			def red1(request):
+			    return HttpResponseRedirect('/index') # 这个地方写路径!!!
+
+
+		2.在booktest/urls.py文件中配置url:
+
+		 url(r'^red1/$', views.red1),
+
+		3.在地址栏中输入网址如下http://127.0.0.1:8000/red1/ 回车后
+
+			网页会自动跳转到127.0.0.1:8000
+
+
+		*重定向简写函数redirect:
+			from django.shortcuts import redirect
+			...
+			def red1(request):
+			    return redirect('/index')
+
+		过程:重定向的过程做了什么? 浏览器的状态从302跳到200,即网页跳转	    
+			注意简写方式导包是不一样的!
+
+	总结:重定向简写方式redirect和完整写法HttpresponseRedirect功能一样!
+
+
+
+5.状态保持
+
+
+	1.浏览器请求服务器是无状态的。
+	2.无状态：指一次用户请求时，浏览器、服务器无法知道之前这个用户做过什么，每次请求都是一次新的请求。
+	3.无状态原因：浏览器与服务器是使用Socket套接字进行通信的，服务器将请求结果返回给浏览器之后，会关闭当前的Socket连接，而且服务器也会在处理页面完毕之后销毁页面对象。
+	4.有时需要保持下来用户浏览的状态，比如：用户是否登录，浏览过哪些商品等
+	5.实现状态保持主要有两种方式：
+		在客户端存储信息使用Cookie
+		在服务器端存储信息使用Session
+
+	注意点:
+	不要用Cookie存储敏感信息，比如：密码，因为cookie存在本地浏览器，可能会被其他人获取
+	Cookie基于域名安全，不同域名的Cookie是不能互相访问的
+	当浏览器请求某网站时，此网站所有Cookie信息会自动携带上传，所以在django中可以通过request对象获取到Cookie信息
+
+	示例:
+
+		1.设置cookie,如果访问,则会携带cookie自动上传!
+		2.如果关掉浏览器,之前设置的cookie会过期!只有再次设置之后,才能获取到!
+		3.可以自己设置cookie过期时间!
+
+
+		from datetime import datetime,timedelta
+
+		1.设置cookie
+		def setcookie(request):
+		    # 实例化一个HttpResponse对象
+		    response = HttpResponse('设置cookie')
+
+		    # 通过HttpResponse对象设置cookie
+		    # 设置cookie，过期时间为关闭浏览器就过期
+		    response.set_cookie('num01', '123')
+
+		    # 设置cookie，过期时间为3天(两种写法)
+		    # response.set_cookie('num01', '123', max_age=3*24*3600)
+		    # response.set_cookie('num01', '123', expires=datetime.now()+timedelta(days=5))
+
+		    return response
+
+		2.获取cookie
+		def getcookie(request):
+		    cookies = request.COOKIES
+		    str = ''
+		    if 'num01' in cookies:
+		        str = 'cookie值为：' + cookies['num01']
+		    else:
+		        str = '没有cookie'
+
+		    return HttpResponse(str)
+
+
+		3、配置URL
+
+		urlpatterns = [
+		    ......
+		    url(r'^setcookie$', views.setcookie),
+		    url(r'^getcookie$', views.getcookie),
+		]
+
+
+		查看:在检查中查看cookie的值:num01=123
+
+
+
+session:
+	对于敏感、重要的信息，建议要储在服务器端，不能存储在浏览器中，
+	如用户名、余额、等级、验证码等信息，在服务器端进行状态保持的方案就是Session。
+
+
+	1.启用Session
+
+		Django项目默认启用Session，在settings文件中的 MIDDLEWARE_CLASSES默认启用了Session中间件，
+		如果想禁用session，可以将这一句删掉。 
+
+	2.存储方式
+
+		ENGINE项指定Session数据存储的方式，可以存储在数据库、缓存、Redis等 存储在数据库中，下面设置可以写，也可以不写，这是默认存储方式
+
+		SESSION_ENGINE='django.contrib.sessions.backends.db'
+		存储在缓存中：存储在本机内存中，如果丢失则不能找回，比数据库的方式读写更快
+
+		SESSION_ENGINE='django.contrib.sessions.backends.cache'
+		混合存储：优先从本机内存中存取，如果没有则从数据库中存取
+
+		SESSION_ENGINE='django.contrib.sessions.backends.cached_db'
+
+
+		在创建项目应用的时候:
+		迁移后会在数据库中创建出存储Session的表：
+
+		表结构如下图，由表结构可知，操作Session包括三个数据：键，值，过期时间
+
+
+		session依赖于cookie(cookie通过response设置,session通request设置)
+			没有cookie就没有session,设置cookie清除时间可清除session
+
+
+		对象及方法
+
+			通过HttpRequest对象的Session属性进行会话的读写操作，以键值对的格式写会话
+
+			request.session['键']=值
+			根据键读取值
+
+			request.session.get('键',默认值)
+			清除所有会话，在存储中删除值部分
+
+			request.session.clear()
+			清除会话数据，在存储中删除会话的整条数据
+
+			request.session.flush()
+			删除会话中的指定键及值，在存储中只删除某个键及对应的值
+
+			del request.session['键']
+
+
+		示例:
+		1.设置session:
+			def setsession(request):
+			    # 通过request对象的session属性来设置session
+			    request.session['username'] = 'tom'
+			    # 设置过期时间
+			    request.session.set_expiry(10)
+			    return HttpResponse('设置session')
+
+
+			在数据库mysql中,设置session会将类似下列字符存入数据库:可以通过select * from django_session 查看
+					
+				| dyrs1utg28mhz9xeonuv0og7zsptdp7t | ZWMyMmFiOGFiZTdiMjI1YmU3ZTExN2I3ODY2ZmYwMGU0N2ZjN2U5Zjp7InVzZXJuYW1lIjoidG9tIn0= | 2017-12-25 01:48:06.659250 
+				注:base64编码
+
+		2.获取session:
+			def getsession(request):
+
+			  # 通过request对象的session属性的get方法来获取session
+			    session = request.session.get('username')
+			    return HttpResponse(session)
+
+
+		3.删除session:
+			# 删除session
+			def delsession(request):
+			    request.session.clear()
+			    # request.session.flush()
+			    return HttpResponse('删除session')
+
+
+			1.	clear()删除成功之后会在mysql返回一条数据:select查看django_session
+
+			| dyrs1utg28mhz9xeonuv0og7zsptdp7t | MjZiM2M1MTZmN2YxNzI2NmVlODc1Y2M4ZmVhNWRhZDZmNmFhZGFkYTp7fQ== | 2017-12-25 01:59:14.817620 |
+			|前面这一段是之前设置cookie时候自动生成的sessionid| 后面这一段有一部分是其他编码,最后的编码是cookie信息
+
+			2.flush() 删除之后会将之前设置的session在mysql中的数据全删除
+
+ 老师笔记:
+ 	2、session操作：
+	   1) 设置session: HttpRequest对象.session['键'] = '值'
+	   2) 获取session：HttpRequest对象.session.get('键')
+	   3) 设置session对应的cookie过期时间：HttpRequest对象.session.set_expiry(value)
+
+
+
+
+
+总结:
+	1.session和cookie的关系:
+		当在使用session的时候,设置session数据,会在cookie中存储一个sessionid的数据,每次,session会把sessionid和cookie数据(cookie数据用base64编码)
+		一起保存在数据库中
+		Cookie:Pycharm-7fbbb1f7=505e37c6-adde-4463-b616-7d4174d5163b; 
+		csrftoken=0of9Qb4upDetUuKWyT2ibWa2jY1qtDOF; sessionid=604pb1679sphf4umfn990p3ddv8nkl6d; num01=123
+
+
+	2.我们来查看一下每次设置cookie之后数据库中保存的session数据:
+		| 6ajlpd5b1vbjoxd60d38e2uo574u73fj | MTJjZjc2N2EwMzUwY2RkZmZlMmI0NDVjM2EyNzc4Y2E2ZmQ5NzVmMDp7InVzZXJuYW1lIjoidG9tIiwiX3Nlc3Npb25fZXhwaXJ5IjoxMH0= | 2017-12-11 09:51:23.699928 |
+
+	  上方编码使用base64解码之后是这样的:
+		|騥ޛֶ㣗zѝ{k羮﷣|12cf767a0350cddffe2b445c3a2778ca6fd975f0:{"username":"tom","_session_expiry":10}
+		这段乱码是sessionid, 中间编码未知,后面是cookie的信息
+
+
+
+思考:有cookie数据就有session数据吗?
+
+
+
+6.属性总结:(重点)
+
+
+以下列出了HttpRequest对象的属性，除特别说明，属性都是只读的：
+
+
+	类型	          说明
+	GET	一个类似于字典的QueryDict对象，包含get请求方式的所有参数，也就是请求地址“?”后面的内容
+	POST	一个类似于字典的QueryDict对象，包含post请求方式的所有参数
+	COOKIES	一个标准的Python字典，包含所有的cookie，键和值都为字符串
+	session	一个既可读又可写的类似于字典的对象，表示当前的会话，只有当Django启用会话的支持时才可用
+	path	一个字符串，表示请求的页面的完整路径，不包含域名
+	method	一个字符串，表示请求使用的HTTP方法，常用值包括：GET、POST，使用浏览器的地址栏发请求采用的是get方式，在表单中可以通过method属性设置get或post方式
+	FILES	一个类似于字典的QueryDict对象，包含所有的上传文件
+
+
+
+
+	1.GET属性:
+
+		在定义视图函数里可以获取打印请求的方法:
+			method = request.method
+			print(method)
+
+			GET  和 POST两种方式
+
+
+		通过判断请求方式,可以将post视图函数请求和post1视图函数合并()
+			注意将post中提交地址改成 action='/post',
+
+
+
+
+
+
+
+
+总结:
+	报错:1.403,或者是缓存导致请求的数据为None, 是中间件没有屏蔽只需要将
+			middleware 注释掉
+		2.404错误,路径问题,urls.py查看路径是否配置对了
+		3.500,代码错误
+		4.如果在用pycharm第一次打开项目的时候忘了配置环境路径(which python)
+			而且项目已经创建成功,那么它默认是创建在python2中,而且运行python manage.py runserver
+			不成功,那么此时需要将 项目里的setting.py文件中的 
+			INSTALLED_APPS = ( 
+							'django.contrib.contenttypes', # 这个是Python3虚拟环境路径)
+
+			改成如图所示的路径即可,(如果是python2环境,这句话会显示为python2.7之类的)						
+
+		5.-----------------------------------------------------------------------
+		1.需要将MIDDLEWARE_CLASSES里面的 下方 代码注释掉(如果不注释掉会出现页面Forbidden)
+		'django.middleware.csrf.CsrfViewMiddleware',  # 安全中间件
+
+		↑-->因为django的机制是默认不让表单(form)以'post'方式提交!↑
+
+		2.开启调试模式:debug = true
+
+		---------------------------------------------------------------
+
+		6.在test1中运行服务器的时候python manage.py runserver 出现运行如下错误,说明setting.py中database数据写错了!
+		django.db.utils.OperationalError: (1045, "Access denied for user 'python'@'localhost' (using password: YES)")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

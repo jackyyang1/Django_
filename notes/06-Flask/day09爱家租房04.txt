@@ -1,0 +1,501 @@
+
+
+flask  ihome
+
+
+
+1.加密:(重点)
+
+	知识点:1.将函数的调用封装到属性里面,使用到关键字:property
+			user.password --->调用generate_password_hash() 方法
+			读取属性的时候就是在调用函数:a = user.password 
+			2.property装饰器的使用:python提供的
+
+			方式一:
+		    def generate_password_hash(self,origin_password):
+		        """封装到类中的对象方法，对密码进行加密处理
+		        origin_password ：用户的原始铭文密码"""
+		        # 将加密后的结果变成此对象的属性
+		        self.password_hash = security.generate_password_hash(origin_password)
+		    
+		     	方式一在外面需要调用方法:
+		     	  user.generate_password_hash(password)
+
+
+   			方式二:
+		    *---property 装饰器将方法变成属性
+		    @property
+		    def password(self):
+		        """
+		        对应额外添加的属性password的读取行为 ---> 相当于set方法
+		        :return: 
+		        """
+		        # 在我们这个应用场景中，读取密码没有实际意义，所以对password读取行为的函数不再实现       # 通常以排除AttrbuteError的方式来作为函数代码
+		        raise AttributeError("不支持读取操作")   # 抛出的异常是一个类,可以在里面自定义返回内容
+		    
+		    @password.setter    
+		    def password(self,origin_password):
+		        """
+		        对额外添加的属性password的读取行为  --->相当于get方法
+		        : params origin_password:在进行属性设置的时候，要设置的值
+		        :return: 
+		        """
+		        self.password_hash = security.generate_password_hash(origin_password)
+		    
+		    	方式二直接使用属性来调用方法:
+		    		user.password = password 
+
+		    注:方法二是 property 将def password()这个方法,变成了属性
+		    	直接设置这个属性值,就相当于是调用了password()里面的两个方法,
+		    	这里第一个方法没用到,就当异常抛出了,第二个方法是将传进来的参数加密并返回,
+		    	设置为其对象属性,那么在外面使用的时候,如果是 类似 user.password = password那么就是设置值, 		
+		    	如果是 a = user.password 那么就是读取值,当然这里没法读,
+		    	一句话理解这个方法-->属性内部封装了加密的方法,并将其方法得到的返回值作为属性返回给对象!
+
+
+		    访问: 电话-->图片验证码-->发送短信-->后台打印sms_code(短信验证码)-->postman使用POST请求方式-->raw-->text(application/json)-->{...}见昨日请求头内容	
+		    		验证码-->注册成功-->在后台mysql中查询 select * ih_user_profile where id = x \G;
+		    		查看加密后的密码格式,如下:
+		    		password_hash: pbkdf2:sha256:50000$B3TM6AR0$afd3079362823f5dd26d9dc2c58e557a5134ea795b2edeaff76260232a2cb4b3
+
+
+
+2.前端传递参数,后端接收参数
+	
+	表单格式数据,前端在 
+
+	前端传递参数-->将对象转换为json字符串-->JSON.stringify(reqData)
+
+	后端接收参数-->request.form -->表单格式-->从请求体中提取csrf_token的值
+				  request.data-->json字符串-->转换成字典-->提取csrf_token
+				  request.args-->
+				  request.get_json
+
+				  对于配合csrf防护:
+				  从cookie中提取csrf_token的值
+				  从请求体中提取csrf_token的值
+				  从请求头中提取csrf_token的值
+
+		注:对于POST,PUT,DELETE提交方式,框架封装了csrf防护,
+			对于flask框架,只有请求体是表单格式(即前端是form提交),flask才能自动解析,自动从请求体中提取csrf_token的值,我们把csrf_token值放在表单中传到后端没问题
+			如果请求不是表单格式,需要在请求头header中补充字段{X-CSRFToken=xxx},
+			即flask如果在请求体中找不到,会从请求头中去找
+
+	-------------------------------------------------------------------
+		代码如下:
+
+			    // 对注册表单的提交事件添加自定义的函数代码
+			    $(".form-register").submit(function(e){
+			        // 阻止浏览器对于表单的默认自动提交行为-->阻止事件冒泡
+			        e.preventDefault();
+
+			        // 提取表单用户填写的数据，
+			        var mobile = $("#mobile").val();
+			        var phoneCode = $("#phonecode").val();
+			        var passwd = $("#password").val();
+			        var passwd2 = $("#password2").val();
+			        if (!mobile) {
+			            $("#mobile-err span").html("请填写正确的手机号！");
+			            $("#mobile-err").show();
+			            return;
+			        } 
+			        if (!phoneCode) {
+			            $("#phone-code-err span").html("请填写短信验证码！");
+			            $("#phone-code-err").show();
+			            return;
+			        }
+			        if (!passwd) {
+			            $("#password-err span").html("请填写密码!");
+			            $("#password-err").show();
+			            return;
+			        }
+			        if (passwd != passwd2) {
+			            $("#password2-err span").html("两次密码不一致!");
+			            $("#password2-err").show();
+			            return;
+			        }
+
+			        // 装换为json格式
+			        var reqData = {
+			            mobile: mobile,
+			            sms_code: phoneCode,
+			            password: passwd,
+			            password2: passwd2
+			        };
+
+			        var reqJSONStr= JSON.stringify(reqData);
+
+
+			        // 使用ajax的完整方式发送给后端
+			        $.ajax({
+			            url: "/api/v1.0/users",
+			            type: "post",
+			            data: reqJSONStr,  // 请求体数据
+			            contentType: "application/json", // 向后端说明请求体的数据是json格式
+			            dataType: "json",  // 向ajax声明后端返回的数据是json格式
+			            headers: {
+			                "X-CSRFToken": getCookie("csrf_token")   // 添加自定义的请求头，为了配合后端的csrf验证
+			            },
+			            success: function (resp) {
+			                // 根据后端返回的响应值，做不同的处理
+			                if (resp.errcode == "0") {
+			                    // 注册成功, 跳转到主页
+			                    location.href = "/index.html";
+			                } else {
+			                    alert(resp.errmsg);
+			                }
+			            }
+			        })
+			    });
+			})
+
+			注:这里因为要发送csrf验证,而且这部分请求数据是额外添加的(自定义的),flask无法解析此参数
+				那么$.post("/api/v1.0/users",reqJSONStr,function(resp){})
+				这种格式的 ajax() 方法就满足不了需求,就必须用到ajax完整版发送请求
+
+		---------------------------------------------------------------
+		功能实现:  注册访问:1.127.0.0.1:5000/register.html
+				-->13163752088-->图片验证码-->发送短信-->后端查询,填写短信验证码-->密码-->确认密码
+				-->注册,跳转到主页index.html-->后端可以查看已经注册的用户
+
+
+		知识点:		
+    		1.为后端返回的响应数据时json字符串,前端提交"注册"传递参数是form表单格式数据,
+      			为了防止冲突,需要将前端数据转换为json字符串格式再传到后端
+
+      		2.后端接收参数必须是json格式的字符串:
+      		var reqJSONStr= JSON.stringify(reqData); 前端中js有封装方法转换成功JSON格式数据	
+      			stringify()!
+
+
+
+
+3.前端console:
+	-------------------------------------------------------
+	前端regist.js中代码讲解:
+
+		function getCookie(name) {
+		    var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+		    return r ? r[1] : undefined;
+		    //python:   r[1] if r else None
+		}
+	----------------------------------------------------------
+
+	在register.html前端页面,输入document.cookie可以获取浏览器保存的cookie
+		document.cookie:
+		"csrf_token=IjNjNGI1YjBiYzc4MDk0MjcxMjFjNWUwZjRiYmRkNTQ1Y2E2M2UzYjAi.DT35Sw.0hpMRORPXb-HoBP4JhVlML_kpz4"
+
+	前端中保存的cookie有不止一个,需要用正则去匹配需要的:
+		前端代码中getCookie方法里封装了正则-->match("\\b" + name + "=([^;]*)\\b" );
+		在控制台里写法:document.cookie.match("\\bcsrf_token=([^;]*)\\b" );
+
+		上方匹配结果如下:["csrf_token=IjNjNGI1YjBiYzc4MDk0MjcxMjFjNWUwZjRiYmRkNTQ1Y2E2M2UzYjAi.DT35Sw.0hpMRORPXb-HoBP4JhVlML_kpz4", "IjNjNGI1YjBiYzc4MDk0MjcxMjFjNWUwZjRiYmRkNTQ1Y2E2M2UzYjAi.DT35Sw.0hpMRORPXb-HoBP4JhVlML_kpz4"]
+
+
+	知识点:\\bcsrf_token=([^;]*)\\b      注:\b是边界控制符,
+		python写法: r[1] if r else None  -->这个是python中的三目运算写法 
+				等价于js中的  r ? r[1] undefined		
+
+
+
+
+4.celery异步执行发送短信
+
+	celery -A ihome.celery_task.sms.tasks.send_sms worker -l info
+
+
+	BUG'在执行celery的时候会出现如下bug
+		1.no module named celery_task.sms
+		2.NO SUCH FILE
+		在celery_task目录下 指定的搜索路径是 ihome.celery_task.sms ---># 搜索celery异步任务
+																	celery_app.autodiscover_tasks([
+																	    "ihome.celery_task.sms"
+																	])
+			所以在在启动celery中worker的时候,一定要cd到与ihome同级的目录中,这样解释器才能找到执行文件															
+
+		3.'AttributeError: 'send_sms' object has no attribute 'user_options'
+			这个bug 是models.py模型类中方法没有定义完整
+
+
+	知识点:
+		客户端发送请求-->redis作为(broker中间人)-->celery(处理者worker)
+		此时为了获取处理以后的返回应答,还需要第四个人:backend (一般存储在redis,mysql中)
+
+		worker(celery)执行完异步任务后,会将结果存储到backend中,在需要知道异步任务的结果的时候需要自己去backend中读取
+
+		4.1配置如下:
+			broker_url="redis://192.168.32.149:6379/2" # 我之前redis配置文件中redis以192.168.32.149启动
+
+			result_backend = "redis://192.168.32.149:6379/3"
+
+		4.2并且在tasks.py中的方法中: return result处理返回值	
+
+		4.3在verify.py中的方法中def send_sms_code()中将最后获取到的返回的对象接收,并且取出里面的结果
+			---------------------------------------------------
+			    # delay方法会返回发布任务的对象，使用celery异步发送短信
+			    task_obj = send_sms.delay(mobile,[sms_code,str(constants.SMS_CODE_REDIS_EXPIRES // 60)],constants.SMS_CODE_TEMPLATE)
+
+			    # 获取任务的编号
+			    print("task_obj.id=%s" % task_obj.id)
+
+			    # 可以通过任务对象的 get()方法获取异步任务的结果，默认是阻塞的
+			    result = task_obj.get()
+			    print("result=%s" % result)
+
+			执行结果:
+			obj.id=1c75e146-e8b1-4185-ace5-9c00a38d01cf
+			result=-1
+	    
+			------------------------------------------------
+
+
+5.登录
+
+	知识点:
+		1.	sha256加密	
+	 	加密后的数据反推是推不出来的,只有拿着正确的值,再去加密一遍,用这个加密值跟之前保存的加密值对比来进行验证
+
+	 	2.incr指令(redis指令)
+	 		incr a  自动累加递增 
+					如果没有,设置为1,后续累加
+					如果有值,在原值上累加1
+
+		操作:
+			在passport.py文件中定义login()视图函数
+		-------------------------------------------
+		代码如下:
+
+			# 登陆就是操作session资源
+			@api.route("/sessions",methods=["POST"])
+			def login():
+			    """登陆"""
+			    # 获取参数： 手机号，密码
+			    req_dict = request.get_json()
+			    mobile = req_dict.get("mobile")
+			    password = req_dict.get("password")
+
+			    # 校验参数
+			    if not all([mobile,password]):
+			        return jsonify(errcode=RET.PARAMERR,errmsg="参数不完整")
+
+			    if not re.match(r"1[3456789]\d{9}",mobile):
+			        return jsonify(errcode=RET.PARAMERR,errmsg="手机号格式错误")
+
+			    # 根据请求用户的ip地址，读取错误次数， redis
+			    user_ip = request.remote_addr   # 请求用户的ip地址
+			    try:
+			        wrong_access_num = redis_store.get("access_num_%s" % user_ip)
+			    except Exception as e:
+			        current_app.logger.error(e)
+			    else:
+			    #  判断这个ip地址的错误尝试次数
+			        if wrong_access_num is not None and int(wrong_access_num) >= constants.WRONG_LOGIN_MAX_TIMES:
+			            # 如果错误次数超过限制，则直接返回
+			            return jsonify(errcode=RET.REQERR,errmsg="错误次数过多，请稍后再试")
+
+			    # 如果未超过限制，验证手机号与密码
+			    # 根据手机号从数据库中取出用户的真实加密密码。对用户u的登陆输入密码进行加密计算，比较两个值
+			    try:
+			        user = User.query.filter_by(mobile=mobile).first()
+
+			    except Exception as e:
+			        return jsonify(errcode=RET.DBERR,errmsg="数据库异常")
+
+			    if user is None or not user.check_password(password):
+			        # 表示用户的手机号错误  ，密码错误
+			        # 否则登陆失败，保存记录错误次数 “access_num_ip地址”：：“错误次数”  字符串类型
+			        # 如果用户时第一次错误尝试，redis中保存数据1
+			        # 如果不是第一次错误，redis中的数据需要累加1
+			        try:
+			            redis_store.incr("access_num_%s" % user_ip)
+			            redis_store.expire("access_num_%s" % user_ip,constants.WRONG_LOGIN_FORBBID_TIME)
+			        except Exception as e:
+			            current_app.logger.error(e)
+
+			        return jsonify(errcode=RET.DATAERR,errmsg="用户名或密码错误")
+
+			    # 如果相同，登陆成功，保存登陆状态
+			    # 用session保存登陆状态
+			    session["user_id"] = user.id
+			    session["mobile"] = mobile
+			    session["user_name"] = user.name
+
+			    return jsonify(errcode=RET.OK,errmsg="登陆成功")
+
+			注:1.请求用户的ip地址:request.remote_addr    
+				2.constants.WRONG_LOGIN_MAX_TIMES (模块.变量名 = 5 次 )
+				3.如果想给模型类中对象添加方法,可以直接加:(在User模型类中)
+					    def check_password(self,origin_password):
+					        """检验用户的密码是否正确
+
+					        :param origin_password: 用户登陆时输入的原始密码
+					        :return:
+					        """
+					        return security.check_password_hash(self.password_hash,origin_password)
+
+				4.# 登陆错误封堵ip的时间：单位：秒(constants中)
+					WRONG_LOGIN_FORBBID_TIME = 600
+	        
+
+		-----------------------------------------------
+
+
+
+
+6.登录前端 
+
+	login.html
+
+	bug: 字符串数据跟 数字比较会出现,错误次数过多..报错
+		改为int()
+		改完之后,五次尝试错误,来查看是否为五次之后才封锁ip
+
+			------------------------------------------------
+		        var reqData = {
+		            mobile: mobile,
+		            password: passwd
+		        };
+
+		        $.ajax({
+		            url: "/api/v1.0/sessions",
+		            type: "post",
+		            data: JSON.stringify(reqData),
+		            contentType: "application/json",
+		            dataType: "json",
+		            headers: {
+		                "X-CSRFToken": getCookie("csrf_token")
+		            },
+		            success: function (resp) {
+		                if (resp.errcode == "0") {
+		                    location.href = "index.html";
+		                } else {
+		                    alert(resp.errmsg);
+		                }
+		            }
+		        })
+		    });
+		})
+
+
+		注: 1.访问:127.0.0.1/login.html 输入之前注册过的账号,然后输入错误的密码
+				弹窗"用户名或密码错误",去redis中查看-->get access_num_127.0.0.1
+				1-->2-->3-->4-->5
+				每次访问弹窗错误之后,会累加1,当5次之后,就会报"错误次数过多，请稍后再试"
+				ip会锁10分钟	
+
+
+		-----------------------------------------------------
+
+
+作业:'
+	1.退出登录:清除session-->session.clear()	
+
+	2.index.html前端页面,将登录之后的显示为 用户名,隐藏"登录","注册"
+
+
+*************************************************************
+小结:
+	在utils目录(自定义方法)下response_code.py中有如下类:
+
+		class RET:
+	    OK                  = "0"
+	    DBERR               = "4001"
+	    NODATA              = "4002"
+	    DATAEXIST           = "4003"
+	    DATAERR             = "4004"
+	    SESSIONERR          = "4101"
+	    LOGINERR            = "4102"
+	    PARAMERR            = "4103"
+	    USERERR             = "4104"
+	    ROLEERR             = "4105"
+	    PWDERR              = "4106"
+	    REQERR              = "4201"
+	    IPERR               = "4202"
+	    THIRDERR            = "4301"
+	    IOERR               = "4302"
+	    SERVERERR           = "4500"
+	    UNKOWNERR           = "4501"
+
+	这个是规范化返回码的操作,在后端代码中,errcode=RET.PARAMERR-->4004    
+	类对象.类属性 的方法返回状态码到返回体中,可以用获取方式获取到,如postman
+
+*************************************************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

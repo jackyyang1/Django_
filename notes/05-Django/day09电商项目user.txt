@@ -1,0 +1,468 @@
+
+dailyfresh01
+
+查看mysql配置:sudo vi /etc/mysql/mysql.conf.d/mysqld.cnf
+Ubuntu系统监视器:gnome-system-monitor
+---------------------------------------------------
+路径:在将四个应用放进apps文件夹之后,路径变了,如果想改为之前的,
+	不用在前面加apps,那么在setting中:
+	import sys
+	sys.path.insert(0,os.path.join(BASE_DIR,'apps'))
+
+	可以将注册应用那里apps前缀去掉,项目urls中apps去掉,pycharm中会变黄
+---------------------------------------------------
+user:
+
+访问:localhost:8000/register.html
+
+1.注册register:
+
+	1.1动态导入静态文件
+	{%load staticfiles%}
+
+	<link rel="stylesheet" type="text/css" href="{% static 'css/reset.css' %}">
+	<link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
+	<script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+	<script type="text/javascript" src="{% static 'js/register.js' %}"></script>
+
+	1.2在register.html页面做表单提交设置:
+
+
+
+if request == 'GET':
+	register
+
+else:
+	register_handle	
+	将注册合并
+
+
+2.register_handle(注册处理)
+	
+	1.接收参数
+	用户名,密码,邮箱,allow(协议)
+
+	2.参数校验
+	2.1校验参数的完整性:if not all([username,password,email]):
+	(all方法遍历可迭代对象)
+
+	2.2校验是否同意协议
+
+	2.3校验邮箱
+	正则匹配:re.match(r'邮箱的正则表达式',email):
+
+	2.4校验用户名是否存在
+	# get方法,返回一个对象,查不到报错
+	try:
+		User.objects.get(username=username)
+	except User.DoesNotExits:
+		user =None
+
+
+
+	ZHU :在mysql中df_user表中;
+		is_superuser:0  # 普通用户,否则为超级用户
+
+		在register注册的皆为普通用户,密码用sha1加密保存
+
+
+
+	3.业务处理:用户注册
+	#用django封装好的方法
+	user = User.objects.create_user(username,email,password)
+	# django在创建用户的时候会默认为激活状态 :1,要修改为0 is_active
+	# user.is_active = 0
+	# user.save()
+	
+	#安装itsdangerous(实现数据加密)
+	#pip install itsdangerous 
+	加密用户身份信息,生成激活token
+	serializer = Serializer(setting.SECRET_KEY,3600)
+	info = {}
+
+	加密数据
+	token =
+
+	给用户的注册邮箱发送激活邮件,激活邮件中需要包含激活链接:/user/active/用户id
+
+
+--------------------------------------------------------------------
+itsdangerous用法:
+
+	from itsdangerous import TimeJSONWebSignatureSerializer as Serializer
+	serializer = Serializer('secret_key',3600)  # 实例化对象,并设置加密事件为1小时
+	info = {'confirm':1}
+	#加密
+	res = serializer.dumps(info)	
+	res
+	# 解密
+	serializer.loads(res)
+
+	再实例化一个对象:
+	serializer2 = Serializer('secret_key',3600)
+	serializer2.loads(res)
+	结果为:{'confirm':1}
+
+	注:1.对象名可以不同,只要秘钥名和 设置的时间是一样的,那么就是同一个结果
+	2.如果已经超过过期时间,再去解密,那么会报错!
+
+---------------------------------------------------------------------
+
+
+	4.返回应答:跳转到首页(使用重定向)
+	from django.core.urlresolvers import reverse
+
+	return redirect(reverse('goods:index'))
+
+
+	select * from df_user \G:(竖着显示mysql表)
+
+3.类视图:(处理注册)
+	
+作用:根据不同的请求去获取不同的方法
+
+	3.1views.py
+	class Register(View):
+
+		def get(self):
+			return register.html 
+
+		def post(self):
+			pass
+
+		点击注册的时候,发送邮件!
+
+
+	3.2urls.py
+	url(r'',as_view(),)		
+
+
+注:	类视图调用原理:
+	父类View:
+	/user/register-->View.as_view内部函数-->dispatch()-->getattr()(获取对象的属性)--get 或者post
+
+	精髓部分:dispatch()
+
+
+4.类视图:(激活用户)
+	首先导入包:
+	pip install itsdangerous
+
+	4.1在views中:
+	class ActiveView(View):
+		def get(self,request):
+			pass
+
+	4.2配置urls捕获:
+
+	    url(r'^active/(.*)$',ActiveView.as_view(),name='active'), #  激活，捕获		
+	    这是位置参数,我们要用关键字参数来捕获/user/active/...
+
+	    url(r'active/(?P<token>.*)$',ActiveView.as_view(),name='active'),
+
+
+	接收参数token
+
+	激活处理!
+	解密,注册成功:
+	发送到qq邮箱之后,点击链接进行激活,然后会跳转到登录页面
+
+	此时查看数据库mysql,select * from df_user \G;
+		会发现此时注册的用户是激活状态:is_active:1
+
+	原理:点击邮箱里链接,调用了ActiveView()下的函数,将用户信息解码并,
+		设置为激活状态
+
+-----------------------------------------------------------
+	 激活代码如下:
+
+	 # /user/register/激活token信息
+
+	class ActiveView(View):
+	    """激活"""
+	    def get(self,request,token):
+	        """处理激活"""
+	        #把上面的加密对象拿下来用,一个小时过期，过期解密会报错
+	        serializer = Serializer(settings.SECRET_KEY,3600)
+	        try:
+	            # 解密数据
+	            info = serializer.loads(token)
+	            # 获取待激活的用户id
+	            user_id = info['confirm']
+	            # 业务处理：激活账号
+	            user = User.objects.get(id=user_id)
+	            user.is_active = 1
+	            user.save()
+
+	            # 返回应答：跳转到登录页面
+	            return redirect(reverse('user:login'))
+
+	        except SignatureExpired:
+	            # 激活链接已经失效
+	            # 实际开发
+	            return HttpResponse('激活链接已失效')
+
+
+
+--------------------------------------------------------------
+
+
+5.发送邮件
+	Registerview()
+
+	加密
+
+	组织邮件内容:
+	subject = '天天生鲜欢迎你'
+
+
+	html_message = html_message(使用关键字参数来传参)
+
+registerview中直接调用send_mail发邮件的问题:
+	如果发送时间过慢,会阻塞等待,造成不好的用户体验
+
+	解决发送邮件问题:
+	使用三方来发送邮件,解阻塞,不再等待邮件的发送
+
+
+-------------------------------------------------------
+用户在注册的时候:/user/register
+
+	1.接收信息
+	2.数据校验
+	3.进行注册
+	4.发送邮件 -->smtp服务器
+	5.跳转到首页
+
+---------------------------------------------------------
+SMTP服务器;
+
+	smtp服务器-->send_mail(时间不确定)-->阻塞等待
+
+
+-----------------------------------------------------------
+Celery:
+	先决条件:任务的发出者,中间人,处理者可以不再同一台电脑上,发出者和处理者都必须连接到中间人
+
+
+	任务发出者--(发出任务)-->redis(中间人)(broker)
+	任务:函数
+
+	任务处理者(worker)--(监听任务队列)-->redis(broker)
+	worker:工作的进程
+
+	怎么从celery变到redis的?
+	celery只是中间人,用来处理两者和redis
+
+--------------------------------------------------------
+
+6.新建包celery_tasks
+
+	定义函数,实现发送邮件
+
+
+6.5把代码复制一份,放在桌面,用终端来启动里面的tasks文件
+	一定要在虚拟环境中运行:
+	 celery -A celery_tasks.tasks worker -l info
+
+
+7.启动worker:
+	celery -A celery_tasks.tasks worker -l info
+
+	----------------
+	这两行代码需要在启动worker的一端打开,即要将pycharm中正在编写的这两句wsgi中代码注释
+	# 初始化 django所依赖的环境
+	import os
+	os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dailyfresh.settings")
+
+	---------------
+
+	启动worker之后,在注册发送邮件,会直接跳转到登录页面,不会等待	
+
+
+
+	工作原理:
+	task找到内部的任务函数:
+	[tasks]
+  	. celery_tasks.tasks.send_register_active_email
+
+  	注:celery发出任务时不是发出的任务的代码,而是发出的任务函数的名字和所需的函数
+
+8.动态导入css文件
+
+	视图中反向解析:reverse()
+	模板中反向解析:{%url 'goods:index'%}
+
+
+
+9.登录视图/user/login
+	class LoginView(View):
+		def get():
+			pass
+
+		def post():
+			pass
+
+
+
+10.is_authenticated 方法
+
+	django框架会给request对象增加一个属性user
+	如果用户已经登录,user是认证系统用户模型类(User)的实例对象
+	如果用户未登录,user是AnonymousUser类的实例对象
+	在模板文件中可以直接使用request的user属性
+
+
+
+
+	登录:login_info 默认是不显示的,改成login_btn
+
+
+
+11.退出登录:(清除用户的登录状态)
+	class LoginOut():
+		"""退出登录"""
+		def get():
+			logout(request)
+		# 返回应答,跳转到首页
+		return 
+
+今天重点:注册,登录,退出
+
+
+
+bug:
+*****************************************
+ 1.今天登录之后,退出登录的地方有bug !!!!!!!!
+2.LoginView中 response 报错
+3.错误的账户密码登录会报错,而不是显示账号密码错误信息
+*/////////**///////////////////////////
+--------------------------------------------------
+bug解答;
+1.在index.html文件中登录,注册的,代码地方少写了一个{%else%}
+ 导致用户在退出登录的时候,注册和登录字样都消失了
+
+ {%if user.is_authenticated %}
+ {% else %}
+ {% endif %}
+
+
+-----------------------------------------------------------
+
+明天:
+1.登录装饰器login_required(重点)
+
+2.用户中心地址添加和显示,个人信息显示
+
+3.redis保留历史浏览记录
+
+4.模型管理器(重点)
+
+5.静态页面重复页面的  抽象父模板,block
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

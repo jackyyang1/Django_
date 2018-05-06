@@ -1,0 +1,430 @@
+
+
+订单模块
+
+
+全选和全不选
+
+
+$(this).find('checkbox').prop('checked')
+
+找到用户选中商品的id: $('':checked)
+
+根据更新结果操作:
+	重新设置页面上购物车商品的数量
+
+QueryDict对象可以一次性拿到所有的值:
+	QueryDict.getlist()
+
+
+1.购物车通用思路(重点)(默认异步,代码直接往下走,不会等待)
+	1.获取删除的商品id(sku_id)
+	2.发起ajax  post请求,访问/cart/delete,传递参数:商品id(sku_id)
+	3.根据删除结果执行相应的操作
+		删除成功:
+		3.1重新设置页面上购物车商品的数量
+		3.2重新设计购物车商品的小计
+		3.3如果商品对应的checkbox被选中,更新页面上被选中的商品的总数目和总价格
+		3.4重新设置页面上购物车商品的总件数
+		更新失败,弹出错误信息
+
+		更新购物车:hset()
+
+
+	ajax请求的同步和异步""
+
+	ajax请求默认是异步的请求:
+		即ajax发起请求之后,代码直接往后走,而不会等待回调函数完成(获取total_count的函数)
+		即获取不到total_count,解决方法为:设置ajax请求为同步亲请求:
+
+            //设置ajax请求为同步请求
+            $.ajaxSettings.async = false
+       --------->为了不影响其他ajax请求,设置同步结尾必须再设置回异步
+            //设置ajax 请求为异步
+            $.ajaxSettings.async = true     
+
+    -----------------------------------------------------
+       代码:
+
+        //计算商品的小计
+        function update_sku_amount(sku_ul) {
+            //获取sku——ul中商品的价格和数目
+            var price = sku_ul.children('.col05').text()
+            var count = sku_ul.find('.num_show').val()
+            //计算商品的小计
+            var amount = parseInt(count)*parseFloat(price)
+            //重新设置对应商品的小计
+            sku_ul.children('.col07').text(amount.toFixed(2)+'元')
+        }
+
+
+        //购物车记录的更新
+        var total_count = 0
+        var error_update = false  //定义一个变量表示更新没有出错
+        function update_remote_cart_info(sku_id,count) {...})
+
+
+        //商品数目的增加
+        $('.add').click(function () {...})
+
+        //商品数目的减少
+        $('.minus').click(function () {...})
+
+        var pre_count = 0
+        //保存用户输入数目之前的购物车中商品的数目
+        $('.num_show').focus(function () {
+            pre_count = $(this).val()
+        })
+
+        //手动输入商品数目
+   		$('.num_show').blur(function (){...})
+
+
+
+
+2.购物车记录删除js思路: (异步请求)(重点)
+	1.获取删除的商品id(sku_id)
+	2.发起ajax  post请求,访问/cart/delete,传递参数:商品id(sku_id)
+	3.根据删除结果执行相应的操作
+		删除成功:
+		3.1移除页面上商品对应ul元素
+		3.2重新设计购物车商品的小计
+		3.3如果商品对应的checkbox被选中,更新页面上被选中的商品的总数目和总价格
+		3.4重新设置页面上购物车商品的总件数
+		删除失败,弹出错误信息
+
+
+
+
+	商品订单页面要传递给付款页面的数据就只有一个商品id(sku_id)
+
+	剩下的数据(数量,价格,用户地址)全部都是从redis查出来的,然后需要付的总金额
+	用刚刚获取的数据来计算出来(total_pay),
+	-------------------------------------------------------------------
+	代码如下:
+		cart.html中:
+
+		先在上面的前端页面添加,让能找到sku_id:
+			<li class="col08"><a href="javascript:; sku_id = {{ sku.id }}">删除</a></li>
+
+
+        $('cart_list_td').children('.col08').children('a').click(function () {
+            //获取删除的商品的id（sku_id）
+            var sku_id = $(this).attr('sku_id')
+            var csrf = $('input[name="csrfmiddlewaretoken"]').val()
+            //获取商品所在的ul元素
+            var sku_ul = $(this).parents('ul')
+            //组织参数
+            var params = {'sku_id':sku_id,'csrfmiddlewaretoken':csrf}
+
+            // 发起ajax post 请求，访问/cart/delete，传递参数：商品id（sku——id）
+            $.post('/cart/delete',params,function (data) {
+                if (data.res == 3 ) {
+                    //删除成功
+                    //移除页面上商品对应ul元素
+                    sku_ul.remove()  //移除自身及子元素，如果是 empty（）方法：移除子元素不包括自身
+                    //如果商品对应的checkbox被选中，更新页面上被选中的商品的总数目和总价格
+                    var is_checked = sku_ul.find(':checkbox').prop('checked')
+                    if (is_checked){
+                        //更新页面上被选中的商品的总数目和总价格
+                        update_page_info()
+
+                    }
+                    //重新设置购物车商品的总件数(重新再去redis中查询总件数)
+                     $('.total_count').children('em').text(data.total_count)
+                }
+                else {
+                    // 删除失败
+                    alert(data.errmsg)
+                }
+            })
+        })
+
+        注:如果弹窗报错数据不完整,那么就是标签sku_id="{{sku.id}}" 这句没写对
+
+	------------------------------------------------------------------
+
+
+3.订单模块:
+	1.订单信息表(df_order_info)
+	2.订单商品表(df_order_goods)
+
+	---------------------------------------------
+	订单创建流程: (最重要!!!!!!!!!!!!!!!!)
+	class OrderCommit(View):
+	    """订单创建"""
+	    def post(self,request):
+	        """订单创建"""
+	        接收参数
+	        校验参数
+	        组织订单信息
+	        todo：向df_order_info表中添加一条记录
+
+	        todo:遍历向df_order_goods中添加记录
+		        获取商品的信息
+
+		        获取用户要购买的商品数量
+
+		        todo：向df_order_goods中添加一条记录
+
+		        todo：减少商品的库存，增加销量
+
+		        todo: 累加计算用户要购买的商品的总数目和总价格
+
+		    todo:更新order对应记录中的total_count和total_price    
+		        
+	        todo：删除购物车中对应的记录 
+
+	        返回应答
+	 --------------------------------------------------  
+	 技术:
+
+		用户每下一个订单,就要向订单里面添加记录
+
+		对于有默认值的参数,可以不必要传,
+			order_id
+			user
+			addr
+			pay_method
+			total_count
+			total_price
+			transit_price
+
+
+		时间格式化:
+			datetime.now().strftime()
+	-------------------------------------------
+		>>> from datetime import datetime
+		>>> datetime.now().strftime('%Y%m%d%H%M%S')
+		'20171212/29/17004405'
+	----------------------------------------------	
+
+		列表拆包
+			
+
+		var csrf = csrfmiddlewaretoken
+	-----------------------------------------------------
+	提交订单页面显示:
+		class OrderPlaceView(LoginRequiredMixin,View):
+
+        # 获取用户所要购买的商品的id
+        sku_ids = request.POST.getlist('sku_ids')
+
+        一个键对应多个值,所以用getlist
+
+
+
+	----------------------------------------------------------
+	代码:
+
+		view.py中:
+
+	    sku_ids = ','.join(sku_ids)  # 1,2,5 将列表转换为字符串
+
+
+
+	$('#order_btn').click(function() {
+	    //获取用户选择的收货地址的id，支付方式，用户购买的 商品的id
+	    var addr_id = $('input[name="addr_id"]:checked').val()
+        var pay_method = $('input[name="pay_style"]:checked').val()
+        var sku_ids = $(this).attr('sku_ids')
+        var csrf = $('input[name="csrfmiddlewaretoken"]').var
+        // 组织参数
+        var params = {'addr_id':addr_id,'pay_method':pay_method,
+            'sku_ids':sku_ids,'csrfmiddlewaretoken':csrf}
+        
+        //alert(addr_id+':'+pay_method+':'+sku_ids)
+            
+	    //发起ajax post 请求，访问/order/commit，传递参数：addr_id,pey_method,sku_ids
+        $.post('/order/commit',params,function () {
+            
+        })
+
+
+
+     访问:提交订单之后,会弹出创建订单成功,并且向mysql数据库中添加一条数据:
+     	select * from df_order_info \G; 	 #向订单信息表添加一条数据  
+   		select * from df_order_goods \G;   #向订单商品表添加一条数据
+
+    ----------------------------------------------------
+
+
+    -------------------------------------------------
+
+
+
+后天:
+	mysql事务
+	订单并发
+
+	支付宝支付文档,使用流程
+
+
+
+
+------------------------------------------------------------------
+总结:
+
+1.
+    if not all([]):
+    	校验提交的的参数是否完整,通常用[],包起来然后判断,因为all()里参数要求是可迭代的
+
+
+
+
+
+
+
+--------------------------------------------------------------------
+疑问:
+
+	1.var count = sku_ul.find('.num_show').val()
+		find的用法是?
+ 
+   2. #校验地址信息
+    try:
+        addr = Address.objects.get(id=addr_id)
+    except Address.DoesNotExist:
+        return JsonResponse({'res':2,'errmsg':'地址信息错误'})
+    
+    #校验支付方式
+    if pay_method not in OrderInfo.PAY_METHODS.keys():
+        # 支付方式非法
+    
+    疑问:
+    创建订单类视图:向这种 校验地址信息的为啥要校验,前端传过来直接结束不久行了吗" 
+    答:需要与数据库中的地址信息进行校验,方可
+
+
+    3.为什么以这种方式来获取参数??
+    var addr_id = $('input[name="addr_id"]:checked').val()
+
+
+
+
+
+
+
+-------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

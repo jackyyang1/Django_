@@ -1,0 +1,379 @@
+**网页显示需要一些资源文件（png（图片文件），css（修饰页面），js（动态交互））
+
+**长连接：多任务更给力
+  短连接：单任务更给力
+
+**在accept地方阻塞
+**设置为非堵塞：sever_socket.setblocking(False)
+                # 设置为非堵塞后，如果accept时，恰巧没有客户端connect，那么accept会
+               # 产生一个异常，所以需要try来进行处理
+
+**内核：向上兼容程序，向下控制硬件
+
+   注：在调用gevent打补丁的时候，是不能用from socket import *这种方法调用套接字模块的
+
+
+1.web静态服务器--并发服务器
+
+
+  两个try：1.有连接的客户端  添加到列表里  2.遍历接收到的客户端，有接收到数据的客户端
+
+  把短连接变成长连接需要加： （长链接和短链接的区别是：服务器先关套接字就是短链接）
+    正常访问：  header += ‘content-length：%d\r\n’% len（contnet） 
+    访问异常：header += “content-length：%d\r\n”% len(response_body)
+           因为异常时，吧sorry这句话放在最前面当body，会最先显示，访问异常只显示这一行           就可以，所以len（body）
+
+
+
+2.epoll （事件驱动event drivern）
+  epoll 遍历的不是套接字对象，而是一个文件描述符
+     使用的是和内核共享的内存，由内核来监听有哪些套接字头写入的事件，最终在程序中可以
+
+   理解epoll:  【.亮灯s.】【c不亮】，本期嘉宾，s服务器套接字，接收事件会亮灯，同时加入 到套接字池中，具体方式reg注册进去，而c客户端套接字也会注册进池中，还没接收数据，不亮 灯，如果接收了数据，就把它反注册  删除 
+
+    基本概念：
+   Web静态服务器-7-epoll
+
+  IO 多路复用
+
+   就是我们说的select，poll，epoll，有些地方也称这种IO方式为event driven IO。
+
+   select/epoll的好处就在于单个process就可以同时处理多个网络连接的IO。
+
+   它的基本原理就是select，poll，epoll这个function会不断的轮询所负责的所有socket，当某    个socket有数据到达了，就通知用户进程。
+  
+   说明：
+   EPOLLIN （可读）
+   EPOLLOUT （可写）
+   EPOLLET （ET模式）
+   epoll对文件描述符的操作有两种模式：LT（level trigger）和ET（edge trigger）。LT模式     是默认模式，LT模式与ET模式的区别如下：
+       LT模式：当epoll检测到描述符事件发生并将此事件通知应用程序，应用程序可以不立即处               理该事件。下次调用epoll时，会再次响应应用程序并通知此事件。
+
+       ET模式：当epoll检测到描述符事件发生并将此事件通知应用程序，应用程序必须立即处理  
+             该事件。如果不处理，下次调用epoll时，不会再次响应应用程序并通知此事件。
+ 
+ I/O 多路复用的特点：
+
+  通过一种机制使一个进程能同时等待多个文件描述符，而这些文件描述符（套接字描述符）其中  的任意一个进入读就绪状态，epoll()函数就可以返回。 所以, IO多路复用，本质上不会有并发  的功能，因为任何时候还是只有一个进程或线程进行工作，它之所以能提高效率是因为select  \epoll 把进来的socket放到他们的 '监视' 列表里面，当任何socket有可读可写数据立马处理  ，那如果select\epoll 手里同时检测着很多socket， 一有动静马上返回给进程处理，总比一个  一个socket过来,阻塞等待,处理高效率。
+
+**************************************************************************************
+今日课堂代码解析：
+   1.单进程-单线程-多任务处理模型 （非阻塞）
+
+    大致思路：在tcp服务器端，accept（）和recv（）两个地方都是处于阻塞状态，可以提前设 置双方套接字（s和c）为非阻塞状态，让空套接字一直跑圈，如果有任务来就让套接字去接任务 ，没有接到任务的就删除掉、
+   
+    在main里：
+    server_socket.listen(128)
+    # 设置为非阻塞
+    server_socket.setblocking(False)
+    # 新建一个客户端列表存储客户端
+    socket_list = []
+    # fin 数据包 数据的内容是一个长度为0的二进制数据
+
+    # 如果没有用户连接 此时会抛出异常
+    # 负责接收新的客户端的链接，并且记录该链接过来的客户端
+    # 有客户端链接
+    # 记录链接的客户端
+    # 设置接收recv为非阻塞
+    client_socket.setblocking(False)
+    # 因为不能够在遍历的时候删除数据，所以新建一个列表来存储要删除的套接字
+    # 把接收到的客户端遍历
+    # 如果recv_data为空说明：fin数据包发送的是一个空的二进制数据包
+
+
+    #记录需要关闭和移除的套接字, 先把没有接收到数据的套接字放进列表中
+                    temp.append(c_socket)
+    # 解决一边遍历一边删除导致遍历的时候漏掉元素
+        for s in temp:
+            s.close()
+            socket_list.remove(s)
+
+
+   2.静态服务器-单进程-单线程-处理多任务（类封装）
+
+   大致思路：把添加运行参数的代码里  加入非阻塞
+             # python3 xx.py 8888 运行，但仅此单线程，多任务
+             # 非堵塞
+             # 长连接
+
+   
+   3.静态服务器-单进程-单线程-处理多任务 （长连接）
+     
+   大致思路：在response_header +=''
+  
+    注：在正常打开请求情况下：
+         response_header += "cpntent-length:%d\r\n" % len(content)
+       在未找到文件情况下（打开失败）：
+          response_header += "cpntent-length:%d\r\n" % len(response_body)
+   
+
+  4.用epoll方法实现
+   
+   大致思路：select 中封装了epoll方法
+
+    def __init__(self):
+    ...  
+    # 3. 变为被动的套接字
+        self.server_socket.listen(128)
+        # 设置为非阻塞的套接字
+        self.server_socket.setblocking(False)
+        self.socket_list = []
+        # 创建ｅｐｏｌｌ对象
+        self.epoll = select.epoll()
+        self.epoll.register(self.server_socket.fileno(), select.EPOLLIN|                                                    select.EPOLLET)
+        self.socket_dict = {}
+
+    def run(self):
+        """运行服务器"""
+        # 4. 等待新的客户端连接
+
+        while True:
+            # 取出有写入事件的套接字
+            epoll_list = self.epoll.poll()
+            for fd, event in epoll_list:
+                # 是否是服务端的套接字
+                if fd == self.server_socket.fileno():
+                    new_socket, new_addr = self.server_socket.accept()
+                    #　将新连接的客户端注册到ｅｐｏｌｌ中
+                    self.epoll.register(new_socket.fileno(), select.EPOLLIN|                                                          select.EPOLLET)
+                    self.socket_dict[new_socket.fileno()] = new_socket
+                elif event == select.EPOLLIN:
+                    # new_socket 并且一定是收到了数据
+                    recv_data = self.socket_dict[fd].recv(1024)
+                    if recv_data:
+                        # 处理数据
+                        self.handle_with_request(recv_data,self.socket_dict[fd])
+                    else:
+                        # 没有数据
+                        # 从ｅｐｏｌｌ中移除
+                        self.epoll.unregister(fd)
+                        # 关闭套接字
+                        self.socket_dict[fd].close()
+                        # 从字典中移除
+                        del self.socket_dict[fd]
+
+
+
+
+  5.用gevent方法实现
+   大致思路:  用monkey 打补丁，在run方法中直接用gevent创建协程运行
+      
+     def run(self):
+        """运行服务器"""
+        # 4. 等待新的客户端连接
+        while True:
+            # 一旦有客户端连接 就创建进程为该顾客服务
+            new_socket, new_addr = self.server_socket.accept()
+            # 创建子进程 线程共享进程资源 不会发生资源的拷贝
+            # join 等待所有的协程任务执行完毕 产生一种阻塞
+            # 此时不需要join 因为在while True 死循环里面
+            gevent.spawn(self.handle_with_request, new_socket)
+      
+      def handle_with_request(self, new_socket):
+        # 接收数据
+        while True:
+            req = new_socket.recv(2048)
+            # 如果接收的数据为空 关闭连接即可
+            if not req:
+                # close()
+                new_socket.close()
+                # 退出当次循环  协程任务也会退出
+                return
+
+   注：gevent在处理接收到的数据时跟epoll有点不同
+
+
+
+
+**************************************************************************************
+助教笔记：
+
+ 单任务服务器: 短连接给力, 如果是长连接,数据发送完成之后没有收到对方的回应,服务器会重 发数据,此时会导致其他的客户端无法连接过来,处理效率极低
+			
+ 如果是短连接, 数据发送完毕之后连接就断开, 此时又可以进入到accpet状态, 就能够处理新的 请求或者让用户先显示一部分数据
+
+多任务服务器: 长连接更给力, 
+
+ 通过开启进程和线程单独处理new_socket的请求, 并且保持该连接不断开, 就能够减少三次握手 和四次挥手的次数,效率更高，
+			
+ 并且也能够同时处理多个用户的请求
+，但是通过多线程或者多进程来完成多任务都是有瓶颈的, 
+
+ 原因1:资源消耗大, 原因2:处理的任务过大导致整体的效率降低
+
+
+
+ 通过单线程单进程处理多任务 需要将套接字的状态变为非阻塞的, 让while True 循环处理畅通 的状态, 疯狂跑圈,
+ 有新的客户端连接来就进行记录存入列表, 
+然后遍历列表查看有没有客户端发送数据过来, 
+ 如果没有数据就继续跑圈, 有数据发送过来就处理该数据
+
+
+
+ 
+
+select 能够遍历的白名单中套接字的数量有限制最多1024个
+
+ poll 突破了1024个白名单的数据量, 能够遍历的套接字没有上限
+
+ epoll 突破了1024个限制 epoll遍历的对象不是 套接字, epoll套接字对应的文件描述符(fd =  4)
+
+        fd是file describtor 
+ epoll 
+ 只有在linux中可以使用 mac中有对应的实现方式(kqueue)
+
+
+
+
+
+
+**************************************************************************************
+注意点：
+ 1. req = req.decode()
+        req_lines = req.splitlines()
+        for item in req_lines:
+            # 验证 请求头信息中最后一行是空行
+            print(item)
+
+
+ 2.收到的信息：第一组是请求类型方法，第二组是访问路径
+       ret = re.match(r"([^/]*) ([^ ]*)", req_line)
+        method = ret.group(1)
+        print(method)
+        path = ret.group(2)
+
+
+3.取出所有写入事件的套接字：
+    socket_list = epoll.poll()
+
+    注：注册了之后，再取出所有写入事件的套接字，取出的是一个列表！！！！，而且此列表装的是fd ，event小元组！！
+
+4.记住：注册的时候不是套接字来注册，而是对象！！object！
+   
+    self.epoll.register(new_socket.fileno(),select.EPOLLIN|select.EPOLLET)
+
+
+**************************************************************************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

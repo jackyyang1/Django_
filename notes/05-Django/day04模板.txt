@@ -1,0 +1,751 @@
+
+django模板
+
+
+MVT中的T
+
+
+
+
+
+
+1.模板概述
+
+	1.作为Web框架，Django提供了模板，用于编写html代码，还可以嵌入模板代码更快
+	更方便的完成页面开发，再通过在视图中渲染模板，将生成最终的html字符串返回给
+	客户端浏览器 模版致力于表达外观，而不是程序逻辑。
+
+	2.模板的设计实现了业务逻辑view与显示内容template的分离，一个视图可以使用任意
+	一个模板，一个模板可以供多个视图使用。
+
+	3.模板包含两部分
+
+		静态部分，包含html、css、js
+		动态部分，就是模板语言
+
+	4.Django模板语言，简写DTL，定义在django.template包中
+
+
+
+
+	Django处理模板分为两个阶段
+
+	1.加载：根据给定的路径找到模板文件，编译后放在内存中
+	2.渲染：使用上下文数据对模板插值并返回生成的字符串
+
+
+
+
+
+
+2.模板语言
+
+	模板语言分4中:
+		变量
+		标签
+		过滤器
+		注释
+
+
+	2.1变量语法:{{变量}}
+
+		变量的作用是-->计算并输出
+		变量名必须由字母、数字、下划线（不能以下划线开头）和点组成
+		当模版引擎遇到点如book.title，会按照下列顺序解析：
+		1.字典book['title']
+		2.先属性后方法，将book当作对象，查找属性title，如果没有再查找方法title()
+		3.如果是格式为book.0则解析为列表book[0]
+		如果变量不存在则插入空字符串
+		在模板中调用方法时不能传递参数
+
+
+		示例:
+
+			1、创建视图
+
+			def bianliang(request):
+			    dict={'title':'字典键值'}
+			    book=BookInfo()
+			    book.btitle='对象属性'
+			    context={'dict':dict,'book':book}
+			    return render(request,'booktest/bianliang.html',context)
+
+
+			2、配置URL
+
+			url(r'^bianliang/$', views.bianliang),
+
+
+
+			3、创建模板bianliang.html
+
+			<body>
+			    字典的值：{{ dict.title }}   # 解析成字典以键取值
+			    <hr>
+			    对象的值：{{ book.btitle }}   #  解析成对象取属性值
+			    <hr>
+			    列表的值：{{ list.0}}---{{list.1}}  # 解析成列表取值
+
+			</body>
+
+
+			输入:localhost:8000/bianliang
+
+
+	老师笔记:
+	3、模板中解析变量的过程：比如：obj.name
+	   1) 先把obj当成是字典，解析成 obj['name']
+	   2) 如果不是字典，把obj当成是对象，解析成 obj.name   
+	   3) 如果name是一个数字，就把obj当成是列表，解析成 obj[name]
+
+
+
+	2.2标签: 语法{%代码段%}
+	
+		2.2.1for 标签语法如下:
+			{% for item in 列表 %}
+
+			循环逻辑
+			{{forloop.counter}}表示当前是第几次循环，从1开始
+			{%empty%}
+			列表为空或不存在时执行此逻辑
+			{%endfor%}
+
+		2.2.2if标签语法如下
+
+			{%if ...%}
+			逻辑1
+			{%elif ...%}
+			逻辑2
+			{%else%}
+			逻辑3
+			{%endif%}
+
+
+		2.2.3比较运算符如下 注意：运算符左右两侧不能紧挨变量或常量，必须有空格
+
+			==
+			!=
+			<
+			>
+			<=
+			>=
+
+		2.2.4布尔运算符如下
+
+			and
+			or
+			not
+
+
+
+		示例:
+
+			1、创建视图
+
+			def biaoqian(request):
+			    context={'list':BookInfo.objects.all()}
+			    return render(request,'booktest/biaoqian.html',context)
+			2、配置url
+
+			url(r'^biaoqian/$', views.biaoqian),
+			3、创建模板biaoqian.html
+
+			<html>
+			<head>
+			    <title>标签</title>
+			</head>
+			<body>
+			图书列表如下：
+			<ul>
+			    {%for book in list%}
+			        {%if book.id <= 2%}
+			            <li style="background-color: red;">{{book.btitle}}</li>
+			        {%elif book.id <= 3%}
+			            <li style="background-color: blue;">{{book.btitle}}</li>
+			        {%else%}
+			            <li style="background-color: green;">{{book.btitle}}</li>
+			        {%endif%}
+			    {%empty%}
+			        <li>对不起，没有图书</li>
+			    {%endfor%}
+			</ul>
+			</body>
+			</html>
+
+
+			localhost:8000/biaoqian
+
+
+
+	3.过滤器:(过滤器本身是一个函数!)
+
+		语法如下：
+
+		使用管道符号|来应用过滤器，用于进行计算、转换操作，可以使用在变量、标签中
+		如果过滤器需要参数，则使用冒号:传递参数
+		
+			变量|过滤器:参数
+
+
+		常用过滤器:
+
+			3.1长度length，返回字符串包含字符的个数，或列表、元组、字典的元素个数
+			3.2默认值default，如果变量不存在时则返回默认值
+			
+				data|default:'默认值'
+
+			3.3日期date，用于对日期类型的值进行字符串格式化，常用的格式化字符如下
+				Y表示年，格式为4位，y表示两位的年
+				m表示月，格式为01,02,12等
+				j表示日，格式为1,2等
+				H表示时，24进制，h表示12进制的时
+				i表示分，为0-59
+				s表示秒，为0-59
+
+				value|date:"Y年m月j日  H时i分s秒"
+
+			示例:
+
+
+			1、创建视图
+
+			def guolvqi(request):
+			    context={'list':BookInfo.objects.all()}
+			    return render(request,'booktest/guolvqi.html',context)
+			2、配置URL
+
+			url(r'^guolvqi/$', views.guolvqi),
+			3、创建模板
+
+			<head>
+			    <title>过滤器</title>
+			</head>
+			<body>
+			图书列表如下：
+			<ul>
+			    {%for book in list%}
+			        {%if book.btitle|length > 4%}
+			            <li style="background-color: red">
+			                {{book.btitle}}
+			                ---默认时间格式为：
+			                {{book.bpub_date}}
+			            </li>
+			        {%else%}
+			            <li style="background-color: blue">
+			                {{book.btitle}}
+			                ---格式化时间为：
+			                {{book.bpub_date|date:"Y-m-j"}}
+			            </li>
+			        {%endif%}
+			    {%endfor%}
+			</ul>
+			</body>
+			</html>
+
+
+			localhost:8000/guolvqi
+
+
+		4.自定义过滤器:
+			使用场景:(现存的过滤器功能不够用的情况下可以自定义过滤器)
+
+			过滤器就是python中的函数，注册后就可以在模板中当作过滤器使用，
+			下面以求余为例开发一个自定义过滤器mod
+
+			4.1在应用中创建templatetags目录，当前示例为”booktest/templatetags“，
+			创建init文件，内容为空。
+
+			4.2在”booktest/templatetags“目录下创建filters.py文件，代码如下：
+
+				#引入注册对象
+				from django.template import Library
+				register=Library()
+
+				#使用装饰器进行注册
+				@register.filter
+				#定义求余函数mod，将value对2求余
+				def mod(value):
+				    return value%2
+
+			4.3过滤器还可以接收参数，将booktest/templatetags/filters.py中增加mod_num函数
+
+				#使用装饰器进行注册
+				@register.filter
+				#定义求余函数mod_num，将value对num求余
+				def mod_num(value,num):
+				    return value%num
+
+
+			4.4使用自定义过滤器
+
+				1.创建视图
+
+				2.配置URL
+
+
+				3.创建模板
+
+				使用第二个过滤器,修改模板中的部分
+
+					{%if book.id|mod_num:3%}
+
+			localhost:8000/guolvqi2
+
+--------------------------------------------------------------------
+自定义的管理器:
+				首先要导入模块:
+				from django.template import Library
+
+				# 实例化对象
+				register = Library()
+
+
+				# 自定义过滤器函数,对2 求余数
+				@register.filter
+				def mod(value):
+				    return value%2
+
+
+				# 自定义过滤器函数,对3 求余数
+				@register.filter
+				def mod_num(value,num):
+				    return value%num
+
+
+				# 自定义过滤器函数,加￥
+				@register.filter
+				def rmb(value):
+				    return '￥%s'%value
+
+				 实际开发中可能会用到加¥符号!
+-----------------------------------------------------------------
+
+
+	自定义过滤器过程:
+		1.在应用的文件夹中创建一个python包,名称为templatetags
+		2.在这个包中创建filter.py文件,里面导入 from django.template import Library
+			实例化对象:register = Library(),用来作装饰器
+
+		3.定义视图,配置URL	
+		4.创建模板,在模板中要load过滤器,
+			{#自定义过滤器需要load 才能用,可以一次定义多个过滤器,一次导入多个过滤器的功能都能使用#}
+   			 {% load filters %}
+
+   		5.自定义过滤器要使用参数:
+
+   			5.1在templatetags目录下的filter中	自定义过滤器函数传参,对num 求余数:
+   				其中形参num要跟在vaule后面:
+				@register.filter
+				def mod_num(value,num):
+				    return value%num
+
+			5.2在模板html页面需要用冒号来传实参:
+   			{# 判断id对3的余数，非0 为True，0为False #}
+            {% if book.id|mod_num:3%}
+
+
+	课堂笔记):
+
+	   1) 在应用的文件夹中创建一个python包，名称为templatetags
+	   2) 在这个包中创建python文件，名称任意，在此文件中通过定义函数来定义自定义过滤器，此函数需要用 register.filter 来装饰
+	   3) 在模板中使用自定义过滤器，需要在模板上面引用定义过滤器的文件 {%load <文件名称>%}
+
+
+
+
+
+
+		5.注释
+
+			5.1单行注释: {#...#}
+
+			5.2多行注释:{%comment%}
+						...
+						{%comment%}
+
+****************************************
+
+3.模板继承
+	extend:扩展,延伸
+
+	模板继承和类的继承含义是一样的，主要是为了提高代码重用，减轻开发人员的工作量
+	典型应用：网站的头部、尾部信息
+
+
+	3.1父模板:
+
+		{%block 名称%}
+		预留区域，可以编写默认内容，也可以没有默认内容
+		{%endblock  名称%}
+
+
+	3.2子模板:
+		3.2.1标签extends：继承，写在子模板文件的第一行
+
+			{% extends "父模板名称"%}
+
+		3.2.2子模版不用填充父模版中的所有预留区域，如果子模版没有填充，则使用父模版定义的默认值
+			填充父模板中指定名称的预留区域
+
+			{%block 名称%}
+			实际填充内容
+			{{block.super}}用于获取父模板中block的内容
+			{%endblock 名称%}
+
+
+			注:在子模板中,使用预留区域,在预留区域外写的html结构-->不显示!
+
+
+	示例:
+
+		1.创建视图
+		2.配置URL
+		3.创建父模板 jicheng_base.html
+		4.创建子模板jicheng.html
+
+
+		localhost:8000/jicheng
+
+---------------------------------------------------------------------------------
+代码示例:
+		3.1在views中:
+		# 定义视图 ，验证模板继承
+		def jicheng(request):
+		    return render(request,'booktest/jicheng.html')
+
+	    3.2在html中,创建父模板:jicheng_base.html
+    	    {# 这是父类模板 #}
+		    <h2>这是公共头部</h2>
+
+		    {% block qu1 %}
+		        <h3>预留区域1</h3>
+		    {% endblock qu1 %}
+
+		    {% block qu2 %}
+		        <h3>预留区域2</h3>
+		    {% endblock qu2 %}
+
+		    <h2>这是公共底布</h2>
+
+	    3.3在html中创建子模板:
+	    	{# 使用父模板中的预留区域需要先声明 #}
+			{% extends 'booktest/jicheng_base.html' %}
+
+
+			{% block qu1 %}
+			    <p>哈哈我是子模板我正在使用父模板中预留区域1</p>
+
+			{% endblock qu1 %}
+
+			{% block qu2 %}
+			    <p>哈哈我是子模板我正在使用父模板中预留区域2</p>
+
+			{% endblock qu2 %}
+
+
+		    <p>呜呜，我是子模板我在使用父模板预留区域之外的地方，
+			    可惜我不会显示，因为遗产没有这块部分</p>
+			{#在预留区域外写的html结构--不能显示#}
+
+
+	注:需要注意的是,在配置url的时候直接匹配的地址是子模板而不是父模板('booktest/jicheng.html')
+------------------------------------------------------------------------------
+
+
+
+	课堂总结:
+	   1) 在父模板定义公共的部分，然后用 block 定义预留区域
+	   2) 在子模板里面用 extends继承父模板，用同样的预留区域定义子模板特有的内容
+	   3) 在预留区域内的内容才能显示，在预留区域外的内容会被忽略
+
+
+
+4.HTML转义
+
+	转义后标记代码不会被直接解释执行，而是被直接呈现，
+	防止客户端通过嵌入js代码攻击网站
+
+		小于号< 转换为&lt;
+
+		大于号> 转换为&gt;
+
+		单引号' 转换为&#39;
+
+		双引号" 转换为 &quot;
+
+		与符号& 转换为 &amp;
+
+
+	关闭转义:
+		
+		过滤器escape可以实现对变量的html转义，默认模板就会转义，一般省略
+
+		{{t1|escape}}
+		过滤器safe：禁用转义，告诉模板这个变量是安全的，可以解释执行
+
+		{{data|safe}}
+		标签autoescape：设置一段代码都禁用转义，接受on、off参数
+
+		{%autoescape off%}
+		...
+		{%endautoescape%}
+
+----------------------------------------------------------------------
+代码示例:
+	4.1在views中:
+		# 定义视图，验证html转义
+		def zhuanyi(request):
+		    context = {
+		        # 在传入字符串进行输出时，对于某些字符会自动转义，防止客户通过输入js字符进行攻击
+		        'title1':'<h1>标签文字</h1>',
+		        'title2':'<script>document.body.style.background="pink"</script>',
+		    }
+		    return render(request,'booktest/zhuanyi.html',context)
+
+	4.2在html中:
+
+			    自动转义：{{ title1 }}<br>
+			            {{ title2 }}<br>
+			    <hr>
+			    不转义：{{ title1|safe }}
+			            {{ title2|safe }}
+
+-------------------------------------------------------------------
+
+		总结:1.为了防止攻击,默认为转义状态 即: data|escape  (escape可不写)
+			2.如果不想转义,data|safe
+			3.设置一整段代码都不转义   见上方!
+
+
+
+
+5.CSRF
+
+
+
+	CSRF全拼为Cross Site Request Forgery，译为跨站请求伪造。
+	CSRF指攻击者盗用了你的身份，以你的名义发送恶意请求。
+	包括：以你名义发送邮件，发消息，盗取你的账号，甚至于购买商品，虚拟货币转账......
+	造成的问题：个人隐私泄露以及财产安全
+
+
+
+	1.CSRF攻击示意图:(实现盗转账虚拟币)
+			csrf攻击,过程:用户A登录网站,网页没关,浏览器中保存了用户登录的cookie信息,
+		用户A此时又登录了另一个网页B,网页B中图片隐藏了一张A网站转游戏币的请求的地址,
+		用户在浏览B网站的时候  黑客就利用用户A在A网站的cookie自动访问转游戏币的链接
+		将游戏币转到自己指定的用户ooo,带着之前的用户cookie,这样就完成了转币.
+		(这个方法非常low,因为前提是:
+			1:黑客要知道A网站转账的地址,www.a.com?username=a&money=10....)
+			2.用户A 在保持A网站登录状态,如果A下线,cookie就消失了,他就没办法完成盗转账)
+
+	2.防止CSRF攻击
+		django中默认有csrf安全校验:
+		'django.middleware.csrf.CsrfViewMiddleware',
+		这个东东会生成一个随机数提交到表单里!
+
+	3.防止CSRF攻击原理代码演示
+
+
+		*表单里面有隐藏域,隐藏域可以提交信息!
+--------------------------------------------------------------------------------
+		1.定义视图,返回表单
+				# 定义视图，返回表单
+		def csrf(request):
+		    return render(request,'booktest/csrf.html')
+
+		# 定义视图，返回表单提交的数据
+		def csrf1(request):
+		    # 因为是post请求，所以要取到里面的值，必须要先拿到post对象，实例化POST
+		    post = request.POST
+		    uname = post.get('uname')
+		    money = post.get('money')
+		    context = {
+		        'uname':uname,
+		        'money':money,
+		    }
+		    return render(request,'booktest/csrf1.html',context)
+
+		2.csrf.html模板:
+		    <form action="/csrf1" method="post">
+		        {#1.手动写隐藏域表单控件#}
+		        {#<input type='hidden' value="kasjfk908" name="csrf">#}
+		        {# 2.下面的模板标签会自动生成隐藏表单控件， 里面的值作为csrf验证 #}
+		         {% csrf_token %}
+		        用户名：<input type="text" name="uname"><br>
+		        游戏币：<input type="text" name="money"><br>
+
+		        <input type="submit" value="提交">
+		    </form>
+
+	    3.csrf1模板:
+	      	用户名：{{ uname }}
+		    <br>
+		    金额：{{ money }}
+
+
+-------------------------------------------------------------------------
+
+		注:如果不写隐藏域控件{%csrf_token%},而直接用post方法提交表单数据,那么就会出现404
+
+
+	总结
+
+	1.(隐藏表单域和cookie的关系老师笔记):当启用中间件并加入CSRF标签后，
+		会向客户端浏览器中写入一条Cookie信息，
+		这条Cookie信息的值与隐藏的input标签的value是一致的，提交到服务器时会
+		先由csrf中间件进行验证，验证Cookie和和input的value是否一致，如果对比
+		失败则返回403页面，而不会进行后续的处理
+	2.重要信息发送POST请求提交到服务器
+
+	3.在发起一次会话过程中,第一次请求验证登录完成之后,会在浏览器中生成cookie信息,
+		在会话过程,如果用户向服务器发送其他请求,比如浏览子目录网页,那么这个请求会将之前
+		保存的cookie信息也发送过去,每次请求都会发送cookie信息,这样服务器才认为用户
+		是一直处于登录状态的,然后响应用户请求,这个过程一直会持续到用户关闭浏览器
+
+	4.(隐藏表单域和cookie的关自己总结):在html中表单的地方设置{%csrf_token%}隐藏表单域控件,会自动生成
+		一个随机字符串(即csrf_token的value值),然后会给到cookie,cookie会将这段字符串存储在表单中保存,在提交表单的时候,提交的数据,cookie
+		和存储的字符串一起传过去,服务器在收到请求的时候,首先会检查是否有此字符串,如果没有返回403,
+		如果有再验证cookie信息是否正确,如果不正确,返回403,如果正确,通过!		
+
+		检查:设置csrftoken的cookie值:0of9Qb4upDetUuKWyT2ibWa2jY1qtDOF
+		html:表单中csrftoken自动创建的value值:0of9Qb4upDetUuKWyT2ibWa2jY1qtDOF
+
+
+6.验证码
+
+	在用户注册、登录页面，为了防止暴力请求，可以加入图形验证码功能，如果验证码错误，
+	则不需要继续处理，可以减轻业务服务器、数据库服务器的压力。
+
+	实现验证码示例:
+
+		接下来的代码不要求手动写出来，按照实际需求使用网上找的或者公司已有的验证策略
+		需要安装包Pillow3.4.1
+		pip install Pillow==3.4.1
+
+
+	验证码示例:
+		两个视图函数:
+		1.登录界面视图(login)
+		2.验证码视图(verify)
+		3.验证登录视图(login_check)
+
+		代码执行过程:
+			1.login视图中用img src='/verify',导入验证码视图,
+			2.登陆成功的情况下,将数据通过post方式提交到login_check页面(action='/login_check'),
+				提交之后显示login_check模板页面!
+
+
+	验证码验证过程:
+		1.用户发起请求(发起请求是一种状态,比如正准备登陆账号,点开了登陆页面的这个时刻),生成
+			验证码视图,以及随机字符串,字符串会显示在验证码上面,而且此时,验证码中的字符串也会
+			立即由session存入数据库中保存,
+		2.用户填完数据,提交表单,表单数据,cookie,session数据都会跟着一起被提交,服务器首先会验证,
+			验证码字符串是否存在或正确,不正确返回,正确再接着下一步验证,提交的数据(用户名,密码)是否正确
+			正确的话就可以登陆!不正确返回!
+
+		注:1.本人认为验证码是session的一个具体应用场景!
+		   2.验证码代码主要做了两件事:1.生成图片 2.将数据存入session
+		   3.验证码在login.html中的位置是通过:<img src="/verify"></p>  来导入的,
+		   	即将verify.html的页面导入到登陆页面!
+	   	   4.在login.html表单的地方要设置csrf控件{%csrf_token%},才能post提交!	
+
+
+
+7.反向解析
+
+
+	在模板里面定义链接地址时，地址是写的固定值[url(r'^fan222$',views.fan2,name="fan2") 在这里面fan222就是固定的地址]，如果这个地址匹配的URL配置中的正则改变了，
+	这个地址就匹配不上了，反向解析可以把链接地址写成变量的形式，及时改了正则规则，链接地址
+	会自动改变，保证地址能匹配成功。
+
+	在fan1中html中:
+		<a href='{booktest.urls:fan2}'>跳转到fan2页面</a>
+
+
+	反向解析除了应用在模板链接地址中，还用在视图重定向中：
+
+
+
+	1.超链接反向解析示例:
+
+		1.创建视图
+
+		2.配置项目中URL:
+
+		  #	常用解析
+		  # url(r'^', include('booktest.urls')),   
+		  反向解析
+		  url(r'^', include('booktest.urls', namespace='booktest'))
+
+		3.配置应用中的url
+			url(r'^fan123/$', views.fan1, name='fan1'),
+
+		4.创建模板
+
+		  <a href="/fan1/">跳转到fan1</a>
+
+		  {# 根据url动态生成地址 #}
+		  <a href="{% url 'booktest:fan1' %}">动态地址跳转到fan1</a>
+
+		5.运行服务器
+
+
+	2.视图重定向反向解析示例:
+
+		1.导入模块:
+			from django.http import HttpResponseRedirect
+			from django.core.urlresolvers import reverse
+
+		2.配置重定向URL
+			url(r'^redirect/$', views.redirect, name="fan2"),
+
+		3.视图中的重定向反向解析
+
+			def redirect(request):
+ 				return HttpResponseRedirect(reverse('Book:fan1'))
+
+
+
+ 	3.反向解析参数传递:
+ 	
+ 		1、位置参数：反向解析
+
+			# URL配置，正则内带参数
+			url(r'^fan3/(\d+)/(\d+)/$', views.fan3, name='fan3')
+			-----------------------------------------------------
+
+			# 超链接设置
+			<a href="{% url 'booktest:fan3' 18 188 %}">动态地址和正则传参跳转到fan3</a>
+			-----------------------------------------------------
+
+			# 重定向反向解析传参
+			def redirect(request):      
+			    return HttpResponseRedirect(reverse('Book:fan3', args=(18, 188)))
+		2、关键字参数：反向解析
+
+			# URL配置，正则内带参数
+			url(r'^fan2/(?P<v1>\d+)/(?P<v2>\d+)/$', views.fan4, name='fan4')
+			-----------------------------------------------------
+
+			# 超链接设置
+			<a href="{% url 'Book:fan2' v1=18 v2=188 %}">动态地址和正则传参跳转到fan4</a>
+			-----------------------------------------------------
+
+			# 重定向反向解析传参
+			def redirect(request):      
+		   		 return HttpResponseRedirect(reverse('Book:fan2', kwargs={'v1':18, 'v2':188}))
+
+		   		 
+
+		注:通过分组能将url配置中的参数传递到模板中   		 
+
+
+
+************************************************
+
+每日BUG时间:
+	1.csrf:在提交表单的时候
+		如果不写隐藏域控件{%csrf_token%},而直接用post方法提交表单数据,那么就会出现404
+		(在setting.py中注销csrf中间件也可以达到效果,但是尽量不要使用)

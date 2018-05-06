@@ -1,0 +1,300 @@
+
+
+dailyfresh
+
+支付,评论,项目部署
+
+
+1.订单支付流程:
+	
+	见昨日
+
+	注:
+	支付完成之后django网站并不知道有没有操作完成
+
+	把查询放在支付完成之后回调函数的地方,就能查询交易情况
+			out_trade_no:  # 商户交易号
+
+
+
+	调用接口:
+		response = alipay.api_alipay_trade_query(out_trade_no=order_id)	
+	
+		返回码(需要关注的三个参数):(
+				trade_no:        # 支付宝交易号
+				code: 10000           # 网关的返回码
+				trade_status: TRADE_SUCCESS     # 支付交易状态
+
+			)
+
+
+	code=40004 支付交易还未处理
+
+	定义一个订单状态字典:
+		status_item = {'1':'去付款','2':'待发货','3':'查看物流','4':'去评价'}
+
+
+	注:支付宝的API命名规则是: 
+		在API文档里面可以看到:alipay.trade.query(统一收单线下交易查询)	
+		在view.py中定义API的时候:res = alipay.api_alipay_trade_query(...)
+		即用下划线连接!
+
+	--------------------------------------------------------------------
+	代码如下:
+		在views.py中:
+			class CheckPayView(view):
+				def...
+				...	
+		       while True:
+	            # 调用支付宝api函数
+	            response = alipay.api_alipay_trade_query(out_trade_no=order_id,
+	                                                     )
+	            #获取网关的返回码
+	            code = response.get('code')
+	            print(code)
+
+	            if code == '10000' and response.get('trade_status') == "TRADE_SUCCESS":
+	                # 用户支付成功
+	                # 获取支付宝交易号
+	                trade_no = response.get('trade_no')
+
+	                # 更新订单的状态，填写支付宝交易号
+	                order.order_status = 4  # 待评价
+	                order.trade_no = trade_no
+	                order.save()
+
+	                # 返回应答
+	                return JsonResponse({'res':3,'errmsg':'支付成功'})
+
+	            elif code == '40004' or (code == '10000' and response.get('trade_status') == "WAIT_BUYER_PAY"):
+	                # 等待买家付款
+	                import time
+	                time.sleep(5)
+	                continue     # 交易过程需要时间，如果没获取到支付成功的交易号就反复判断几次
+	            else:
+	                # 支付失败
+	                return JsonResponse({'res':4,'errmsg':'支付失败'})
+	            
+
+	    在user_center_order.html中;
+
+	    				...
+
+	    	     	    $('.oper_btn').each(function () {
+				        //获取订单的状态
+				        var status = $(this).attr('status')
+				        // 定义一个订单状态字典
+				        status_item = {'1':'去付款','2':'待发货','3':'物流查询','4':'去评价'}
+				        //根据订单状态 设置a标签内容
+				        $(this).text(status_item[status])
+				   		})
+
+	    	     	注:根据订单状态,动态获取 a标签内容   
+	    	     	
+
+	    	     	    ....
+
+                        if (data.res == 3) {
+                            alert('支付成功')
+                            //重新加载页面
+                            location.reload()
+                        }
+                        else {
+                            alert(data.errmsg)
+                        }
+
+                     注:重新加载页面是为了让 状态信息,从待支付-->待评价
+
+     功能:
+     	代码到这里就可以正常购买支付了:
+
+ 	    购物车-->去结算-->去支付-->跳转到支付宝页面-->付款成功-->原支付页面跳出'支付完成'
+     	-->刷新页面状态为'待评价'
+
+	-------------------------------------------------------------------	
+
+
+2.评论:
+
+	在views,py中
+	1.todo:有几个商品就有几个评论:count
+
+	2.遍历获取商品的评论信息:for
+
+	3.更新订单的状态:save
+
+	在detail.html中两个div的切换active:
+		tag_detail 商品详情
+		tag_comment 商品评论
+
+		商品介绍和评论切换:应该是一个显示另一个就不显示:
+        //显示详情
+        $('#tag_detail').click(function () {
+            //激活框
+            $(this).addClass('active')
+            $('#tag_comment').removeClass('active')
+            //显示
+            $('#tab_detail').show()
+            $('#tab_comment').hide()
+        })
+
+
+
+3.项目部署:
+	简单部署:运行web服务器:python manage.py runserver 0.0.0.0:8000
+
+	正规部署:UWSGI作为web服务器
+
+		1.pip install uwsgi
+
+		2.uwsgi.ini配置文件:
+		-----------------------------------------------------------
+		在项目目录下新建uwsgi.ini配置文件:
+
+			[uwsgi]
+			# 使用nginx链接时使用
+			# socket = 127.0.0.1:8080
+			# 直接做web服务器使用（绑定的ip和port）
+			http=127.0.0.1:8080
+			# 项目目录
+			chdir=/home/python/Desktop/pytest1/dailyfresh
+			# 项目中wsgi.py文件的目录。相对于项目目录
+			wsgi-file=dailyfresh/wsgi.py
+			# 启动服务器之后工作的进程数
+			processes=4
+			# 工作中的的线程数
+			threads=2
+			# 有一个进程会作为主进程
+			master=True
+			# 启动服务器之后会生成文件uwsg.pid 里面保存的时主进程进程号
+			pidfile=uwsgi.pid
+			# 服务器启动之后在后台运行，会生成uwsgi.log文件，保存日志信息
+			daemonize=uwsgi.log
+			# 项目运行的虚拟环境路径（cd .virtualenvs/django_py3, 然后pwd），如果项目没有在虚拟环境运行就不需要指定这个
+			virtualenv=/home/python/.virtualenvs/django_py3
+
+		---------------------------------------------------------
+		在setting.py中:
+			DEBUG=False  关闭调试模式
+			ALLOWED_HOSTS = ['*']
+
+
+		3.启动服务器:
+			uwsgi --ini uwsgi.ini # 先cd 到项目dailyfresh中,此时ls能查看到 uwsgi.ini这个文件,--ini后面的uwsgi.ini的路径也可以写成绝对路径
+		  停止:
+			uwsgi --stop uwsgi.pid
+
+			注:1.开启服务器之后,ps aux|grep uwsgi 查看,可以看到里面有6个进程在运行,这4个进程是接收客户请求,还有2个是管理的进程;
+			   2.会生成2个ini文件	
+
+			*访问:127.0.0.1:8080	
+			*问题:此时静态文件找不到了,因为关闭了调试(DEBUG=False)模式
+			*解决:此时需要做一个架构升级:即用nginx来调配
+
+		  用nginx服务器来切换:
+
+			1.如果用户访问的不是静态文件,转交给uwsgi服务器
+
+			2.可以通过ngix来提供项目的静态文件:
+				1.部署项目的时候把项目用到的静态文件收集到nginx所在的电脑某个目录
+				2.在nginx中指定静态文件存放的目录,如果用户访问的是静态文件,则到指定目录中找到静态文件,
+					然后直接返回给用户的浏览器
+
+					配置nginx.conf:
+
+					/usr/local/nginx/conf/nginx.conf
+					做如下修改:
+						location / {
+							#包含uwsgi请求参数
+							include uwsgi_params;
+							# 转发请求给对应的uwsgi服务器
+							uwsgi_pass 127.0.0.1:8080 
+									}
+
+					启动nginx:sudo /usr/local/nginx/sbin/nginx
+
+					uwsgi.ini:socket = 127.0.0.1:8080
+
+			3.收集静态文件
+				chamod 777 
+
+			4.修改nginx.conf
+			location / static {
+				#指定静态文件存放的目录 
+				alias /var/www/dailyfresh/static/;
+			}
+
+			重启nginx: sudo /usr/local/nginx/sbin/nginx -s reload	
+
+
+			5.location = / {
+				#转发请求给静态页对应的
+			}
+
+
+			6.cp文件uwsgi2.ini
+				修改端口:8081
+				启动
+
+			upstream	
+
+			删掉首页的下面的js代码  slideshow
+--------------------------------------------------------
+项目部署:
+
+	nginx是负载均衡服务器||应用服务器:uwsgi+django||mysql,fastdfs,redis 		
+
+	1.转发请求给uwsgi		
+	2.提供项目的静态文件		
+	3.转发请求给静态首页nginx		
+	4.实现负载均衡:upstream		
+
+	nginx在三处齐起了作用:调度,显示图片,静态文件
+
+	阿里云:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

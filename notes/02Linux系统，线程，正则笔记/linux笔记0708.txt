@@ -1,0 +1,369 @@
+*想一想，qq和微信的端口是多少呢？开发一个程序是需要备案端口的！udp8000,tcp:443
+*在pycharm中Ctrl+ C 是全选的作用
+
+
+1.多线程共享全局变量的注意点
+
+
+ 1,为了数据不发生错误，可以让一个线程先执行完，让另一个线程去执行
+ 2,同步的方式去执行代码，同步就是按照一定的顺序执行的任务 就叫做同步
+ 解决方式：1，time方式延时 ：time.sleep(1)
+           2，线程等待:first_thread.start()
+                       first_thread.jion(),这里第一个线程先执行 
+                       second_thread.start()     
+
+ 总结：多个线程同时操作全局变量的时候注意资源报错了的问题，可以使用同步解决
+    注：子线程与主线程同步用设置守护主线程方法，子线程与子线程之间等待用jion
+
+
+
+
+互斥锁：
+     # 创建全局互斥锁:lock = threading.Lock()  # 注意后面 的Lock要大写L
+
+      注：互斥锁的作用是在一个子线程调用全局变量时保证只能它自己使用
+
+     # 在任务里上锁，任务结束时解锁：lock.acquire(0-->lock.release()
+     注：使用互斥锁  并不能决定那个线程先执行，如果有执行先后顺序需求可以用join方法
+
+     # 核心代码互斥锁： 如 lock.acquire()   #上锁
+                            num += 1
+			   lock.release()   # 解锁
+     注：核心代码互斥锁的作用是保证每个线程都能运行到，而且最终结果是两个线程相加的和
+	
+
+
+死锁：
+    如果在取值时越界，可以在里面判断下标，如果越界，释放锁，才不会影响其他进程
+    # # 老师讲的死锁例子：因为return会导致当前整个跳出函数，如果在这里不释放锁，那么后面进来的子进程 就会取不到锁
+
+   
+
+
+1进程： 进程与线程的关系
+    1.1通俗的理解一个运行起来的程序或者软件可以理解为进程，每次启动一个进程，进程都会向操作系统索要运行资源，索要运行资源要保证程序能够运行起来，让线程执行对应的代码，也就是说进程是操作系统资源分配的基本单位。提示：每次启动一个进程都需要额外的开辟运行资源，会有资源分配，进程只负责索要运行资源，正在干活的是进程中的线程。可以把公司（提供电脑，桌椅等资源）理解成进程，把员工（负责利用公司资源干活）理解成线程
+
+
+
+
+2，进程和线程的对比
+   2.1进程通俗理解就是一个运行起来的程序或者软件就是一个进程，每次启动进程都会向操作系统索要运行资源，进程是操作系统分配的基本单位
+   
+   2.2线程技术程序中执行的一个分支（实例），每个分支可以执行不同的任务，可以完成多任务操作，线程是cpu掉态度的基本单位，线程是依附在进程里面的，没有进程就没有线程
+
+**  重点：（面试）
+   2.3  进程之间不共享全局变量
+   
+   2.4  每次启动进程都会向操作系统索要资源，线程之间共享进程的运行资源
+
+   2.5  多进程开发模式比多线程开发模式健壮性要强，因为多进程开发某个进程挂掉不会影响其他进程的运行，但是如果多线程开发，如果进程挂了，那么进程里面所有的线程都会销毁
+
+
+3.在多进程里：
+   3.1查看当前任务由那个进程执行，需要导入os模块，import os，下同 
+       print（'当前执行的进程为：'，multiprocessing.current_process()）
+   
+   3.2 查看当前进程对应编号;
+      print('当前执行的进程编号为：',multiprocessing.current_process().pid,os.getpid             ())     # pid是编号，
+                    #这里 multiprocessing.current_process().pid 等同于 os.getpid()
+   
+   3.3 查看当前进程中的父进程编号：
+      print('',os.getppid())         # 这里 p是（父类parent的缩写）  pid  
+
+
+4.创建多个子进程：
+
+   son_process = multiprocessing.Process(target=work1)
+    # 在主进程创建子进程
+    #group：进程组，一般不用，就是使用 目前也只能用None
+    # target：进程执行的目标函数名
+ 
+    #启动进程    类似于线程的创建和启动
+     son_process.start()
+   
+    # 主进程执行的任务，比如循环100次
+    # 总结：多进程可以完成多任务 同时执行
+    for i in range(100):
+       print('我在主线程中执行---')
+       time.sleep(0.1)
+
+
+5.Process的使用;s
+   # 总结：主线程会等待子线程完成之后才退出
+   # 如果想要子线程跟 主线程一起退出，方法有两种：
+      1.设置成为守护主线程，主线程退出了，那么子线程会自动销毁，不再执行
+        # 创建子线程：student_process = multiprocessing.Process(target=show,args=(1,),kwargs={'name':'老王'，'age':18})
+        studen_process.daemon = True  #这里 daemon当做属性来使用了，而线程里是方法
+        
+    # 注 这里一定要先设置守护，然后再启动start 
+
+    2.直接让子进程销毁或者终止进程的执行
+       student_process.terminate()
+       exit() 
+
+
+6.进程之间不共享全局变量：
+    定义全局变量：mylist = []
+    定义两个方法write--》append，和read，当生成并且同时start两个子进程的时候，发现无论是设置write_process.join()写方法，还是time.sleep(1),都不能使读方法读出写入的数据，故，相当于两个子进程在生成的过程中同时各自调用了资源，但是他们调用的mylist并不是同一个，而是名字相同，引用地址不同
+
+
+7.Queue的使用： （queue本意：排队，列队等待;）
+    import multiprocessing
+    # 5:表示消息队列的最大个数，如果不指定 就是无限大
+     queue = multiprocessing.Queue(5)
+   
+     # 放入数据
+       queue.put('hello')         # 字符串       
+       queue.put([1,2,3])        # 列表     
+       queue.put({'name':'张三','age':18})   #字典
+       queue.put((3,4,5))          #  元组
+       queue.put({'haha','呵呵'})   # 集合
+  
+     总结：消息队列可以放入任何类型的数据
+          如果队列满了，在使用put放入数据会等待队列有空闲位置才能放入
+      
+       # que.put_nowait('你们好')
+       # 表示不等待队列是否满了，直接向队列里添加数据，如果队列满了，会直接崩溃 
+       
+      
+    # 获取数据
+      print(queue.get()) 
+      print(queue.get())
+      print(queue.get())
+      print(queue.get())
+      print(queue.get())   
+   
+       #消息队列取空了，会等待队列里面有消息才能获取，否则一直等待
+        
+        # 如果消息列表已经空了，那么直接获取数据不等待就会崩溃
+        
+	queue.get_nowait()
+
+
+**** 总结：多只有线程才可以使用互斥锁，因为多线程可以互相共享资源和全局变量，有竞争，都会去抢着用，而多进程就不行，因为进程里全局变量不能共享，各自运行各自的
+      
+      #扩展   终止当前进程
+      #os.kill()  怎么用？？？？？
+    
+
+
+8.Queue的演练
+ 
+   Queue的作用是使两个进程之间共享数据
+    注：在主进程里创建queue 之后记得把参数以元组的形式传到新建的子进程中
+       如：queue = multiprocess.Queue(10)
+        write_process = multiprocessing.Process(target=write,args=(queue,))
+       
+       #  write_process.start()  进程的创建和使用非常类似于线程
+       # 在吧数据从queue中取出来的过程，是queue.get(),如果全部取完，用while True循环
+
+        # 判断队列是否满了：if queue.full()
+       #  判断队列是否空了：if queue.empty()
+
+
+day08：
+
+
+9，进程池Pool：
+   手动的去创建进程的工作量巨大，此时就可以用到multiprocessing模块提供的Pool方法
+
+    初始化Pool时，可以指定一个最大进程数，当有新的请求提交到Pool中时，如果池还没有满，      那么就会创建一个新的进程用来执行该请求；但如果池中的进程数已经达到指定的最大值，      那么该请求就会等待，直到池中有进程结束，才会用之前的进程来执行新的任务
+   
+   po=Pool(3) #定义一个进程池，最大进程数3
+   for i in range(0,10):
+       #Pool().apply_async(要调用的目标,(传递给目标的参数元祖,))
+       #每次循环将会用空闲出来的子进程去调用目标
+       po.apply_async(worker,(i,))
+
+    9.1.apply_async(func[, args[, kwds]]) ：：使用非阻塞方式调用func（并行执行，堵塞方         式必    须等待上一个进程退出才能执行下一个进程），args为传递给func的参数列表，       kwds为传递给func的关键字参数列表；
+      close()：关闭Pool，使其不再接受新的任务
+
+      terminate()：不管任务是否完成，立即终止；
+      
+      join()：主进程阻塞，等待子进程的退出， 必须在close或terminate之后使用；
+            
+ 
+进程池中的Queue
+
+    如果要使用Pool创建进程，就需要使用multiprocessing.Manager()中的Queue()，而不是          multiprocessing.Queue()，否则会得到一条如下的错误信息
+
+
+
+课堂进程池：
+       # 创建进程池,设置最大进程数量为3
+    pool = multiprocessing.Pool(3)
+
+    for i in range(1):
+        # 同步运行进程池中的进程，进程会等待上一个进程运行完在运行
+        # pool.apply(copy)
+
+
+        # 异步完成，主进程不会等待子进程,所以要在主进程设置join，但是在
+        # join之前要先关闭进程池，让其不再创建进程进去了
+        pool.apply_async(copy)  # 注意这括号里是func=函数名，也可以不写func=
+
+    pool.close()
+    pool.join()
+
+
+ queue在进程池中的使用：
+     可以设置
+       一个写功能函数write，
+       一个读功能函数，
+       在主线程中创建队列queue =multiprocessing.Manager().Queue(), 
+      创建进程池：pool= multiprocessing.Pool(2)
+     # 使用进程池中空闲进程执行对应写入数据的任务
+     # 扩展 ：返回一个对象ApplyResult 
+     result = pool.apply_async(func=write,args=(queue,) )   #这里用的是不同步的方法
+                                                             # 异步方法
+     # 等待写完数据在执行下一个步骤
+     result.wait()
+     print(result)
+     # 或者这里可以用time.sleep(2) 代替
+
+     #等写完数据后 使用进程池中空闲的进程执行对应的读任务
+     pool.apply_async(func=read,args=(queue,))
+
+     # 关闭进程池，不再接受其他任务
+     pool.close()
+     # 等待所有进程完成任务 后再退出程序
+     pool.join()
+
+
+10.飞鸽传书-发送文件
+***********************************************************************************
+
+  大体流程： 
+       1.以udp方式发送文件消息提醒
+      2.对方在接收文件的时候和发送方建立TCP的连接，发送请求的文件信息（消息的包编号和文件序号），发送方根据用户的请求信息找到对应的文件，然后把文件的二进制数据发送给接收方
+
+
+**********************************************************************************
+根据上次飞鸽传书的进度来编写完善发送文件下载文件等功能
+ 
+***上回功能为（给指定用户发送消息）
+
+1.Main：（主进程添加发送文件信息选项） 在main界面主程序添加功能，command==5，给对方        发送文件信息，
+
+2.Send：（以udp发送文件消息提醒，仅仅是发送这是文件消息这个信号）
+  创建一个send_file_msg()的方法，方法初始化内容从send_msg()里面拷贝一份过来，
+       把后面的代码build_msg那里的代码更改为接收文件的参数，并且此时把 接收文件信息   的命令选项粘贴到Global里，方便调用，根据发送文件信息的内容，把发送文件内容格式化   输出  
+     （发送文件消息，如下
+        版本号:包编号:用户名:主机名:命令字:消息\0文件序号:文件名:文件大小:文件修改时   间:文件类型:）
+   我们只需要的是后面的部分：(\0文件序号:文件名:文件大小:文件修改时间:文件类型:）
+       格式化输出如下：file_info = "\0%d:123.py:1024:123123:%x:" %          (0,Global.IPMSG_FILE_REGULAR)     #注意这里 %x 是16进制的格式化符号
+
+     此时 将文件类型：IPMSG_FILE_REGULAR=....,放到Global中去，file_info作为content        传进去  (注：命令字: IPMSG_SENDMSG | IPMSG_FILEATTACHOPT
+                              文件类型: IPMSG_FILE_REGULAR)
+
+
+3.TCP: （创建tcp服务器端）
+	# 创建套接字》 绑定端口》 监听》 等待客户端连接》 接收客户端请求数据》 解码
+     因为accept每次只能创建一个链接，所以这里之后要用while True 循环来取套接字，
+  又因为recv一旦开始工作，就会一直接收，一直堵塞，为了解开堵塞，需要创建一个子线程，  recv_thread = ..，然后把后面接收客户端亲求的代码全部剪切出去放在外面，另建一个函数  ：
+   def recv_client_data(service_client_socket),把外面新生成的客户端套接字传参进去，   然后开启tcp客户端 
+     
+
+4.Main：（创建子进程启动TCP服务端）为了可以同时运行tcp服务器以及Main，可以在main的主  进程中用multiprocessing，创建一个tcp_process子进程,然后start(),与此同时把TCP主程序  创建一个方法，tcp_server_main(),以便 在main里的tcp_process 里的target=，调用。并且  设置守护主进程
+
+
+5.Send：（获取文件的修改时间和大小）
+  之前我们定义发送文件的函数是写死了固定的文件名，文件大小，文件修改时间（要调用    import.os 来查找文件大小和文件修改时间），现在要把它们改成由用户输入的类型，系统默   认的是十六进制，所以要用“%x”来格式化输出，时间戳是小数类型，输入的时候要改成整形   int，完整内容是：file_info = "\0%d:%s:%x:%x:%x" %     (0,file_name,file_size,file_change_time,Global.IPMSG_FILE_REGULAR)
+  
+  注：这里在测试功能的时候，记得在放代码的文件里准备一个要发的文件如1.py，不然发生的      时候系统是找不到文件的
+
+6.Send：（使用消息队列完成发送文件信息传递到TCP子进程）
+    在Global里设置一个全局变量文件包编号packageid = None，供Send模块调用，在send_file_name函数里生成一个空字典，send_file_dict,用来存储文件信息（文件包编号，文件序号，文件名），在Send里的build_msg()函数里Global.package = int(time.time())记录每次生成的包编号并把原来的time.time()替换掉，在Global中初始化消息队列file_queue = None，在Main主进程中创建消息队列，在Send里把发送文件的消息放入文件队列 ，于此同时在主进程中创建队列的地方把队列作为参数传到启动TCP子进程的地方，  在TCP服务器的主进程里，将file_queue作为参数传进去，并且设置获取队列中的数据file_queue.get() ,但是获取队列消息的时候有一个特性是，消息队列空了的话，它会一直等待有消息，在去取，也就是阻塞，于是就需要创建一个子线程(recv_queue_thread =,)给file_queue.get(),来专门接收队列消息，在外面直接设置一个函数recv_queue_data(file_queue),里面用while True循环取数据，
+
+
+7.Send：（发送文件保存到文件列表）
+       现在的功能只支持发送一个文件，如果发送多个文件，对方没有接收，那他下次再接受的时候发现只能取到最后一个文件，之前的文件就找不到了，所以需要用一个列表来存储所有发送的文件，即保存TCP里接收文件消息队列里的字典,在tcp里send_file_list=list(),
+在recv_queue_data里用新的list  append队列信息字典，然后print（send_file_list）完了之后测试一下,看看多发送几个文件的时候，文件是否都保存到列表中了 
+
+
+
+
+8.TCP：（处理飞秋请求的文件数据）
+      在Recv中recv_client_data函数里,处理接收数据封装到字典，获取飞秋请求的文件，即导入Recv模块，调用Recv中的函数handle_recv_data(recv_data) 来处理recv_data, 然后封装到字典，封装到字典的原因是因为方便取里面的内容：request_file_info = recv_info_dict['content']
+    print(request_file_info)打印是为了测试，在tcp生成函数handle_request_info(request_file_info) 来处理刚刚获取的content，以“：”切割成3分，然后 生成一个新字典，把它们放进去  file_info_dict["packageid"] = int(request_file_info_list[0],16)
+         # 文件序号
+        file_info_dict["fileindex"] = int(request_file_info_list[1])
+      ，返回字典，在recv_client_data 函数里面处理content的时候调用handle_request_info(request_file_info),如果测试可以打印file_info_dict
+
+
+
+9.     ：（发送文件）
+  根据请求的文件信息把文件发送过去，遍历发送文件列表信息，然后根据飞球请求文件信息获取文件名
+  谁跟tcp建立连接 ，就把文件发给谁
+
+
+
+
+注意：
+    1.如果出现 2425端口占用，释放不及时的情况，可以等1-2分钟，自动释放端口
+       或者在tcp的主进程里设置程序退出立即释放端口
+       tcp_server_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,True)
+
+   2.获取文件的大小的方法：
+     import os
+     os.path.getsize('**.py')   括号里面是文件名
+     
+     获取文件修改的时间戳：
+     os.path.getctime(''**.py)    # 此时间是指1970.1.1:00:00---至今
+
+   3. 建立连接后发送的消息为：1_lbt80_0#128#107D1A0B2AB9#1753#0#0#4000#9:1509276943:                            歌者:“李相赫”:96:59f59258:0:0:
+       后面三个 96:59f59258:0:0: （指令   文件包编号   文件序号）
+       注：文件的序号是16进制的，转成10进制方法为：int('59f59258',16)  结果：                                                                  1509266008   
+
+   4.发送请求书以udp的形式发过来，但是要文件是跟tcp服务器要的，而发送文件是在主进程      的Send模块里面，包括文件名和文件其他信息都在主进程里，这就造成了两个进程不能共      享信息，所以这里要用到Queue队列消息来使 主进程和TCP进程之间共享文件信息
+
+
+   5.在飞鸽传书大体线程与进程框架流程是：
+     
+     主进程：|1.子线程:接收udp数据               |
+             |2.主线程：检测用户操作             |
+
+     子进程：|1.子线程：等待TCP客户端连接        |
+  	     |2.主线程：发送文件信息给TCP客户端  |
+             |3.子线程:接收Queue中的数据         |
+		
+  6.包编号是根据时间戳生成的
+    文件的包编号是在发送数据时，系统根据（int(time.time())）自动生成的，每次发送都会  自动生成一个新的包编号
+
+ 7.用文件序号 和 文件的包编号 能够唯一确定文件（相当于用ip去查找对应的用户）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1，迭代
+
+我们已经知道可以对list、tuple、str等类型的数据使用for...in...的循环语法从其中依次拿到数据进行使用，我们把这样的过程称为遍历，也叫迭代
+
+我们把可以通过for...in...这类语句迭代读取一条数据供我们使用的对象称之为可迭代对象（Iterable）**

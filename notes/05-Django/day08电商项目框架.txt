@@ -1,0 +1,765 @@
+
+
+
+B2B: 
+C2C:
+B2C:
+O2O:
+B2B2C:
+
+
+
+1.项目立项
+
+	内需:公司里的人
+	外需:客户
+
+	需求分析:确定项目需要实现的功能
+	需求分析说明书:给客户看的
+	需求规格说明书:给研发人员看的
+
+
+2.原型设计(产品经理)
+
+	axure
+	产品原型设计(可视化模型)
+
+
+3.1架构设计(研发人员)CTO
+	1划分项目功能模块
+	2需要用到的技术
+	3开发环境的选择
+	4部署架构
+	5.前后端是否分离 ---->flask是实现前后端分离!
+
+3.2.数据库设计(DBA)
+	分析项目中用到的数据表字段,表之间的关系
+
+
+3.3模块代码实现和单元测试
+	编码:项目测试和实现
+
+
+3.1	UI设计
+
+3.2前端设计
+
+
+4.代码整合
+
+
+5.测试
+
+
+6.上线
+
+
+
+
+大型的电商项目里面不会使用django的admin后台管理.因为admin管理比较简单
+通常需要设计后台管理页面
+
+
+前端实现: 用户关联,商品相关,购物车相关,订单相关,后台管理页面
+
+后端:用户模块,商品模块,购物车模块.订单模块,后台管理模块
+
+
+数据存储:
+mysql   ,redis, 分布式文件存储系统(fastdfs), celery(多任务队列)
+
+----------------------------------------------------
+redis保存历史浏览记录
+redis保存用户的购物车记录
+
+用户页面:
+登录页面:1.用户表:ID ,用户名,密码,邮箱,激活标记,权限标记(管理员也在此表中)
+
+用户中心:2.地址表:ID,用户ID(外键),收件人,收货地址,邮箱,手机号,是否默认
+
+详情页面:3商品SKU表(具体的商品对象单位):ID,名称,简介,价格,单位,库存,*销量,图片(默认),状态(上下架),种类ID(外键),SPU ID
+
+		草莓:
+		4.商品SPU表:ID,名称,详情
+
+		5.商品图片表:ID,商品ID(外键),图片,
+
+		6.商品种类表:ID,种类名称,logo,图片
+
+首页页面:
+		7.首页轮播商品表:ID,SKU ID(外键),图片,index(0,1,2,3)
+
+		8.首页促销活动表:ID,页面url地址,活动图片,index()
+
+		9.首页分类商品展示表;ID,SKU ID, 种类ID,展示类型标记,index
+
+订单页面:
+		10.订单信息表:订单ID(主键),用户ID(外键),地址ID(外键),支付方式,*商品数量,*订单金额,
+		订单商品,商品数量,运费,支付状态,下单时间
+
+		11.订单商品表:ID,订单ID(外键),SKU ID(外键),商品数量,价格(历史),评论			
+
+
+注:一个用户可以添加多个收货地址:地址表
+	一个商品可以有多个图片:图片表
+	一个订单可以包含多个商品:订单商品表
+	(一对多的情况下要拆分成两张表)
+
+	*--------------------------*
+	*表核心理念:	以空间换取时间!*
+	*--------------------------*
+
+	SKU和SPU概念
+
+	spu:standard product unit(标准产品单位)
+	sku:(具体的商品单位)
+
+	商品种类 > SUP > SKU
+
+-----------------------------------------------------
+
+环境及知识点:
+
+
+	1.在虚拟环境中安装富文本包:
+	pip install django-tinymce==2.6.0
+
+	2.在app中注册
+
+	3.导入富文本编辑器
+	from 
+
+	 富文本类型
+
+
+	class goods():
+
+	STATUS_CHOICES = (
+		(0,'下架'),
+		(1,'上架')
+
+		)
+
+	状态选择
+	status = models.SmallIntegerField(choices=status_choices)
+
+
+	在setting中 富文本编辑器配置:
+	TINYMCE_DEFAULT = {
+		'theme':'advanced',
+		'width':600,
+		'height':600,
+
+	}
+
+	在项目urls中配置路径
+	\
+
+	auth_user存储admin用户名
+
+	如果想再admin后台管理,那么将class goods在admin文件中注册
+	admin.site.register(Goods)
+
+	class goods():
+		...
+
+		class META:
+			db_name = 'sz_goods'
+			# 改名字
+			verbose_name = '商品'
+			verbose_name_plural = '商品'
+
+
+
+	指定django认证系统配置项,auth_user表就不会存在于数据库mysql中了
+	AUTH_USER_MODEL = 'user.USER'
+
+------------------------------------------------
+代码准备:
+
+	abstract 抽象的
+	verbose   [vɜrˈboʊs]  冗长的，啰唆的，累赘的;
+
+	四个应用:用户,购物车,商品,订单
+
+
+	1.开启项目dailyfresh
+	2.创建app:goods,cart,user,order,并且将其放入apps文件夹下
+	3.注册apps里的应用
+	4.配置项目urls:	
+
+		urlpatterns = [
+		    url(r'^admin/', include(admin.site.urls)),
+		    # 匹配会用到反向解析
+		    url(r'^user/',include('apps.user.urls',namespace='user')),# 用户模块
+		    url(r'^cart/', include('apps.cart.urls', namespace='cart')),
+		    url(r'^order/', include('apps.order.urls', namespace='order')),
+		    # 开头的是防在最后面匹配
+		    url(r'^', include('apps.goods.urls', namespace='goods')),
+		    url(r'^tinymce/',include('tinymce')), # 富文本编辑器    
+		]
+
+
+	5.创建新数据库sz_dailyfresh,然后在setting.py设置DATABASE 	
+
+				DATABASES = {
+		    'default': {
+		        'ENGINE': 'django.db.backends.mysql',
+		        'NAME': 'sz_dailyfresh',
+		        'USER':'root',
+		        'PASSWORD':'mysql',
+		        'HOST':'192.168.32.138',  # 注:每开一次虚拟机ip都可能会变
+		        'PORT':3306
+		    		}
+				}
+
+	6.项目目录下创建static目录,将前端静态页面全部copy进去,并设置路径
+		STATICFILES_DIRS = [os.path.join(BASE_DIR,'static'
+
+
+	7.在user 应用中将类copy进去models.py, 此时的类迁移会将之前数据库里的超级用户表
+		auth_user覆盖,	(里面有用户模块里的用户模型类和地址模型类)	
+		from django.contrib.auth.models import AbstractUser
+		from db.base_model import BaseModel
+
+		class User(AbstractUser, BaseModel):
+
+
+		class Address(BaseModel):	
+
+
+	8.在goods应用中将类copy进models.py中,富文本那里会报错,此时要安装富文本的包:
+		from tinymce.models import HTMLField
+
+		 detail = HTMLField(blank=True, verbose_name='商品')
+
+		在虚拟环境中安装包:
+		pip install django-tinymce==2.6.0
+
+		安装完成后，可以使用在Admin管理中，也可以自定义表单使用。
+		注册在app:'tinymce',
+
+		2）在test6/settings.py中添加编辑器配置。
+
+		TINYMCE_DEFAULT_CONFIG = {
+		    'theme': 'advanced',
+		    'width': 600,
+		    'height': 400,
+		}
+
+		3）在test6/urls.py中配置编辑器url。
+
+		urlpatterns = [
+		    ...
+		    url(r'^tinymce/', include('tinymce.urls')),
+		]
+
+	9.在order应用中将模型类copy进models里,
+
+	10.在项目setting中设置
+	指定django认证系统user模型类
+		AUTH_USER_MODEL = 'user.User'  # 注:这里要小写!!!坑死我了
+
+	11.	生成迁移,执行迁移!
+		完成操作后,数据库原来存储超级用户的表更名df_user
+		下面是mysql数据库在迁移之后生成新的表 df开头:
+
+		| df_address               |
+		| df_goods                 |
+		| df_goods_image           |
+		| df_goods_sku             |
+		| df_goods_type            |
+		| df_index_banner          |
+		| df_index_promotion       |
+		| df_index_type_goods      |
+		| df_order_goods           |
+		| df_order_info            |
+		| df_user                  |
+		| df_user_groups           |
+		| df_user_user_permissions 
+
+
+
+
+-----------------------------------------------
+预习
+1.
+cookie 记住用户名
+session记住用户登录状态
+
+	定义视图登录:
+	def login(request):
+		...
+	配置url:
+	/login/	 加'/' 是目录
+	不加  '/'  是资源
+
+	注:
+	访问:http://localhost:8000/user/login
+
+	def login_check(request):
+		1.接收用户名和密码
+		2.进行校验,返回应答
+		if username == 'smart' and password == '123':
+			return redirect('/index')
+		else:
+			# 用户名错误,跳转到登录页面继续登录
+			return redirect('/login')
+
+
+2.类视图(重要)
+	patch  补丁
+	generic  [dʒəˈnɛrɪk] adj.  类的，属性的; 一般的; 不受商标保护的; [生]属的，类的;
+	dispatch  派遣，调度; （迅速地）发出; 迅速处理
+
+
+	使用:
+	urls.py中配置路由使用类视图的as_view()方法
+	由dispatch()方法具体将请求request分发至对应请求方式的处理方法中（get、post等）
+
+
+	用类来写视图函数,所有类继承自View
+	1.在views.py中:
+	from django.views.generic import View,TemplateView,RedirectView
+	class MyView(View):
+
+	    def get(self,request,*args,**kwargs):
+	        return HttpResponse('Hello World')
+
+	2.在urls.py中
+	from apps.user.views import MyView,HomePageView,ArticleCounterRedirectView
+
+	    # 视图类的url,在这里直接调用
+    	url(r'^mine/$',MyView.as_view(),name='my-view'),        
+
+
+    注:1.类视图与视图函数的区别:url中:as_view(),来调用方法
+    2.这里仅仅是View类的使用,还有HomePageView,ArticleCounterRedirectView
+    	他们都继承自祖先类 ORM
+
+3.django1.8.2文档(重要)
+创建用户;
+验证;
+登录页面;
+
+django文档概要:
+	User对象是认证系统的核心。它们通常表示与你的站点进行交互的用户
+
+默认user的基本属性有：
+	username
+	password
+	email
+	first_name
+	last_name
+
+	3.1创建users
+	创建users最直接的方法是使用create_user()辅助函数
+	在mysql中实现:
+		>>> from django.contrib.auth.models import User
+		>>> user = User.objects.create_user('john', 'lennon@thebeatles.com', 'johnpassword')
+
+		# At this point, user is a User object that has already been saved
+		# to the database. You can continue to change its attributes
+		# if you want to change other fields.
+		>>> user.last_name = 'Lennon'
+		>>> user.save()
+
+	3.2创建superusers¶
+		使用createsuperuser命令创建superusers：
+		$ python manage.py createsuperuser --username=joe --email=joe@example.com
+
+	3.3修改密码:		
+		Django不会在user模型上存储原始的（明文）密码，
+		而只是一个哈希（完整的细节参见文档：密码是如何管理的）
+		3.3.1manage.py changepassword *username*
+
+		3.3.2你也可以通过程序修改密码，使用set_password()：
+		>>> from django.contrib.auth.models import User
+		>>> u = User.objects.get(username='john')
+		>>> u.set_password('new password')
+		>>> u.save()
+
+		3.3.3
+		如果你安装了Django admin，你还可以在认证系统的admin页面修改user的密码。
+
+
+	3.4.认证Users	
+
+		authenticate(**credentials)[source]¶
+		请使用authenticate()，认证一组给定的用户名和密码。它接收关键字参数形式的凭证，
+		使用默认配置时参数是username和password，如果密码能够匹配给定的用户名，它将返回一个User对象。如果密码无效，authenticate()返回None。例子：
+
+		from django.contrib.auth import authenticate
+		user = authenticate(username='john', password='secret')
+		if user is not None:
+		    # the password verified for the user
+		    if user.is_active:
+		        print("User is valid, active and authenticated")
+		    else:
+		        print("The password is valid, but the account has been disabled!")
+		else:
+		    # the authentication system was unable to verify the username and password
+		    print("The username and password were incorrect.")
+
+
+		3.4.1权限和授权
+		
+		3.4.1.1Django admin 站点使用如下的权限：
+			拥有该类型对象"add"权限的用户才可以访问"add"表单以及添加一个该类型对象。
+			查看修改列表、查看“change”表单以及修改一个对象的权利只限于具有该类型对象的“change”权限的用户拥有。
+			用户必须在一个对象上具有“delete”权限，才能删除这个对象    
+
+		3.4.1.2默认的权限¶
+		当django.contrib.auth在你的INSTALLED_APPS设置中列出时，它将确保为你安装的应用中的
+		每个Django模型创建3个默认的权限 – add、change和delete。
+
+			add: user.has_perm('foo.add_bar')
+			change: user.has_perm('foo.change_bar')
+			delete: user.has_perm('foo.delete_bar')
+
+
+	3.5.web请求中的认证:
+		Django使用会话和中间件来拦截request 对象到认证系统中。
+
+		它们在每个请求上提供一个request.user属性，表示当前的用户。如果当前的用户没有登入，
+		该属性将设置成AnonymousUser的一个实例，否则它将是User的实例。		
+
+		你可以通过is_authenticated()区分它们，像这样：
+		if request.user.is_authenticated():
+		    # Do something for authenticated users.
+		    ...
+		else:
+		    # Do something for anonymous users.
+		    ...
+
+
+
+	3.6如何登入一个用户
+		login()[source]¶
+		从视图中登入一个用户，请使用login()。它接受一个HttpRequest对象和一个User对象。
+		login()使用Django的session框架来将用户的ID保存在session中。
+		注意:任何在匿名会话中设置的数据都会在用户登入后的会话中都会记住。
+
+		下面的示例向你演示如何使用authenticate() 和login()：
+
+		from django.contrib.auth import authenticate, login
+
+		def my_view(request):
+		    username = request.POST['username']
+		    password = request.POST['password']
+		    user = authenticate(username=username, password=password)
+		    if user is not None:
+		        if user.is_active:
+		            login(request, user)
+		            # Redirect to a success page.
+		        else:
+		            # Return a 'disabled account' error message
+		            ...
+		    else:
+		        # Return an 'invalid login' error message.
+		        ...
+
+		    当你是手工登入一个用户时，你必须在调用login()之前通过authenticate()成功地认证该用户。
+		    authenticate()在用户上设置一个属性，注意哪个认证后端成功验证了该用户    
+
+
+	3.7如何登出一个用户
+	logout()[source]¶
+		若要登出一个已经通过django.contrib.auth.login()登入的用户，可以在你的视图中使用django.contrib.auth.logout()。 
+		它接收一个HttpRequest对象且没有返回值。例如：
+
+		from django.contrib.auth import logout
+
+		def logout_view(request):
+		    logout(request)
+		    # Redirect to a success page.	    
+
+	3.8只允许登录的用户访问
+
+
+	3.9login_required装饰器
+	login_required 装饰器¶
+		login_required([redirect_field_name=REDIRECT_FIELD_NAME, login_url=None])[source]¶
+		作为一个快捷方式，你可以使用便捷的login_required()装饰器：
+
+		from django.contrib.auth.decorators import login_required
+
+		@login_required
+		def my_view(request):
+		    ...
+		login_required()完成下面的事情：
+
+		如果用户没有登入，则重定向到settings.LOGIN_URL，并将当前访问的绝对路径传递到查询字符串中。例如：/accounts/login/?next=/polls/3/。
+		如果用户已经登入，则正常执行视图。视图的代码可以安全地假设用户已经登入。
+		默认情况下，在成功认证后用户应该被重定向的路径存储在查询字符串的一个叫做"next"的参数中。如果对该参数你倾向使用一个不同的名字，login_required()带有一个可选的redirect_field_name参数：
+
+		from django.contrib.auth.decorators import login_required
+
+		@login_required(redirect_field_name='my_redirect_field')
+		def my_view(request):
+		    ...
+
+
+
+	3.10给已经登录的用户添加访问权限
+
+
+
+-----------------------------------------------------------
+	访问数据库:在mysql中设置bind port 为:0.0.0.0
+		然后将HOST设置为:%
+
+		然后就可以使用其他主机取访问数据库了
+-------------------------------------------------------------
+
+
+4.django发邮件(重要)
+
+	Django中内置了邮件发送功能，被定义在django.core.mail模块中。发送邮件需要使用SMTP服务器，
+	常用的免费服务器有：163、126、QQ，
+
+
+
+
+
+
+
+5.celery异步任务队列(了解)
+	1.安装celery:pip install -U Celery
+
+
+
+
+6.itsdangerous(了解)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

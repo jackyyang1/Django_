@@ -1,0 +1,559 @@
+
+MongoDB day02
+
+
+
+7.聚合查询:aggregate()
+
+	db.xx.aggregate(
+			[
+			{管道1},
+			{管道2},
+			{...}
+			]
+		)
+
+	管道: $group,$project,
+
+	注: [] 可以省略不写
+
+
+	1.分组:$group
+
+		//按照性别分组
+		> db.stu.aggregate([{$group:{_id:"$gender"}}])
+			{ "_id" : false }
+			{ "_id" : true }
+
+		======================================================	
+		//表达式: $sum  $avg  $first  $last  $max  $min  $push	
+		======================================================
+
+		//按照性别分组,求年龄的平均值
+		db.stu.aggregate(
+			{$group:{_id:"$age",avg_age:{$avg:"$age"}}}
+			)
+
+		//按照籍贯分组,求年龄和
+		db.stu.aggregate({$group:{_id:"$hometown",age_sum:{$sum:"$age"}}})
+		
+		结果如下:
+			{ "_id" : "湖南", "age_sum" : 22 }
+			{ "_id" : "大理", "age_sum" : 151 }
+			{ "_id" : "桃花岛", "age_sum" : 58 }
+			{ "_id" : "蒙古", "age_sum" : 38 }
+
+		//按照性别分组 ,求最大年龄	
+	      db.stu.aggregate(
+	                {$group:{_id:"$gender", age_max:{$max:"$age"}}}
+	            )
+
+        1.1$push  将分组想取出来的数据 放入到一个列表
+        //  取出 按照年龄分组的 所有人的名字:
+        db.stu.aggregate({$group:{_id:"$age",name_list:{$push:"$name"}}})
+	       	结果如下:
+	       	{ "_id" : false, "name_list" : [ "黄蓉", "华筝" ] }
+			{ "_id" : true, "name_list" : [ "郭靖", "黄药师", "段誉", "段王爷", "段小旺", "段小狗", "XSL" ] }
+
+
+        //取出 按照性别分组的, 所有人的名字:
+        db.stu.aggregate(
+            {$group:{_id:"$gender", name_list:{$push:"$age"}}}
+        )
+
+        注:'按什么分组 就什么放在_id:"$xx"里面,求什么就把什么放在最后"$xx"
+        	'放进列表就用 $push表达式!记得在前面给对应的结果起个名字!
+
+
+	2.$match:查找符合条件的数据; find 区别 $match 可以使用管道,find不可以
+
+		// 年龄大于20;按照籍贯分组,求出年龄纸盒;查看只看之和
+		db.stu.aggregate(
+			{$match:{age:{$gt:20}}},
+			{$group:{_id:"hometown",age_sum:{$sum:"$age"}}},
+			{$project:{_id:0,age_sum:1}}
+			)
+			结果如下:  { "age_sum" : 197 }
+
+
+       	// 取出年龄小于40的; 按照性别分组 求年龄平均值($avg)
+      	db.stu.aggregate(
+           {$match:{age:{$lt:40}}},   # 先匹配符合40岁的年龄,
+           {$group:{_id:"$gender", avg_age:{$avg:"$age"}}}  # 按性别分组,求平均年龄
+       		)
+       		结果如下:
+			{ "_id" : false, "avg_age" : 18 }
+			{ "_id" : true, "avg_age" : 19.333333333333332 }
+
+
+    3.$project:投影取出部分字段; 显示1  不显示0
+               // 取出年龄大于20; 按照籍贯分组 求出年龄之和; 查看的时候只想看到之和
+               db.stu.aggregate(
+                   {$match:{age:{$gt:20}}},
+                   {$group:{_id:"$hometown", age_sum:{$sum:"$age"}}},
+                   {$project:{_id:1, age_sum:1}}
+               )
+               结果如下:
+               	{ "_id" : "湖南", "age_sum" : 22 }
+				{ "_id" : "大理", "age_sum" : 135 }
+				{ "_id" : "桃花岛", "age_sum" : 40 }
+
+
+    4.$sort: 排序 1升序 -1降序
+               //先找 45以下 ;再 按籍贯 求平均年龄, 在 降序, 在投影(显示id和平均年龄)
+               db.stu.aggregate(
+                   {$match:{age:{$lt:45}}},
+                   {$group:{_id:"$hometown", avg_age:{$avg:"$age"}}},
+                   {$sort:{avg_age:-1}},
+                   {$project:{_id:1,avg_age:1}}
+               )
+               结果如下:
+               	{ "_id" : "桃花岛", "avg_age" : 29 }
+				{ "_id" : "湖南", "avg_age" : 22 }
+				{ "_id" : "蒙古", "avg_age" : 19 }
+				{ "_id" : "大理", "avg_age" : 16 }
+
+
+               //注意点: 管道是有顺序的 不能随意颠倒; 根据需求
+    
+    5.$skip  跳过几个查看
+    6.$limit 允许显示几个
+    			//年龄小于60,跳过两个显示
+               db.stu.aggregate(
+                    {$match:{age:{$lt:60}}},
+                    {$skip:2}
+               )
+               // 年龄小于60,只显示3个
+               db.stu.aggregate(
+                {$match:{age:{$lt:60}}},
+                {$limit:3}
+              )
+               //年龄小于60,限制为前三个,跳过两个再显示 --->最终结果只会显示一个
+              db.stu.aggregate(
+                {$match:{age:{$lt:60}}},
+                {$limit:3},
+                {$skip:2}
+              )
+              //年龄小于60,跳过两个,显示三个
+              db.stu.aggregate(
+                {$match:{age:{$lt:60}}},
+                {$skip:2},
+                {$limit:3} 
+              )
+
+              注:'$skip和$limit管道 不同顺序有不同结果!!!
+
+    7.$unwind :将数据列表 分割 
+              
+              //按照 性别分组, 求出人的名字,并且分隔开
+              db.stu.aggregate(
+                  {$group:{_id:"$gender", name_list:{$push:"$name"}}},
+                  {$unwind:"$name_list"}
+              )
+			结果如下: (这里就是把它 放进列表里之后,又拆开分别放置了!sjb)
+				{ "_id" : false, "name_list" : "黄蓉" }
+				{ "_id" : false, "name_list" : "华筝" }
+				{ "_id" : true, "name_list" : "郭靖" }
+				{ "_id" : true, "name_list" : "黄药师" }
+				{ "_id" : true, "name_list" : "段誉" }
+				{ "_id" : true, "name_list" : "段王爷" }
+				{ "_id" : true, "name_list" : "段小旺" }
+				{ "_id" : true, "name_list" : "段小狗" }
+				{ "_id" : true, "name_list" : "XSL" }
+				
+
+		注:1.'管道是有顺序的,不能随意颠倒,根据需求,昨天没有顺序是因为昨天不用管道
+			2.在聚合函数内 aggregate( {$group :{_id:"$分组",xx_max:{$max:"$xx"}}}  )
+				类似于这种分组里,以及其他聚合函数里的管道函数,只要有涉及到表里字段的
+				'全部要 "$xx"加$符号!!!! 
+
+
+
+8.MongoDB的索引操作
+	1.创建批量的数据:
+
+       1. 创建批量的数据
+       for (var i = 0; i < 200000; i++) {
+           
+           db.stu.insert({_id:i,name:"name"+i,age:i})
+       }
+       2. 查看 数据的时间 对比
+           db.stu.find({name:"值"}).explain("executionStats")
+         
+           2.1 查询 name:; -->executionTimeMillis  114毫秒
+                db.stu.find({name:"name199999"}).explain("executionStats")
+         
+           2.2 查询 _id: 不足1毫秒 显示都是0
+                db.stu.find({_id:"199999"}).explain("executionStats")
+         
+           2.3 查询 age: --> 108毫秒
+                 db.stu.find({age:"199999"}).explain("executionStats")
+
+       3. 设置 ID索引ensureIndex
+            //查询时间  --> 4毫秒
+            db.stu.ensureIndex({name:1}) 
+            // 查询时间 ---> 0毫秒
+            db.stu.ensureIndex({age:1})
+
+       4. 删除 自定义的索引
+           //查询所有的 索引
+            db.stu.getIndexes()
+
+            db.stu.dropIndex("name_1")
+
+		注:查完了之后要记得把,自定义生成的索引全部删除,只留一个系统自己的
+
+
+
+9.MongoDB的备份和恢复:
+
+   -h  host IP:prot
+   -d  数据库的名字
+   -o  路径备份的路径
+   --dir  从哪个位置 恢复
+   备份: sudo mongodump -h "127.0.0.1:27017" -d test -o /home/python/Desktop/save
+   
+   删库:
+   		先进入这个数据库: use test
+		执行删除:db.dropDatabase()	
+
+   恢复: sudo mongorestore -h '127.0.0.1:27017' -d test --dir /home/python/Desktop/save/test
+
+
+	注:可以和同桌互测! 恢复到同桌的 IP,他得开着服务端
+
+
+
+10.python和MongoDB的交互
+		-----------------------------
+		主要方法如下
+		insert_one：加入一条文档对象
+		insert_many：加入多条文档对象
+		find_one：查找一条文档对象
+		find：查找多条文档对象
+		update_one：更新一条文档对象
+		update_many：更新多条文档对象
+		delete_one：删除一条文档对象
+		delete_many：删除多条文档对象
+		-----------------------------------
+	
+       1.建立链接
+       2.创建库
+       3.创建集合
+       4.插入数据
+
+       1建立连接
+       client = pymongo.MongoClient(host="127.0.0.1", port=27017)
+       2 建库
+       db = client['city']
+       3 创建集合
+       collection = db['name']
+       4 插入文件 -->python的对象
+       dict_data = json.loads(data)
+       collection.insert(dict_data)
+
+       注:1.通过requests.get()方式获取到的数据 然后    data = response.content  # -->获取的数据是json字符串
+       		获取到的content是字符串类型,插入文件的时候,要先转换成字典类型
+
+
+11.jsonpath
+	------------------------------------------------------------------------------------
+	JSON
+	json简单说就是javascript中的对象和数组，所以这两种结构就是对象和数组两种结构，通过这两种结构可以表示各种复杂的结构
+
+	1.对象：对象在js中表示为{ }括起来的内容，数据结构为 { key：value, key：value, ... }的键值对的结构，在面向对象的语言中，key为对象的属性，value为对应的属性值，所以很容易理解，取值方法为 对象.key 获取属性值，这个属性值的类型可以是数字、字符串、数组、对象这几种。
+
+	2.数组：数组在js中是中括号[ ]括起来的内容，数据结构为 ["Python", "javascript", "C++", ...]，取值方式和所有语言中一样，使用索引获取，字段值的类型可以是 数字、字符串、数组、对象几种。
+
+	import json:
+	json模块提供了四个功能：dumps、dump、loads、load，用于字符串 和 python数据类型间进行转换。
+		1. json.loads()
+		把Json格式字符串解码转换成Python对象 从json到python的类型转化对照如下：
+
+		2. json.dumps()
+		实现python类型转化为json字符串，返回一个str对象 把一个Python对象编码转换成Json字符串
+		从python原始类型向json类型的转化对照如下：
+
+		3. json.dump()
+		将Python内置类型序列化为json对象后写入文件
+		用法:
+			listStr = [{"city": "北京"}, {"name": "大刘"}]
+			json.dump(listStr, open("listStr.json","w"), ensure_ascii=False)
+
+		4. json.load()
+		读取文件中json形式的字符串元素 转化成python类型
+
+	JsonPath（了解）
+	JsonPath 是一种信息抽取类库，是从JSON文档中抽取指定信息的工具，提供多种语言实现版本，包括：Javascript, Python， PHP 和 Java。
+	JsonPath 对于 JSON 来说，相当于 XPATH 对于 XML。
+
+	JsonPath与XPath语法对比：
+	Json结构清晰，可读性高，复杂度低，非常容易匹配，下表中对应了XPath的用法。
+
+		XPath	JSONPath	描述
+		/	        $		根节点
+		.			@		现行节点
+		/			.or[]	取子节点
+		..			n/a		取父节点，Jsonpath未支持
+		//			..		就是不管位置，选择所有符合条件的条件
+		*			*		匹配所有元素节点
+		@			n/age	根据属性访问，Json不支持，因为Json是个Key-value递归结构，不需要。
+		[]			[]		迭代器标示（可以在里边做简单的迭代操作，如数组下标，根据内容选值等）
+		|			[,]		支持迭代器中做多选。
+		[]			?()		支持过滤操作.
+		n/a			()		支持表达式计算
+		()			n/a		分组，JsonPath不支持
+
+		注:最常用的的 "$..xxx",表示从根节点起,不管位置,选择所有符合条件的条件
+
+		--------------------------------------------------------------------
+
+	操作:	
+
+	    # 3.发送请求
+	    response = requests.get(url,headers=headers)
+	    # 注意点: 只要请求回来数据的是  .json; .json()
+	    data = response.json()
+
+	    # 4.解析 json文件, jsonpath
+	    res = jsonpath.jsonpath(data,"$..name")
+	    print(type(res))
+	    # # 5.python对象  写入文件
+	    json.dump(res,open("02jsonpath.txt",'w'))
+
+	    注:1.将得到的 txt文件 放进json.cn进行转换,得到所有的 '城市的名字'
+	    	2.json.dump(对象,open('文件','w'))  这是json.dump()的固定用法 ,python对象转json文件
+
+
+	注:  使用jsonpath的原因是,在json数据类型这样的多层结构中,要取到想要的值非常麻烦:
+		如:dict['token'][0]['cookie']['session'] 这样取,那么如何简单实现呢?
+		这就需要用到jsonpath: jsonpath.jsonpath(data,"$..name") 能快速找到 想要的数据! 	
+
+
+
+12拉钩数据
+
+	lagou
+
+	漏斗:posi
+	first:false
+
+	--------------------------------------------------
+	操作:
+		1.进行一般的爬虫流程,先保存一下 html数据,然后看第一次发送请求的数据是否正常,如果正常再完成并执行下面的
+		的代码,实现数据的爬取:
+			此时出现的数据为:{"success":false,"msg":"您操作太频繁,请稍后再访问","clientIp":"183.233.89.222"}
+
+
+		2.此时就需要把 网页上的 请求数据全部粘贴到自己的headers 里(先用^(.*?):(.*?)$ 替换成'\1':'\2',)	
+			再次请求就能获取到数据了,然后反复测试,关闭一些请求头的参数,最后直到reference 字段这里无法读取数据:
+			最后保留两个请求头数据:
+	 			'Referer': 'https://www.lagou.com/jobs/list_python?labelWords=&fromSearch=true&suginput=',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36',
+
+      	3.仔细查看爬到的职位信息,发现只有最里面的数据是我们想要的
+      	 dict['content']['positionResult']['result'][]         
+      	 那么就需要将里面的数据取出来,
+
+          	response = requests.post(self.base_url, params=params, data=formdata, headers=self.headers)
+            # data = response.content
+            # print(type(data)) --->str
+            data = response.json()
+            print(type(data))
+            return data
+         	在发送请求之后,返回的是 response对象,用jsonpath处理前,需要将其转换为字典 dict 类型   
+         	这里 在 response.json()直接这么操作 就是将其转化 dict 类型,相当于之前的loads 操作
+         	即: dict_data = response.json()  = json.loads(response.content) 
+
+        4.数据分析:
+        	 	
+            # 解析:json数据 --->jsonpath
+		    def analysis(self,data):
+
+		        print("正在下载%s页的数据..." % self.page)
+		        # 1.解析出 当前res 数据,只有一个,返回的是list [{},{}..]
+		        res_list = jsonpath.jsonpath(data,"$..result")[0] # "result"字段对应的是一个[{0},{1}..]
+
+		        # 判断:如果res_list 没有数据就不往下走了
+		        if not res_list:
+		            self.iswork = False
+		            return "没有数据了"
+		                # 2.遍历数据中的字典,挨个提取
+		        for sdict in res_list:
+		            dict = {}
+		            # 公司id
+		            dict['company_id'] = sdict['companyId']
+		            # 职位
+		            dict['work_name'] = sdict['positionName']
+
+		            # 工作年限
+		            dict['work_year'] = sdict['workYear']    
+
+  					self.item_list.append(dict)	
+
+		    注:数据解析这一步, 将json数据使用jsonpath 解析,返回的是list -->[{},{}..]
+		    	我们要的是'reslut'这个字段里的 第'0'个下标里的数据,那么在 后面加[0],
+		    	循环遍历 取出,这个装满小字典的 列表,然后将里面的小字典属性 给 我们自己定义的字典的键赋值:
+    	          # 工资
+          		  dict['money'] = sdict['salary']
+          		 一定要取出自己想要的数据,并且小字典的属性 一定要从网页上赋值,不必要的错误!
+          		 装进大列表中! 此时的数据都是我们想要的
+
+		5.写入数据:
+		    def write(self):
+		        # 将python文件转换为 json文件,并写入保存数据在文件中!
+		        json.dump(self.item_list,open("03lagou2.json",'w'))
+		        print('写入成功...')
+
+
+		6.对于调用方法发送请求,我们可以用定义一个全局变量,如果 取出的数据有值,那么就让这个循环发送消息(记得要加入time.sleep(1)),
+			防止频率过快,那么就让这个循环发送消息,如果没有值,就 修改为 False,并且return       
+
+			    def run(self):
+
+			        while self.iswork:
+			            time.sleep(1)
+			            # 1 发送请求
+			            data = self.send()
+			            # 2 .解析数据
+			            self.analysis(data)
+
+			            self.page += 1
+
+			        #2 .写入文件
+			        self.write()
+
+	BUG:'在请求的过程中 前几页会请求成功,但是在6-7页以后就会报错,那么这就是反爬造成的.
+			'解决办法就是将 headers 数据全部加上!		        
+
+		7.代理池和 user-agent池!
+
+		    # 代理池
+	        self.proxy_list = [
+	            {'http': "username:pwd@127.320.32.23:8080"},
+	            {'http': "127.320.32.23:8080"}
+	        ]
+	        # user-agent池
+	        self.user_agent_ist = [
+	            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
+	            "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.57 Safari/536.11",
+	            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6",
+	        ]
+
+	        在def send()
+		        # 获取随机 user-agent
+		        user_agent = random.choice(self.user_agent_list)
+		        ...
+
+                # 获取 随机(100) 或者不一样的代理IP
+       			proxy = random.choice(self.proxy_list)
+
+
+       		注:用随机ip代理和 随机user-agent 来进行请求,专注反爬20年
+       			
+	--------------------------------------------------------------
+
+图像识别:
+	openGL   PIL   OCR
+
+	打码平台  5块钱 几千次
+
+反爬的思路 入口(重点!):
+	1.user-agent
+	2.cookie
+	3reference
+	4.IP
+	5.限制频率
+	6.验证码
+	7.js加密(不建议耗时间去解开)
+	8.调用浏览器
+	9.host
+
+=================================================================
+
+windows下操作MongoDB:
+	开启服务器:D:\mongodb\bin>mongod.exe --dbpath D:\mongodb\data\db
+
+	启动客户端:mongo
+
+=======================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

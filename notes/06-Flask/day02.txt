@@ -1,0 +1,924 @@
+flask
+
+raw:adj.  生的，未加工的; 无经验的;n:（身体的）擦伤部位; 红肿部位; 半成品; 原料;
+ecotype 编码格式
+-----------------------------------------------------------
+2.	课堂笔记:
+
+	起始行
+	请求头 Header
+	请求体  body
+
+	POST /goods/123456?a=1&b=2 HTTP/1.1
+	User-agent: xxx
+	Content-Type: xxx
+	Itcast: xxx
+	Cookie: cookie1=xxxxx;cookie2=xxxx
+	\r\n
+	body
+
+	前端向后端发送参数的方式(重点)
+	1. 从路径中使用正则传参
+	2. 路径?传参  查询字符串 query string  ?a=1&b=2  不限制请求方式，get能传，其他方式也能传
+	3. 从请求头中传递参数
+	4. cookie
+	5. 请求体参数
+	   图片、文件  （多媒体表单）
+	   字符串:
+	        1.普通表单格式  "c=3&d=4"      Content-Type:application/x-www-form-urlencoded
+	        2.json格式字符串  '{"c":3, "d":4}' 说明：json字符串中的键的引号必须是双引号"
+	        3.xml格式字符串
+	            """
+	            <xml>
+	                <c>3</c>
+	                <d>4</d>
+	            </xml>
+	            """
+
+	2. raw 原始
+
+	3. json字符串在python中的处理
+
+	python中标准模块  json
+
+	json字符串 --> python中的字典  json.loads(json字符串) -> 返回字典数据
+
+	python中的字典 --> json字符串  json.dumps(python中的字典) -> 返回json字符串
+
+
+	In [1]: d = { "a":1, "b":2}
+
+	In [2]: type(d)
+	Out[2]: dict
+
+	In [3]: import json
+
+	In [4]: s = json.dumps(d)
+
+	In [5]: type(s)
+	Out[5]: str
+
+	In [6]: s
+	Out[6]: '{"a": 1, "b": 2}'
+
+	In [7]:
+
+
+	In [7]: s
+	Out[7]: '{"a": 1, "b": 2}'  # 注:这是json格式的字符串,不能用get()取值
+
+	In [8]: dd = json.loads(s)
+
+	In [9]: type(dd)
+	Out[9]: dict
+
+	In [10]: dd
+	Out[10]: {u'a': 1, u'b': 2}
+
+	In [11]: dd.get("a")
+	Out[11]: 1
+
+	In [12]:
+
+	4. python2与python3 字符串的区别
+
+	python3  类型  str
+
+	python2  类型  str  "a"
+	              unicode  u"a"
+
+	python2中容易出现的错误：
+	    错误提示信息： ascii cannot decode \xd3\xde\xd22
+	    表示： 程序中的字符串数据出现了非英文字符
+	    出处： 字符串格式化处理的时候
+	    原因： 用了str类型与unicode类型 两种不同的类型进行字符串处理
+	          print("参数a=%s" % s)   python都转换为unicode类型再处理，默认以ascii编码来解读非英文字符
+	    解决办法： 对于非英文字符串声明的时候就声明为unicode类型  如: u"参数a=%s"
+
+
+	ascii 只对英文字符编码
+	获  utf-8
+	    gbk
+
+	5. 能包含请求体的请求方式： POST、PUT、DELETE
+
+	6. pycharm 快速导包 alt+enter
+		图片,文件-->多媒体表单
+
+		注:请求头都是字符串,请求体就不一定了
+
+--------------------------------------------------------------
+
+1.postman使用:
+
+	开启:
+	选择请求方式:POST 后面跟地址:127.0.0.1:5000/
+	POST: params点开
+	Authorization:认证
+	Header:请求头数据
+	Body:请求体数据
+		x-www_form-urlencoded:普通表单格式 (<form>标签提交的数据格式)
+			a=1
+			b=2
+		form-data:多媒体表单	(文件,图片等)
+		raw: 原始  {"a":3,"b":4}  (原封不动,不做处理发送到后端)
+		binary:只传输二进制数据
+
+
+	1.1点击 Send 运行结果	:
+		后端接收的数据;
+		127.0.0.1 - - [03/Jan/2018 20:30:18] "POST /?a=1&b=2 HTTP/1.1" 200 -
+		a=1
+		b=2
+		application/x-www-form-urlencoded   # 普通 表单格式数据
+		c=3
+		d=4
+
+		注:Content-Type如果是:application/x-www-form-urlencoded 代表它是普通 表单格式数据
+	
+	1.2如果前端a 传了两个值:a = 1 b=2  a=5	
+		那么结果是;
+		a= 1 (拿到的是第一个值)
+
+	1.3如果想把a的值全部获取:
+		a_list = request.args.getlist("a")
+		返回值:a=[u'1', u'5']
+
+		注:u是编码方式 Unicode
+
+	1.4表单数据也可以获取全部值:
+	    d_list = request.form.getlist("d")
+    	print("d_list=%s"%d_list)
+
+    	结果:d_list=[u'4', u'5']
+
+	1.5 .json格式的字符串
+    request.data中包含了最原始的请求数据
+   	 	json_str = request.data
+    	print('json_str=%s'%json_str)
+    	print(type(json_str))
+
+    	前端在raw中写入:
+    			{
+		    	"c":3,
+		    	"d":4
+				}
+
+		后端接收:
+    	json_str={
+		    "c":3,
+		    "d":4
+		}
+
+	1.6	json格式字符串转换成字典,然后用get()方法取值: 见下方
+		    # 将json字符串转换为字典
+		    body_dict = json.loads(json_str)
+		    c = body_dict.get("c")
+		    d = body_dict.get("d")
+
+		    print("c=%s"%c)
+		    print("d=%s"%d)
+
+	--------------------------------------------------------
+获取json格式字符串的两种方法:	
+
+    方式一：如果请求头中Content-Type不是application/json 通过这种方法；奥获取json数据
+    request.data中包含了最原始的请求数据
+    json_str = request.data
+    print('json_str=%s'%json_str)
+    
+    # 将json字符串转换为字典
+    body_dict = json.loads(json_str)
+    c = body_dict.get("c")
+    d = body_dict.get("d")
+    
+    print("c=%s"%c)
+    print("d=%s"%d)
+
+    注:方式一总结为:获取原始数据raw-->将json字符串转换为字典-->get取值
+    	即上面的 1.5+1.6,此时它的Content-Type 类型是text/plain;charset=UTF-8
+
+
+    方式二：flask提供获取json数据的简便方法
+    前提条件： 要求请求头Content-Type必须指明是application/json
+    get_json会将请求体的json字符串直接转换为字典返回给我们
+    req_dict = request.get_json()
+    print(type(req_dict))
+    c = req_dict.get("c")
+    d = req_dict.get("d")
+
+    print("c=%s"%c)
+    print("d=%s"%d)
+
+
+    注:方式二是flask框架封装的获取json数据的简单方法,
+    	前提是要在text下拉选择是 application/json 格式,不然会报错
+
+
+	疑问:方式一种 获得的最原始的数据就一定是json格式字符串吗?'
+	为什么?'
+	待解答
+	-----------------------------------------------------------
+	总结:1.获取查询字符串的数据:    a = request.args.getlist("a") 
+		2.获取请求头的数据:    content_type = request.headers.get("Content-Type")
+		3.获取请求体的数据:
+				3.1获取请求体中普通表单的数据:c = request.form.get("c")
+				3.2获取请求体中json格式字符串的数据:两种方法
+						3.2.1:获取Content-Type不是application/json的json字符串数据:
+								json_str = request.data
+								body_dict = json.loads(json_str)
+								 c = body_dict.get("c")
+   								 d = body_dict.get("d")
+
+						3.2.2:获取Content-Type是application/json的json字符串数据:
+								req_dict = request.get_json()								
+								c = req_dict.get("c")
+								d = req_dict.get("d")
+
+		注:获取一键多值可以用getlist							
+---------------------------------------------------------------	
+3.	request常用属性如下:
+
+		属性              说明                      类型
+		data 	   记录请求的数据,并转换为字符串		*
+		form       记录请求中的表单数据			MultiDict
+		args	   记录请求中的查询参数           MultiDict
+		cookies    记录请求中的cookie信息			Dict
+		headers    记录请求中的报文头 			EnvironHeaders				
+		method 	   记录请求使用的HTTP方法         GET/POST
+		url  	   记录请求的URL地址				string
+		files	   记录请求上传的文件					*
+
+
+	疑问:哪个属性是属于请求体?'
+	待解答	
+	-------------------------------------------------------------
+	a_list = request.args.getlist("a")  #{u'a':1,2}   # u是编码格式,表示字符串,只有python2中会出现这种情况
+	------------------------------------------------------
+	重点():
+	3. json字符串在python中的处理
+
+	python中标准模块  json
+
+	json字符串 --> python中的字典  json.loads(json字符串) -> 返回字典数据
+
+	python中的字典 --> json字符串  json.dumps(python中的字典) -> 返回json字符串
+
+
+	------------------------------------------------------------
+	Header (postman)
+
+		flask提供的获取json数据的简便方法
+		前提条件: 要求请求头Content-Type必须指明是application/json
+
+	输入Content-Type, 下拉框选择application/json	
+
+	------------------------------------------------------------------
+	4.python2 和python3 字符串的区别
+
+		python3 类型 str
+
+		python2 类型  unicode  u"a"
+					 str   "a"
+
+		错误提示信息:ascii cannot decode \xd3\xde\xd22 (ASCII只对英文字符编码)
+			表示:程序中出现了非英文字符
+			出处:字符串格式化处理的时候
+			原因:用了str类型与unicode类型,两种不同的类型进行字符串处理
+				print("参数a=%s" % s)  python2会将两边都转换为Unicode类型再处理,默认以ASCII编码来解读非英文字符串,但是ASCII只能解读英文的字符串,所以会出错
+
+			解决:print(u"参数a=%s" % s)
+				对于非英文字符串声明的时候就声明为Unicode类型,那么它后面就不用再转换处理了
+
+		注:解读:python2中字符串有两种:一种是str,一种是Unicode	
+	-------------------------------------------------------------
+	能包含请求体的请求方式: POST、PUT、DELETE (GET方式是不能的)
+
+	-----------------------------------------------------------------
+	5.upload:
+
+		@app.route("/upload",methods=['POST'])
+		def upload():
+		通过files属性获取文件数据,返回文件对象
+		file_obj = request.files.get("pic")  # 注:这个pic是字段,不是文件名
+
+		方法一:手动保存
+			通过files属性获取文件数据,返回文件对象
+			file_obj = request.files.get("pic")   # 这个pic要在postman中的form-data也要填pic,然后选择类型为file,并且选择文件
+
+			通过该read方法读取文件内容
+			file_data = file_obj.read()
+
+			获取用户上传文件的真实名字
+			file_name = file_obj.filename
+
+			在本地创建打开一个新文件
+			with open("./"+ file_name,"wb") as new_file:   # with open() 方法可以创建,打开,关闭文件
+				把用户上传的文件内容读取并写入新文件	
+				new_file.write(file_data)
+
+		方法二:save方法保存(save方法实际上是对上面方法的封装)
+			file_obj.save("./"+file_obj.filename)
+
+
+		注:请求数据方式一定要为POST,不然,postman那里无法选择body
+	--------------------------------------------------------------	
+	6.多媒体表单: form-data(文件,图片)
+		<!DOCTYPE html>
+		<html lang="en">
+		<head>
+		    <meta charset="UTF-8">
+		    <title>Title</title>
+		</head>
+		<body>
+		    <form method="post" enctype="multipart/form-data">  # 格式一定是这样才是多媒体表单数据格式
+		        <input type="file" name="pic">
+		        <input type="submit">
+		    </form>
+		</body>
+		</html>
+		注:多媒体表单 提交数据,就类似于以上的过程
+	--------------------------------------------------------------
+	1.快捷创建:
+		pycharm中自动补全框架代码:flaskapp	
+
+		setting-->editor-->-->live Template -->flask-->"+" -->
+			flaskapp-->Flask app -->自定义要补全的代码 -->change-->勾选python-->ok
+
+	2.快捷导入包:	
+		选中报错的地方,Alt + Enter	
+
+	---------------------------------------------------------------
+
+4.错误处理:abort函数
+
+
+		@app.route('/upload',methods=['POST'])
+		def upload():
+		    # 获取文件对象
+		    file_obj = request.files.get("pic")
+
+		    # 如果没有获取到数据，即获取的为空
+		    if not file_obj:
+		        注:**abort函数可以立即终止试图函数的执行，并向前端返回指定的标准错误状态码
+		        #abort(错误状态码)
+		        abort(400)
+		        # abort(666)  # 这种是错误的!,一定要是指定的状态码
+
+		    file_obj.save("./"+file_obj.filename)
+
+		    return 'upload oj8k!'
+
+
+ 		# 自定义处理404错误函数
+		@app.errorhandler(404)
+		def handler(e):    # 这里要传参数e
+		    """自定义的处理404错误的方法
+		    e:被flask调用的时候，传入的错误对象"""
+
+		    return u'自定义的404页面:%s' % e
+		注:这个404访问错误可以通过浏览器:127.0.0.1:5000/index来触发    
+
+
+		# 自定义处理400错误函数    
+		@app.errorhandler(400)
+		def handler(e):    # 这里要传参数e
+		    """自定义的处理400错误的方法
+		    e:被flask调用的时候，传入的错误对象"""
+
+		    return u'自定义的400页面:%s' % e
+		注:这个400访问错误可以通过postman 不提供pic 内容的情况下,send空内容,来触发    
+    -------------------------------------------------------------------------------
+    7.构造响应信息的方式:
+
+		@app.route('/')
+		def index():
+		    # 构造响应信息的方式
+		    方式一：元组
+		    # return （响应体，状态码，响应头）
+		    # return 响应体,状态码,响应头
+		    # return "index page",403,[(响应头的名字，响应头的值)，（）。。。]   
+		    # return "index page111",403,[("Content-Type","application/json"),("Ipython","hasagei")]  # 注:响应头的信息是用列表来传可以
+		    # return "index page111",403,{"Content-Type":"application/json","Ipython":"hasagei"}      # 注:响应头信息也可以用字典来传
+		    # return "index page111",666,{"Content-Type":"application/json","Ipython":"hasagei"}
+		    # return "index page111","999 wonderful",{"Content-Type":"application/json","Ipython":"hasagei"}  #Status Code:999 wonderful
+		    return "index page",400
+
+		    总结:return "" 返回数据的时候,可以返回:响应体,状态码,响应头,以元组的格式拼接.其中状态码和响应头可以不传,也可以自定义,
+		    	响应头格式多变,可以用列表,字典等方式传,状态码可以自定义
+
+		    方式二：make_response()方法
+		    make_response(响应体,即前端数据) --》返回响应对象
+		    resp = make_response("index page 1")
+		    resp.status = "400 ojbk"   # 响应状态码
+		    resp.headers["name"] = "wangnima"  # 响应头
+
+		    return resp
+
+		    注:使用前先导入make_response方法
+
+	------------------------------------------------------
+	8.返回值:
+	使用jsonify 返回json数据
+
+		@app.route('/')
+		def index():
+			# 定义一个字典
+		    data = {
+		        "name":"tom",
+		        "age":18
+		    }
+		    # 将字典转换为json字符串
+		    json_str = json.dumps(data)
+		    # 返回值给浏览器，并且将状态码指明，并且指明请求头Content-Type为application/json ,
+		    # return json_str,200,{"Content-Type":"application/json"}
+		    注:这个Content-Type如果不指定的话就会显示为:Content-Type:text/html; charset=utf-8
+
+		    # 第一种写法:jsonify把数据转换为json字符串，并且帮助我们设置响应头Content-Type为application/json
+		    # return jsonify(data)
+
+		    # 第二种写法:直接在里面写,不用再外面定义字典
+		    return jsonify(name="tom",age=18)
+
+		    注:jsonify类似于JsonResponse
+
+	
+	-----------------------------------------------------------
+	9.cookie
+
+		1.设置cookie
+			@app.route("/set_cookie")
+			def index():
+			    # 设置cookie的方法
+			    resp = make_response("set cookie ok")
+			    # resp.set_cookie(名字,cookie值)
+			    resp.set_cookie("name","jack")    # 默认是临时cookie，浏览器关闭失效
+			    resp.set_cookie("name2","tom",max_age=3600)  # 设置cookie过期时间
+			    return resp
+
+
+		2.获取cookie
+			@app.route('/get_cookie')
+			def get_cookie():
+			    # 获取cookie
+			    resp = request.cookies.get("name")
+			    return resp
+
+
+		3.删除cookie
+			@app.route('/del_cookie')
+			def del_cookie():
+			    # 删除cookie
+			    resp = make_response("del cookie ok")
+			    resp.delete_cookie("name2")
+			    return resp
+
+			注:所谓的删除不是真正的删除,而是把它的过期时间设置为起始时间,设置完即过期
+
+
+		4.设置cookie本质的问题
+			@app.route('/set_cookie2')
+			def set_cookie2():
+			    # 设置cookie的原理：浏览器做了什么？
+			    return "set cookie2 ok",200,[("Set-Cookie","name3=Mary; Expires=Thu, 04-Jan-2018 13:47:53 GMT; Max-Age=3600; Path=/")]
+
+			    注:设置cookie的时候是浏览器在后面加了状态(200),以及请求头信息[(Set-Cookie,...)]
+	---------------------------------------------------------------------------
+	10.session
+		10.1flask 中使用session需要配置secret_key 参数
+		app.config["SECRET_KEY"] = "hdhajnfjnfjkjanfknaf" # 是个随机的字符串,随便写
+
+		10.2设置session
+		@app.route('/login')
+		def login():
+		    # 设置session
+		    session["user_id"] = 2333
+		    session["user_name"] = "Tom"
+		    return 'login ok'
+
+		10.3获取session
+		@app.route('/')
+		def index():
+		    # 获取session数据
+		    name = session.get("user_name")
+		    return "i am %s" % name
+
+		注:在设置session的时候一定要先配置secret_key,不然会报错
+
+
+		-------------------------------------	
+	11.session机制:
+
+		session数据在后端服务器中保存的格式为:
+			{
+			session_id_1:{"user_id":1,"user_name":"tom"},
+			session_id_2:{"user_id":2,"user_name":"jack"}
+			}
+		注:session将数据保存在后端类似于一个大字典的形式,并且向浏览器返回一个session_id(这个session_id是保存在cookie中的)	
+			对应的用户login再访问的时候,浏览器会根据session_id来找到对应用户的数据
+		
+		重要():	
+		django默认将session保存在数据库中
+		flask默认将session保存在cookie中	
+
+		***由于flask默认将session保存在cookie中,数据不安全,就混乱一下,但是无法防止session数据被修改
+			但是可以知道被人修改了,如果知道被修改过之后就不再使用这个cookie
+
+
+
+		-------------------------------------------------------------------
+		11.5session面试题:'
+			session可以保存的地方:MySQL,redis,文件,程序内存
+
+			session跨机访问问题:
+				)过程:
+							        	----->后端服务器1(192.168.1.2)
+					用户----->nginx服务器
+							(192.168.1.1)
+
+										------->后端服务器2(192.168.1.3)
+
+				)问题:用户在登录访问数据时,nginx将它带入后端服务器1,它的数据保存在了第一台	后端服务器中,那么	
+						用户在第二次登录的时候,nginx服务器将其引导到了后端服务器2,那么用户就访问不到保存的数据了
+								
+
+				)解决:改变nginx代理策略,将同一个ip地址访问的用户引入到之前访问的一个服务器
+
+		-----------------------------------------------------------------------------------
+
+		12.没有了cookie ,session也能实现*(在url路径当中保存)
+			redirect("/?session_id=1")
+
+	--------------------------------------------------------
+	13.request对象上下文:
+
+		request={
+			"线程A":{"args":{"a":1}}
+			"线程B":{"agrs":{"a":2}}
+		}
+		注:两个用户A,B同时访问一个网站时,如果访问的数据一样,那么服务器如何区分哪个数据返回给谁呢?
+			全局变量---线程局部变量, 服务器会创建线程专门处理单个用户,并且保存相应用户的数据,并返回
+			(类似于session机制)
+
+		注:request和session都属于请求上下文对象!	
+
+		应用上下文:current_app 和 g 对象
+
+					g对象(当一个公共函数被调用的时候,产生了一些属性或变量,而且比较多,
+							那么可以单独导入这么一个桥梁g对象 来保存属性和变量值:g.a=a,g.b=b,这样在外面就可以直接拿来使用 a=g.a,b=g.b),
+					g对象是专门用来传递数据的,g对象只针对单次请求 )
+
+		----------------------------------------------------------------
+	14.	钩子 hook(相当于django中的中间件)(理解:留出位置,用来填充代码)
+
+		请求钩子是通过装饰器的形式实现,Flask支持如下四种钩子:
+			@app.before_first_request
+			@app.before_request
+			@app.after_request
+			@app.teardown_request
+
+		注：钩子就是装饰器,在特定情况下会被调用,所以可以在对应的钩子下面填充有需要的代码	
+
+		定义钩子:
+
+		@app.before_first_request
+		def handle_before_first_request():
+		    """在第一次请求之前先被调用"""
+		    print("handle_before_first_request called")
+
+
+		@app.before_request
+		def handle_before_request():
+		    """在每次请求之前先被调用"""
+		    print("handle_before_request called")
+
+
+		@app.after_request
+		def handle_after_request(response):
+		    """在如果没有出现异常，被调用"""
+		    print("handle_after_request called")
+		    return response
+
+
+		@app.teardown_request
+		def handle_teardown_request(response):
+		    """不管视图有没有出现异常，被调用"""
+		    print("handle_teardown_request called")
+		    return response
+
+
+		@app.route('/')
+		def index():
+		    print('i am index called')
+
+		    a = 1/0   # 制造异常,验证 teardown被调用,而after_request不会被调用
+		    return 'hello'
+
+		    注:在异常情况下, 要想teardown被调用，debug模式必须关闭
+		-------------------------------------------------------------
+
+	15.	Flask-Script扩展执行命令		
+
+		form flask_script import Manager
+
+		------------------------------------------------------------
+			# coding=utf-8
+
+
+			from flask import Flask
+			from flask.ext.script import Manager
+
+			app = Flask(__name__)
+
+			# 创建启动脚本管理器对象
+			manager = Manager(app)
+
+
+			@app.route('/')
+			def index():
+			    return '<h1>hello</h1>'
+
+			if __name__=='__main__':
+			    # app.run(debug=True)
+			    # 使用管理器对象启动
+			    manager.run()
+
+		启动: python 09_script.py runserver -h 127.0.0.1 -p 5001	   
+		
+
+		使用shell交互式界面启动: python 09_script.py shell	 
+		----------------------------------------------------------------	    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

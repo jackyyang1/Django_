@@ -1,0 +1,231 @@
+三方登录！
+
+open.  可以打开对应网站
+
+
+  
+静态URL
+ 域名/news/2012-5-18/110.html,一般称为  真静态url
+ 每个网页都有真实的物理路径，也就是真实存在服务器里的
+
+   有点：打开速度快
+   缺点：占用磁盘空间
+   总结：静态网站对SEO的影响：静态url对seo肯定有加分的影响，因为打开速度快，这个是本质
+
+
+动态URL
+
+ 动态URL类似  域名/NewsMore.asp?id=5 或者 域名/Daikuan.php?id=17,带有？的URL，我们一般称为动态             URL，我们一般称为动态网址，每个URL只是一个逻辑地址，并不是真实物理存在服务器硬盘             里的
+
+    优点：适合中大型网站，修改页面很方便，因为是逻辑地址，随意占用空间小   
+    缺点：因为要运算，所以打开速度较慢，结构复杂，不利于记忆
+    总结：
+
+伪静态：
+  伪静态url类似于  域名/course/74.html 这个URL和真静态URL类似，它是通过伪静态规则把动态URL伪装  成静态网址，也是逻辑地址，不存在物理地址 
+
+   优点：利于记忆，适合中大型网站，是个折中方案
+   缺点：设置麻烦
+   
+
+
+
+*****************************************************************************************
+老师笔记：
+  直接拷贝 day5/补充资料/miniweb 项目
+  0. 将 myapp_app 文件中的 直接调用 index("index.py")方法 注释
+  1. 将 web_server 文件中if path == "/index.py" 修改为 if path == "/index.html"
+  2. 将 my_app 文件中 index方法的路由 index.py 修改为 index.html
+  3. 将index 方法中的 path = path.replace(".py", ".html") 注释
+
+
+
+课堂代码笔记：
+
+首先准备数据：
+   打开mysql
+   create database stock_project charset=utf-8;
+   use stock_project;
+   导入数据表
+   source ....sql
+   show tables；
+
+
+ 1. 将静态路径判断提到动态路径前面去判断：
+   
+     这里是伪静态的实现
+                 # 区分动态和静态
+            if path == "/":
+                # 当用户直接在浏览器中输入127.0.0.1:8080 或者localhost:8080  --> GET /                   #HTTP/1.1 --> /
+                path = "/index.html"
+
+            if path.endswith(".html"):
+                # 动态的网页数据
+                print("动态数据")
+                environ = {
+                    "PATH_INFO":path
+                }
+                response_body = self.app(environ, self.start_response)
+
+ 2.按照老师笔记来进行下一步操作
+      然后在index函数中，将path 注释，在f.close（）后面连接数据库，
+      
+     # 连接数据库
+    conn = connect(host='localhost', port=3306, database='stock_project', user='root',                 password='mysql', charset='utf8')
+    cur = conn.cursor()
+    sql = "select * from info"
+    cur.execute(sql)
+    ret = cur.fetchall()
+    # 遍历获取查询的数据
+    html_template = """<tr>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>
+                            <input type="button" value="添加" id="toAdd" name="toAdd"      systemidvaule="%s">
+                        </td>
+                    </tr>"""
+    html = ""
+    for item in ret:
+        html += html_template % (item[0],item[1],item[2],item[3],item[4],item[5],item[6],item                 [7],item[1])
+
+    cur.close()
+    conn.close()
+    # 在模板添加动态数据
+    # html = "<h1>首页数据: 这里是从mysql数据库中读取的动态数据</h1>"
+    # 完成数据的替换
+    content = re.sub(r"\{%content%\}", html, content)
+    return content
+
+
+3. 在center 方法中 与index 的方法类似：
+   
+     def center(path):
+    """个人中心"""
+
+    # path = path.replace(".py", ".html")
+    # "/index.py  --> /index.html"
+    f = open(g_templates_root + path,encoding='utf-8')
+    content = f.read()
+    f.close()
+
+    # 连接数据库 ，显示个人中心，此时个人中心只显示了眉头
+    # 此时个人中心还需要显示：股票代码	股票简称	涨跌幅	换手率	最新价(元)	前期高点	备注信息	修改备注	del
+    conn = connect(host='localhost',
+                   port=3306,
+                   database='stock_project',
+                   user='root',
+                   password='',
+                   charset='utf8')
+    cur = conn.cursor()
+    # 显示
+    sql = "select i.code,i.short,i.chg,i.turnover,i.price,i.highs,f.note_info from info as i inner join focus as f on i.id = f.info_id"
+    cur.execute(sql)
+
+    ret = cur.fetchall()
+    html_complates = """<tr>
+                           <td>%s</td>
+                           <td>%s</td>
+                           <td>%s</td>
+                           <td>%s</td>
+                           <td>%s</td>
+                           <td>%s</td>
+                           <td>%s</td>
+                           <td>
+
+    <a type="button" class="btn btn-default btn-xs" href="/update/%s.html"> <span class="glyphicon glyphicon-star" aria-hidden="true"></span> 修改 </a>
+                           </td>
+                           <td>
+                               <input type="button" value="删除" id="toDel" name="toDel" systemidvaule="%s">
+                           </td>
+                       </tr>"""
+
+    html = "<h1>个人中心数据: 这里是从mysql数据库中读取的动态数据</h1>"
+    # 把获取的数据遍历
+    for item in ret:
+        html += html_complates % (item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[0],item[0])
+    # 注：这里遍历取值 最后两位是item[0]，这个是code，后面在update功能的时候会用到
+    cur.close()
+    conn.close()
+    # 完成数据的替换
+    content = re.sub(r"\{%content%\}", html, content)
+
+    return content
+
+
+
+4. 在创建update 方法的时候，会显示 ：根据code来显示short 和   note_info
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+********************************************************************************************
+注意：
+ 
+  1.insert into focus （info_id）select id from info where code = %s
+        
+    # 这里是insert ...select 方法何用，将select 查找的数据当做values 插入到指定的位置
+
+
+
+
+
+
+
+
+
+
+
+
+

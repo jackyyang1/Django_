@@ -1,0 +1,802 @@
+
+Redis
+
+
+********************************************************************
+django执行流程:
+
+
+浏览器-->请求-->django服务器-->产生request对象-->调用中间件(process_request)
+-->url匹配-->调用中间件(process_view)-->调用视图函数-->调用中间件(process_response)
+-->返回数据给浏览器
+
+
+干预中间件(process_request)或者(process_response)可以使用户访问受限,或者不能访问
+比如:Ipforbidden 中间件禁止某IP地址访问服务器
+
+
+---------------------------------------------------
+
+
+浏览器(http协议) --> 服务器 --> django框架
+
+
+
+
+项目总wsgi.py文件里有个方法,返回一个wsgi对象
+
+
+__call__方法是整个框架的入口
+
+
+
+web服务器调用 application
+
+
+class wsgihandler():
+	def __call__(self,environ,start_response):
+
+----------------------------------------------------
+
+关系型数据库:
+	设计表-->字段-->表关系
+	SQL语言
+	oracle,sql server,sqlite,mysql
+
+
+非关系型数据库:nosql(not only sql)
+	Redis
+	MongoDB
+	HBASE Hadoop
+
+
+Redis简介:
+	非关系型 key-value 数据库,数据存放在内存中,经常用来作缓存
+	
+	特点:读写速度极高,Redis能读的速度是110000次/s,写的速度是81000次/s 
+
+	默认端口:6379
+
+
+----------------------------------------------------
+
+1.安装
+
+
+
+
+2.配置
+
+
+
+
+
+
+3.服务端和客户端命令
+
+
+	3.1服务器端:
+		服务器端的命令为redis-server
+
+		可以使⽤help查看帮助⽂档
+		redis-server --help
+
+		启动(两种方式)
+		老版本启动:
+		sudo service redis start
+		新版本启动:
+		sudo redis-server /etc/redis/redis.conf :指定加载的配置文件来启动
+
+
+		停⽌
+		sudo service redis stop
+
+		重启 sudo service redis restart
+
+		个人习惯
+		查看是否启动:ps aux | grep redis
+
+		ps -ef|grep redis :查看redis服务器进程号(杀死进程需要此号)
+		sudo kill -9 pid :杀死redis服务器
+		sudo redis-server /etc/redis/redis.conf 指定加载的配置文件来启动
+
+	注:redis数据库和mysql服务器的开启和停止是一样的,查看是否启动也一样
+
+	3.2客户端
+		客户端的命令为redis-cli
+		可以使⽤help查看帮助⽂档
+		redis-cli --help
+
+		其中-h 是地址默认127.0.0.1
+		-p 是端口,默认6379
+
+		另一种完整连接redis写法:
+		redis-cli -h 127.0.0.1 -p 6379
+
+		连接redis
+		redis-cli
+
+		运⾏测试命令
+		ping
+
+		切换数据库:
+		数据库没有名称，默认有16个，通过0-15来标识，连接redis默认选择第一个数据库
+		select n
+
+
+4.数据操作
+
+	redis是key-value的数据结构，每条数据都是⼀个键值对
+	键的类型是字符串
+	注意：键不能重复
+
+
+	值的类型分为五种：
+
+		字符串string
+		哈希hash
+		列表list
+		集合set
+		有序集合zset
+
+	数据操作行为
+		保存
+		修改
+		获取
+		删除
+
+	4.1 string
+
+	4.1.1保存:
+		如果设置的键不存在则为添加，如果设置的键已经存在则修改
+
+		设置键值:
+		set key value
+
+		例1：设置键为name值为itcast的数据
+		set name itcast
+
+		设置多个键值(multi set 设置多个)
+		mset key1 value1 key2 value2 ...
+
+		例3：设置键为'a1'值为'python'、键为'a2'值为'java'、键为'a3'值为'c'
+		mset a1 python a2 java a3 c
+
+		追加值
+		append key value
+
+		例4：向键为a1中追加值' haha'
+		append 'a1' 'haha'		
+
+		注:追加的时候是字符串拼接的一个过程,如set 值为 1,append 值为 4,
+			再get值的时候为 '14'
+
+	4.1.2获取:
+		获取：根据键获取值，如果不存在此键则返回nil
+		get key
+
+		例5：获取键'name'的值
+		get 'name'
+
+		根据多个键获取多个值
+		mget key1 key2 ...
+
+		例6：获取键a1、a2、a3的值
+		mget a1 a2 a3
+
+	4.1.3删除:	
+
+
+
+
+	4.2键命令:
+
+		查找键，参数⽀持正则表达式
+		keys pattern
+
+		例1：查看所有键
+		keys *
+
+		例2：查看名称中包含a的键
+		keys 'a*'
+
+		判断键是否存在，如果存在返回1，不存在返回0
+		exists key1
+
+		例3：判断键a1是否存在
+		exists a1
+
+		查看键对应的value的类型
+		type key
+
+		例4：查看键a1的值类型，为redis⽀持的五种类型中的⼀种
+		type a1
+
+		删除键及对应的值
+		del key1 key2 ...
+
+		例5：删除键a2、a3
+		del a2 a3
+
+		设置过期时间，以秒为单位
+		如果没有指定过期时间则⼀直存在，直到使⽤DEL移除
+		expire key seconds
+
+		例6：设置键'a1'的过期时间为3秒
+		expire 'a1' 3	
+
+		查看有效时间，以秒为单位
+		ttl key
+
+		例7：查看键'bb'的有效时间
+		setex bb 10 bb (设置键bb 保存10s钟,期间可以ttl可以查看bb剩余时间,也可以查看bb的值,但是时间一过10s,那么时间会变成-2,值会变成nil)
+		ttl bb
+
+
+	4.3hash
+
+		设置单个属性:hset 键 属性 值
+		hset key field value
+
+		设置多个属性:hset 键 属性1 值1 属性2 值2
+		hmset key field1 value1 field2 value2 ...
+
+		获取
+		获取指定键所有的属性:hkeys 键名
+		hkeys key
+
+		127.0.0.1:6379> hkeys user
+		1) "name"
+		2) "age"
+
+
+		获取⼀个属性的值:hget 键 属性名
+		hget key field
+
+		获取多个属性的值:hmget 键 属性名1 属性名2 ...
+		hmget key field1 field2 ...
+
+		127.0.0.1:6379> hmset user name Li age 18
+		OK
+		127.0.0.1:6379> hmget user name age
+		1) "Li"
+		2) "18"
+
+		获取所有属性的值:hvals 键
+		hvals key
+		127.0.0.1:6379> hvals user
+		1) "Li"
+		2) "18"
+
+
+	4.3.1删除:
+		删除整个hash键及值，使⽤del命令
+		删除属性，属性对应的值会被⼀起删除:
+
+		hdel 键 属性名 (删除对象的属性)
+		hdel key field1 field2 ...
+
+		例:删除user 里的age属性
+			hdel user age
+			此时user只剩下name属性,
+			如果想再添加age属性,那么直接set
+			hset user age 18
+
+			127.0.0.1:6379> hkeys user
+			1) "name"
+			2) "age"
+			127.0.0.1:6379> hvals user
+			1) "Li"
+			2) "18"
+
+
+	4.4list
+		列表的元素类型为string
+		按照插⼊顺序排序
+
+		4.4.1增加
+		4.4.1.1左侧插入数据:
+		lpush 键 值1 值2
+
+		例:lpush a1 a b c
+		lrange a1 0 3 (排列出a1列表里下标为0 -3的所有值)
+		lrang a1 0 -1 (排列出a1 列表li所有值)
+
+		注:lrange 排序与 lpush加入的顺序是相反的,因为先加的排在后面
+
+		4.4.1.2右插入
+		rpush 键 值1 值2
+		rpush a1 0 1
+
+		4.4.2在指定元素的前或后插⼊新元素
+		linsert key before或after 现有元素 新元素
+
+		4.4.3获取
+		返回列表⾥指定范围内的元素
+
+			start、stop为元素的下标索引
+			索引从左侧开始，第⼀个元素为0
+			索引可以是负数，表示从尾部开始计数，如-1表示最后⼀个元素
+			lrange key start stop
+
+		4.4.4设置指定索引位置的元素值
+			索引从左侧开始，第⼀个元素为0
+			索引可以是负数，表示尾部开始计数，如-1表示最后⼀个元素
+
+			lset key index value	
+
+		4.4.5删除
+			删除指定元素
+
+			将列表中前count次出现的值为value的元素移除
+			count > 0: 从头往尾移除
+			count < 0: 从尾往头移除
+			count = 0: 移除所有
+			lrem key count value	
+
+****************************************************************
+	4.5 set
+
+		⽆序集合
+		元素为string类型
+		元素具有唯⼀性，不重复
+		说明：对于集合没有修改操作
+
+		4.5.1增加:
+		sadd 键 值1 值2 值3 
+		sadd a3 zhangsan lisi wangwu 
+
+		4.5.2获取:
+		smembers 键 :返回所有元素
+		smembers a3
+
+		4.5.3删除:
+		srem 键 值1 值2 ...
+		srem a3 wangwu
+
+
+	4.6 zset
+		sorted set，有序集合
+		元素为string类型
+		元素具有唯⼀性，不重复
+		每个元素都会关联⼀个double类型的score，表示权重，通过权重将元素从⼩到⼤排序
+		说明：没有修改操作
+
+		4.6.1增加
+		zadd 键  权重1 值1 权重2 值2
+		zadd a4 4 lisi 5wangwu 6zhaoliu 3 zhangsan
+
+		4.6.2获取
+		start、stop为元素的下标索引
+		索引从左侧开始，第⼀个元素为0
+		索引可以是负数，表示从尾部开始计数，如-1表示最后⼀个元素
+
+		zrange key start stop
+		zrange 键 0 -1 (获取所有元素)
+
+		返回score值在min和max之间的成员
+		zrangebyscore key min max
+		zrangebyscore a4 5 6 (返回score在5到6的元素)
+
+		返回成员member的score值
+		zscore key member	
+
+		4.6.3删除:
+
+
+	注:更多redis常用命令见 百度!
+		ltrim 键 start stop (修剪键里的值,把范围以外的去除)
+
+
+5.与python交换
+
+	首先在进入虚拟环境:
+	在虚拟环境下安装redis包:pip install redis
+------------------------------------------------------------------------
+	安装包(三种方式)
+	安装Redis的有3种方式https://github.com/andymccurdy/redis-py
+
+	第一种：进⼊虚拟环境py_django，联⽹安装包redis
+	pip install redis
+
+	第二种：进⼊虚拟环境py_django，联⽹安装包redis
+	easy_install redis
+
+	第三种：到中⽂官⽹-客户端下载redis包的源码，使⽤源码安装
+	一步步执行 wget https://github.com/andymccurdy/redis-py/archive/master.zip
+	unzip master.zip
+	cd redis-py-master
+	sudo python setup.py install
+
+--------------------------------------------------------------------------
+
+	5.1方法
+	strict 严格,严厉
+
+	5.1.1导入模块
+	from redis import StrictRedis
+
+	5.1.2创建对象
+	sr = StrictRedis(host='localhost', port=6379, db=0)
+
+	5.1.3调用方法
+
+		string
+		set
+		setex
+		mset
+		append
+		get
+		mget
+		key
+		keys
+		exists
+		type
+		delete
+		expire
+		getrange
+		ttl
+		hash
+		hset
+		hmset
+		hkeys
+		hget
+		hmget
+		hvals
+		hdel
+		list
+		lpush
+		rpush
+		linsert
+		lrange
+		lset
+		lrem
+		set
+		sadd
+		smembers
+		srem
+		zset
+		zadd
+		zrange
+		zrangebyscore
+		zscore
+		zrem
+		zremrangebyscore
+
+
+	具体代码见下:(创建一个redis_string.py文件即可验证)
+
+	from redis import StrictRedis
+
+	if __name__ == '__main__':
+
+		# string
+        # 创建strictredis对象，用于链接redis服务器
+        # sr = StrictRedis(db=0)
+
+        # 添加一个string类型的元素，key：name  val：itheima
+        # result = sr.set('name','itheima')
+        # print(result)
+
+        # 修改string类型的元素，key：name  val：itcast
+        # result = sr.set('name','itcast')
+        # print(result)
+
+        # 获取val并将其打印
+        # res = sr.get('name')
+        # print(res)   # zhu;这里获取到的类型是bytes类型
+
+        # # 删除建name的值,del对应的方法是delete，可以一次删除多个key
+        # result = sr.delete('name')
+        # print(result)
+
+        # 获取数据库中所有的key
+        # result = sr.keys()
+        # print(result)
+
+    # except Exception as e:
+    #     print(e)
+
+
+	    # list
+	    try:
+	        # 创建strictredis对象，用于链接redis服务器
+	        sr = StrictRedis(db=0)
+
+	        # 添加一个list类型的元素,key:xingming  val：...
+	        result = sr.lpush('xingming','xiaowang','xiali','xiaoer')
+	        print(result)
+
+	        # 获取val并将其打印
+	        res = sr.lrange('xingming',0, -1)
+	        print(res)   # zhu;这里获取到的类型是bytes类型
+	    except Exception as e:
+	        print(e)
+
+	在pycharm中为什么get 的值类型是 b'itcast'  bytes类型?不是字符串?
+ 
+
+	5.2string
+	在桌面上创建redis目录
+	使用pycharm打开 redis目录
+	创建redis_string.py文件
+
+	见上方代码:增set,删delete,查get,改set
+
+
+	5.3django
+	django 存储session
+
+	之前django的session默认是存在的数据库里面的，我们也可以把session存储在redis里面(即放在内存中)
+
+	5.3.1.安装包
+		pip install django-redis-sessions==0.5.6
+
+	5.3.2修改settings文件，增加如下项
+
+		SESSION_ENGINE = 'redis_sessions.session'
+		SESSION_REDIS_HOST = 'localhost'
+		SESSION_REDIS_PORT = 6379
+		SESSION_REDIS_DB = 2
+		SESSION_REDIS_PASSWORD = ''
+		SESSION_REDIS_PREFIX = 'session'
+
+	5.3.3测试
+		打开booktest/views.py文件，创建session_set和session_get视图如下	
+
+		配置url
+
+		访问:
+		localhost:8000/session_set
+
+			检查网页:
+			sessionid=g7kquc1tiplrh3ausx7uinyg9ccn181f
+			在终端中redis查询:
+			127.0.0.1:6379[2]> keys *
+			1) "session:g7kquc1tiplrh3ausx7uinyg9ccn181f"
+
+		session_get:
+
+	注:在pycharm中运行增删查改 session,可以对redis中数据产生影响	
+
+
+6.搭建主从(master是主,slave是从)
+
+	1.⼀个master可以拥有多个slave，⼀个slave⼜可以拥有多个slave，如此下去，形成了强⼤的多级服务器集群架构
+	2.master用来写数据，slave用来读数据，经统计：网站的读写比率是10:1
+	3.通过主从配置可以实现读写分离
+	4.master和slave都是一个redis实例(redis服务)
+		意思是每启动一个服务器就是一个实例!
+
+
+	主从配置:
+
+	1.配置主:
+	ifconfig
+
+	修改etc/redis/redis.conf文件
+	先cd etc/redis/
+
+	配置主服务绑定ip:sudo vi redis.conf
+	sudo vi redis.conf
+	bind 192.168.20.29
+
+	杀死进程
+	sudo kill -9 进程号
+
+	重启redis服务
+	sudo service redis stop
+	sudo redis-server /etc/redis/redis.conf
+
+
+	2.配置从
+	将redis.conf配置文件拷贝一份改名为slave.conf
+	sudo cp redis.conf slave.conf
+	
+	将slav.conf配置文件修改:
+	sudo vi slave.conf
+
+		修改如下:
+		2.1bind 192.168.20.29
+
+		2.2slaveof <masterip> <masterport>
+			slaveof 192.168.20.29 6380
+
+		2.3配置slave自己的port
+			port 6380
+
+		2.4开启从服务:
+		sudo redis-server /etc/redis/slave.conf
+
+	3.查看主从关系
+	redis-cli -h 192.168.20.29 info Replication
+
+
+	4.数据操作:
+
+		4.1在master和slave分别执⾏info命令，查看输出信息 进入主客户端
+			redis-cli -h 192.168.26.128 -p 6379
+
+		4.2进入从的客户端
+			redis-cli -h 192.168.26.128 -p 6380
+
+		4.3在master上写数据
+			set aa aa
+
+		4.4在slave上读数据
+			get aa
+
+	注:1.主从:主里有的数据 从里会自动备份,主里只写,从里只读
+		2.单独的redis数据库有单点故障的特性,一旦出故障,数据就会消失
+		3.如果主服务 跟从服务不在同一电脑上那么就不能设置绑定为本地ip即:127.0.0.1
+
+7.搭建集群
+
+	7.1配置机器1
+		在演示中，172.16.179.130为当前ubuntu机器的ip
+		在172.16.179.130上进⼊Desktop⽬录，创建conf⽬录
+		在conf⽬录下创建⽂件7000.conf，编辑内容如下
+
+		1.
+		port 7000
+		bind 172.16.179.130
+		daemonize yes
+		pidfile 7000.pid
+		cluster-enabled yes
+		cluster-config-file 7000_node.conf
+		cluster-node-timeout 15000
+		appendonly yes
+
+		2.
+		port 7001
+		同上
+
+		3.
+		port 7002
+		同上
+
+		总结：三个⽂件的配置区别在port、pidfile、cluster-config-file三项
+
+		4.使⽤配置⽂件启动redis服务
+
+			redis-server 7000.conf
+			redis-server 7001.conf
+			redis-server 7002.conf	
+
+
+	7.2配置机器2
+
+		步骤同 7.1
+
+		文件名:7004.conf,7005.conf ,7006.conf
+
+
+
+	7.3创建集群
+
+		7.3.1redis的安装包中包含了redis-trib.rb，⽤于创建集群
+		接下来的操作在172.16.179.130机器上进⾏
+		将命令复制，这样可以在任何⽬录下调⽤此命令
+			sudo cp /usr/share/doc/redis-tools/examples/redis-trib.rb /usr/local/bin/
+
+		7.3.2在虚拟环境中安装集群包:
+			sudo apt-get install ruby	
+
+			要安装最新版本的ruby
+			gem sources --add https://gems.ruby-china.org/ --remove https://rubygems.org/
+			sudo gem install redis
+
+		7.3.3运行,搭建集群:
+		redis-trib.rb create --replicas 1 172.16.179.130:7000 172.16.179.130:7001 172.16.179.130:7002 172.16.179.131:7003 172.16.179.131:7004 172.16.179.131:7005	
+
+		7.3.4数据验证
+		根据上图可以看出，当前搭建的主服务器为7000、7001、7003，对应的从服务器是7004、7005、7002
+		在172.16.179.131机器上连接7002，加参数-c表示连接到集群
+			redis-cli -h 172.16.179.131 -c -p 7002
+
+		写⼊数据
+			set name itheima
+
+		⾃动跳到了7003服务器，并写⼊数据成功
+
+
+
+
+		cluster 集群
+		node: 节点
+		slots:槽
+
+		redis集群中的槽(slots):16384个-->分配到每个主节点里
+
+		问:槽的分配有规律吗?是平均分配吗?
+
+		如果写数据,set name itcast,那么集群中有三个主节点,会写进哪个节点呢?
+		set key value
+		根据下面计算方式计算写入的槽所在的node:
+		crc 16(key)% 16384 == 余数槽
+
+
+
+		注:1.redis集群一个主节点挂掉,其他节点仍然可以储存数据!
+			2.必要要3个或以上的主节点,否则集群会创建失败
+			3.集群中主节点会定时的相互发送更新数据
+			4.在我们平常工作中,不需要知道写入的是哪个主节点,用就行了
+
+
+
+	7.4与python交互
+
+		7.4.1安装包如下
+		pip install redis-py-cluster
+
+		7.4.2创建⽂件redis_cluster.py，示例码如下
+
+		from rediscluster import StrictRedisCluster
+		if __name__ == '__main__':
+		  try:
+		      # 构建所有的节点，Redis会使⽤CRC16算法，将键和值写到某个节点上
+		      startup_nodes = [
+		          {'host': '192.168.26.128', 'port': '7000'},
+		          {'host': '192.168.26.130', 'port': '7003'},
+		          {'host': '192.168.26.128', 'port': '7001'},
+		      ]
+		      # 构建StrictRedisCluster对象
+		      src=StrictRedisCluster(startup_nodes=startup_nodes,decode_responses=True)
+		      # 设置键为name、值为itheima的数据
+		      result=src.set('name','itheima')
+		      print(result)
+		      # 获取键为name
+		      name = src.get('name')
+		      print(name)
+		  except Exception as e:
+		      print(e)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

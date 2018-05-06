@@ -1,0 +1,469 @@
+﻿mac电脑破解软件网站：www.waitsun
+
+进入数据库：mysql
+ sodu su 进入root用户
+ cd /var/lib/mysql进入数据库目录 pwd，ll
+  
+
+ sudo mysql -uroot -p
+  
+ Enter password:
+ 
+
+
+数据库介绍;
+  
+ 数据库--》专门存储数据的参考
+   1.一个特殊的文件
+   2.读写速度极高
+   3.查询速度极快
+  
+       42亿--2^32，
+       用数据库查询，最多不超过32次，32次--》二分查找算法--》正对于一个有序的列表来进       行快速查找的方式
+  
+       4亿2次 --》普通的遍历
+       远远小于32次--》 B+树
+   
+        
+
+
+
+  要会默写数据库的增删改查！！！curd   或者crud
+ 
+  数据库存储数据：
+    有序（快速查找），唯一，整数
+
+
+  关系型数据库核心元素
+
+  数据行(记录)  record
+  数据列(字段)  bit ：比如增加is_delete 字段是用；is_delete bit add into 
+  数据表(数据行的集合) table
+  数据库(数据表的集合) database
+
+  关系型数据库的特征： 表（行，列）
+ 
+  -----行
+  -----列
+  -----表
+
+
+
+
+ RDBMS
+
+ Relational Database Management System
+
+ 关系型数据库、非关系型数据库
+
+ 关系型数据库的主要产品：
+
+  oracle：在以前的大型项目中使用,银行,电信等项目|需要联网
+  mysql：web时代使用最广泛的关系型数据库        |启用服务器才能使用
+  ms sql server：在微软的项目中使用             |
+  sqlite：轻量级数据库，主要应用在移动平台（智能冰箱，空调）单机版的数据库
+
+  非关系型数据库产品：
+     MongoDB
+ 
+  操作RDBMS数据库的语言：SQL
+
+SQL语句主要分为：
+DQL：数据查询语言，用于对数据进行查询，如select
+DML：数据操作语言，对数据进行增加、修改、删除，如insert、udpate、delete
+
+DDL：数据定义语言，进行数据库、表的管理等，如create、drop
+
+
+安装MySQL服务器端：
+  sudo apt-get install mysql-server
+
+
+
+*****************************************************************************************
+实操：
+
+
+
+找到mysql数据库：
+   指令:
+    ps ajx|grep mysql
+
+
+
+启动mysql服务器：
+ 
+ sudo service mysql start
+
+终止：
+  sudo servic mysql stop
+
+重启：
+  sudo service mysql restart （当修改了mysql的配置文件之后，就可以通过重启来是修改生效）
+
+
+查看看配置：（注意查看配置的时间是在，刚刚开启mysql，如果已经建立连接了，就无法查看配置）
+   sudo vi /etc/mysql/mysql.conf.d/mysqld.cnf 
+
+
+
+配置：路径：/etc/mysql/       cnf:配置文件  config
+
+进入配置文件：sudo vi /etc/mysql/mysql.conf.d
+    Error log = /var/log/mysql/error.log (错误日志，mysql的错误信息都会输入到这个路径下的日                志文件，如果mysql出错....
+
+   size ，最大100M
+
+   port：3306
+  
+   ip：127.0.0.1
+   
+*********************   
+数据库用户名： root**
+密码:mysql         **
+*********************
+
+连接数据库;
+   mysql -uroot -pmysql  连接       （-u root -p mysql 可以分开可以放在一起）
+   如果出现 welcome to the mysql monitor 表示连接成功，默认连接localhost：3306
+
+
+MySQL图形化界面客户端Navicat：
+   解压：./start_navicat
+
+  
+  
+
+mysql图形界面客户端：
+  
+   有四个系统数据库文件，不嫩删
+
+   新建数据库：
+         字符集;不能选择default的，要选utf-8
+
+         排序规则：utf-8
+
+    双击变绿，方可使用：
+       1.创建表：字段，索引   ，不能为空，主键（钥匙），√null，√自动递增，√无符号
+       2.name，varchar，  长度 15（限制name的长度为15字符），不符合标准就添加不进去
+     
+   增：+
+   
+  删：x
+     如果有1,2,3,4,5条信息
+     删除了4，name第五条不会补成4，而是继续是5，因为每一条都是唯一的
+   
+
+ 使用数据类型：
+    常用数据类型如下：
+    整数：int，bit
+    小数：decimal
+    字符串：varchar,char
+    日期时间: date, time, datetime
+    枚举类型(enum)
+    特别说明的类型如下：
+    decimal表示浮点数，如decimal(5,2)表示共存5位数，小数占2位
+    char表示固定长度的字符串，如char(3)，如果填充'ab'时会补一个空格为'ab '
+    varchar表示可变长度的字符串，如varchar(3)，填充'ab'时就会存储'ab'
+    字符串text表示存储大文本，当字符大于4000时推荐使用
+    对于图片、音频、视频等文件，不存储在数据库中，而是上传到某个服务器上，然后在表中存储这个      文件的保存路
+
+ 数值类型(常用)
+
+ 类型	   字节大小	有符号范围(Signed)	无符号范围(Unsigned)
+  TINYINT	1	-128 ~ 127	      0 ~ 255
+  SMALLINT	2	-32768 ~ 32767	      0 ~ 65535
+  MEDIUMINT	3	-8388608 ~ 8388607	 0 ~ 16777215
+  INT/INTEGER	4	-2147483648 ~2147483647 	0 ~ 4294967295
+  BIGINT	8	-9223372036854775808 ~ 9223372036854775807	0 ~ 1844674407370
+
+  11111111    最前面一位0表示正数，1表示负数
+
+
+
+*********
+退出数据库：exit、 quit，Ctrl + D
+*********
+
+
+使用数据库：（use database名）
+  use students;
+
+
+完成数据库的切换：
+    use demo；
+  如果出现 change 就成功了1！
+
+
+ 查看创建数据库：
+ mysql>    show databases;
+    
+11
+ 查看当前使用的数据库：
+   select database();
+  
+ 显示时间：
+   select now();
+ 
+ 使用数据库：   --------即选择数据库 ，进行下一步操作，比如建表 create table
+    use demo;
+
+ 创建数据库create：
+    create database demo  (创建一个叫demo的数据库，创建好了可以查看)
+
+     show create database demo 可以查看到刚刚创建的数据库以及默认字符集拉丁   
+     这是错的，所以要用drop删除，重写创建
+
+
+ 删除数据库;
+    drop database demo;
+
+
+  重新创建： (指定字符集，注意不是utf-8，是utf8)****************************************
+    create database demo charset=utf8;
+
+  注： 指令后面要加 '；',否则系统会认为你没输入完毕
+
+    --表示注释
+
+
+删除数据库：  (注意这是物理删除，不能再找回来了！！！！！)*****************************
+  drop database demo;
+
+
+
+
+**************************************************************
+  数据表的操作：
+ 
+ 查看数据库中所有表：
+    show tables
+ 
+   -创建表
+   -auto_increment表示自动增长
+   -- auto_increment表示自动增长
+    -- 创建一个学生的数据表(id、name、age、high、gender、cls_id)
+    -- create table 数据表名字 (字段 类型 约束[, 字段 类型 约束]);
+    -- [] 表示可有可无
+    - unsigned 表示无符号**********************************************
+    -- 多个约束 不分先后顺序
+    - enum 表示枚举  男: 原始值 会有一个枚举值(从1开始)对应
+    -- 最后一个字段不要添加逗号
+    create table students(
+        id int unsigned not null primary key auto_increment,    # not null不为空，auto_increment自动递增
+        name varchar(15),
+        age tinyint unsigned default 0,
+        high decimal(5,2) default 0,
+        gender enum("男", "女", "中性", "保密") default "保密",
+        cls_id int unsigned not null
+    );
+
+           
+
+    -- 创建students表
+      注：这里创建students表的时候，创建的字段有：id，name，age，high，gender（gender用的枚举并设有默认值），class_id.
+          unsigned 是无符号，即使正数，
+
+           is_delete bit default 0；创建 字段，是字节类型
+ 
+
+    - 查看表的创建语句
+    show create table students;  -- 获取的数据表的创建语句是经过RDBMS系统加工之后的sql语句
+
+ 
+    -- 查看表结构
+    desc students;
+    +--------+-------------------------------------+------+-----+---------+----------------+
+    | Field  | Type                                | Null | Key | Default | Extra          |
+    +--------+-------------------------------------+------+-----+---------+----------------+
+    | id     | int(10) unsigned                    | NO   | PRI | NULL    | auto_increment |
+    | name   | varchar(15)                         | YES  |     | NULL    |                |
+    | age    | tinyint(3) unsigned                 | YES  |     | 0       |                |
+    | high   | decimal(5,2)                        | YES  |     | 0.00    |                |
+    | gender | enum('男','女','中性','保密')         | YES  |     | 保密    |                |
+    | cls_id | int(10) unsigned                    | NO   |     | NULL    |                |
+    +--------+-------------------------------------+------+-----+---------+----------------+
+
+    
+    - 修改表结构  alter
+    - 修改表-添加字段
+    - alter table 表名 add 列名 类型/约束;
+    -- 生日信息 
+    alter table students add birthday datetime default "2008-11-11";
+           (添加字段)
+
+
+    - 修改表-修改字段：不重命名版
+    -- alter table 表名 modify 列名 类型及约束;
+    alter table students modify birthday date default "2008-11-11";
+     注：modify 这种方法后面跟的是 字段的name（birthday），因为要指定字段名才可以修改，
+       modify除了birthday不能修改，这一字段其他的都可以一次性修改掉
+
+
+    - 修改表-修改字段：重命名版
+    -- alter table 表名 change 原列名 新列名 类型及约束;
+    alter table students change birthday birth date default "2008-11-11";+--------+-------------------------------------+------+-----+------------+----------------+
+      注：重命名 是指 要指出原始的字节name（birthday），然后后面同时要跟上修改之后的name （birht），
+         就是说change可以修改此字段的name，因为它事先已经申明了 要改哪个字段了
+
+      注注：modify和change的区别，change可以修改字段name，而modify不可以！！！！   
+    
+
+     （用birth 替换birthday）
+      结果如下：
+        +--------+-------------------------------------+------+-----+------------+----------------+
+| Field  | Type                                | Null | Key | Default    | Extra          |
++--------+-------------------------------------+------+-----+------------+----------------+
+| id     | int(10) unsigned                    | NO   | PRI | NULL       | auto_increment |
+| name   | varchar(15)                         | YES  |     | NULL       |                |
+| age    | tinyint(3) unsigned                 | YES  |     | 0          |                |
+| high   | decimal(5,2)                        | YES  |     | 0.00       |                |
+| gender | enum('男','女','中性','保密')       | YES  |     | 保密       |                |
+| cls_id | int(10) unsigned                    | NO   |     | NULL       |                |
+| birth  | date                                | YES  |     | 2008-11-11 |                |
+
+
+
+
+    - 修改表-删除字段
+    alter table students drop birth;
+       (删除birth这个字段)
+
+    - 删除表（刚刚新建好的表 一drop之后就没了）
+    drop table students;
+
+
+
+    
+-- 数据增删改查(curd)
+enum('男','女','中性','保密') 男,女,中性,保密:枚举的原始值
+                          枚举的原始值都会有一个枚举值(枚举值的初始值大部分语言中都是从0开始)
+                            sql中枚举的原始值对应的枚举值默认从1开始
+
+desc students;
+    +--------+-------------------------------------+------+-----+---------+----------------+
+    | Field  | Type                                | Null | Key | Default | Extra          |
+    +--------+-------------------------------------+------+-----+---------+----------------+
+    | id     | int(10) unsigned                    | NO   | PRI | NULL    | auto_increment |
+    | name   | varchar(15)                         | YES  |     | NULL    |                |
+    | age    | tinyint(3) unsigned                 | YES  |     | 0       |                |
+    | high   | decimal(5,2)                        | YES  |     | 0.00    |                |
+    | gender | enum('男','女','中性','保密')         | YES  |     | 保密    |                |
+    | cls_id | int(10) unsigned                    | NO   |     | NULL    |                |
+    +--------+-------------------------------------+------+-----+---------+----------------+
+********************************************************************************
+   - 增加 insert  （注：此时的students表还只是一个如上图的空表，现在用insert来添加数据）
+        -- 全列插入  值和表的字段的顺序一一对应
+        -  insert [into] 表名 values(值1,...)
+        -- [] 表示可有可无
+        -- values 也可以写成 value
+        -  对于主键字段需要进行占位处理: 0 NULL,default
+        -  在实际开发中全列插入用的很少, 一旦增加或者删除字段 sql语句就废了
+        insert into students values (0,"小乔",18,180.00,"男",1);
+        insert into students values (NULL,"大乔",18,180.00,"女",1);
+        insert into students values (NULL,"西施",18,1801.00,1,1);
+        insert into students values (NULL,"西施",18,180.00,"不知道",1);      
+
+         注：这种方法慎用，id系统自己会自动生成并且递增，可以用占位符：0，null，default来占位
+
+        查询所有列，即查看添加后的结果（select * from demo;）
+         结果如下：
+           +----+--------+------+--------+--------+--------+
+        | id | name   | age  | high   | gender | cls_id |
+        +----+--------+------+--------+--------+--------+
+        |  1 | 阿里   |   18 | 180.00 | 女     |      1 |
+        |  2 | 阿里   |   18 | 180.00 | 女     |      1 |
+        |  3 | 提莫   |   18 | 180.00 | 女     |      1 |
+        |  4 | 盖伦   |   18 | 180.00 | 女     |      1 |
+        |  5 | 盖伦   |   18 | 180.00 | 女     |      1 |
+        +----+--------+------+--------+--------+--------+
+              注：这种方法慎用，id系统自己会自动生成并且递增，可以用占位符：0，null，default来占位
+
+
+
+        - 指定列插入
+        -- 值和列一一对应
+        - insert into 表名(列1,...) values(值1,...)
+        insert into students (name, gender, cls_id) values ("曹操",1,2);
+
+        	结果：7 | 蛮王   |    0 |   0.00 | 女     |      2 |
+
+
+        -多行插入  批量插入
+        - insert into 表名(列1,...) values (值1,...),(值1,...),...
+        insert into students (name, gender, cls_id) values ("刘备",1,2),("孙尚香",2,1),("张飞",1,2);
+
+******************************************************************************
+    - 修改  update
+    -- where 表示修改的范围
+    -  update 表名 set 列1=值1,列2=值2... [where 条件]
+    -  如果没有where 表示范围 此时是全表更新
+    -- 搜易贷 p2p 加息券  易租宝跑路
+    update students set gender = 2;  **!!! 不能这样做
+
+
+    	运行：update demo set gender = 3 where id = 1;
+    	结果如下：
+         +----+-----------+------+--------+--------+--------+
+		| id | name      | age  | high   | gender | cls_id |
+		+----+-----------+------+--------+--------+--------+
+		|  1 | 阿里      |   18 | 180.00 | 中性   |      1 |
+
+
+    - sql中  通过一个等于号表示相等 
+
+********************************************************************************
+
+    - 删除  delete
+        -   物理删除，一旦删除 就无法复原
+        - DELETE FROM 表名 [where 条件判断]
+        - where 条件可以不加 但是必须得加  *********
+        delete from students;      （mysql从删库到跑路，注：这种做法很危险，这是对整个表里面的行进行相同的删除操作）
+        delete from students where id = 8;
+        
+       如下：
+        +----+-----------+------+--------+--------+--------+
+		| id | name      | age  | high   | gender | cls_id |
+		+----+-----------+------+--------+--------+--------+
+		|  1 | 阿里      |   18 | 180.00 | 女     |      1 |
+		|  3 | 提莫      |   18 | 180.00 | 女     |      1 |
+		|  4 | 盖伦      |   18 | 180.00 | 女     |      1 |
+		|  6 | 赵信      |   18 | 180.00 | 男     |      1 |
+		|  7 | 蛮王      |    0 |   0.00 | 女     |      2 |
+		|  8 | 发条      |    0 | 155.00 | 女     |      3 |
+		|  9 | 得来文    |    0 | 160.00 | 男     |      1 |
+		+----+-----------+------+--------+--------+--------+
+
+
+        -- 京东--> 2012 诺基亚 --> 下架(delete) --> 个人中心--> 我的订单--> 诺基亚订单详情--> 商品详情
+        
+        -逻辑删除 (通过一个字段来标识数据是否被删除)  --> 更新表结构,先增加一个字段is_delete,默认为0，没删除
+        alter table students add is_delete bit default 0;*************************************在表建好之后给表添加 字段！！
+
+        update students set is_delete = 1 where id = 7;
+           运行结果：会在id =7 的 is_delete 后面显示二进制数据
+           
+
+        - 查询有哪些学生没有被删除
+        select * from students where is_delete = 0;  这里0就是没被删，1就是被删了
+
+        注：逻辑删除实际上是把 它放进另一个地方，而不是真正的物理删除
+********************************************************************************
+
+    -查询基本使用
+        -- 查询所有列
+        -- select * from 表名; 
+        select * from students;  # 查询students表中所有的字段对应的值
+        select * from students where id = 8;
+ 
+
+
+
+
+
+
+
+ 
+
+
+

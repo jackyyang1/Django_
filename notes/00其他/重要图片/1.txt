@@ -1,0 +1,38 @@
+
+"""index.html"""
+
+html_template ="""
+
+<tr>
+                        <td>2</td>
+                        <td>000036</td>
+                        <td>华联控股</td>
+                        <td>10.04%</td>
+                        <td>10.80%</td>
+                        <td>11.29</td>
+                        <td>10.26</td>
+                        <td>2017-07-20</td>
+                        <td>
+                            <input type="button" value="添加" id="toAdd" name="toAdd" systemidvaule="000036">
+                        </td>
+                    </tr>"""
+
+
+"""个人中心"""
+
+html_template = """<tr>
+                       <td>%s</td>
+                       <td>%s</td>
+                       <td>%s</td>
+                       <td>%s</td>
+                       <td>%s</td>
+                       <td>%s</td>
+                       <td>%s</td>
+                       <td>
+
+<a type="button" class="btn btn-default btn-xs" href="/update/%s.html"> <span class="glyphicon glyphicon-star" aria-hidden="true"></span> 修改 </a>
+                       </td>
+                       <td>
+                           <input type="button" value="删除" id="toDel" name="toDel" systemidvaule="%s">
+                       </td>
+                   </tr>

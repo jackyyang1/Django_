@@ -1,0 +1,184 @@
+1，day09-面向对象-隐藏属性扩展：
+   
+     class Person():
+
+         def __init__(self,age):
+             self.__age = age  # 私有属性，加_ _两个下划线，解释器会自动
+	                       # 在属性名前加前缀:_类名,(_Person.__age)									
+         def set_age(self,new_age):
+             if new_age >= 0:
+                 self.__age = new_age
+
+         def get_age(self):
+             return self.__age
+
+     zs = Person(16)
+     zs.__age = -10   # 在类之外访问私有属性，实际上是新建了一个属性
+
+     print(zs.__age)  # 所以要求私有属性不能再类外被访问
+     # zs.set_age(10) # 私有属性可以通过方法来访问  
+     # print(zs._Person.__age) #使用特殊方式也可以访问私有属性，但是     
+                               #不要在工作里使用
+     print(zs.get_age())
+     
+     print(dir(zs))  # dir(zs) 可以查看对象的所有属性
+
+
+2，day09-面向对象-私有方法：
+     
+      log 日志
+  
+     # log日志
+class Person(object):
+
+    def set_age(self,new_age):
+        self.my_print('set_age方法执行了')
+
+        if self.__age > 0:
+            self.__age = new_age
+        else:
+            print('年龄设置失败了')
+
+    def get_age(self):
+        self.my_print('get_age方法执行了')
+                                      #这里get_age()方法就相当于是                                                           #__str__方法的作用，都是返回要打印的数据
+        return self.__age             #和str方法一样不用传参，因为参数会自                                                                          动传递过来
+
+    def my_print(self,msg):
+        #print('Person说：', msg)  
+        pass           # 可以用pass和注释来决定my_print方法是否执行 ，这                            就是log日志，应该是指print（方法执行）log
+
+
+zs = Person(18)
+zs.set_age(20)
+print(zs.get_age())
+
+print(dir(zs))   
+
+
+
+3,重写时，要调用父类方法：
+
+# 调用父类方法如果要接收参数
+class Animal(object):
+
+    def __init__(self,age):   #设置形参
+        self.age = age
+
+class Cat(Animal):
+
+    def __init__(self,age):   # 子类要接收参数，所以也要设置形参
+        self.color = '蓝色的'
+        super(Cat,self).__init__(age)
+
+cat = Cat(2)  # 传实参进去
+
+print(cat.age)
+
+
+4，__new__方法：
+
+class Person(object):
+
+    def __new__(cls):
+        """创建对象时自动执行""" 
+        obj = object.__new__(cls)      # 手动调用object.__new__方法
+        print('---new执行了---', obj)
+        return obj                    # 必须要返回新生成的对象
+
+    def __init__(self):
+        print('----init---执行了',self)
+
+p = Person()
+
+
+
+5，class Myclass(object):
+
+    def func1(self):   # self代表了调用当前方法的实例对象的方法，叫做实例方法
+        print('func1---执行了')
+
+    @classmethod   # 语法糖 装饰器
+    def func2(cls):   # cls接收的是类当前类的类对象，这种方法就做类方法，一般用来处理类方法
+        print('func2---执行了')
+
+    @staticmethod    # 静态方法，没有乱七八糟的强制形参，只需要定义我们自己需要的参数就行
+    def func3(a, b):  # 静态方法一般用来替代函数
+        print(a + b)
+
+
+mc = Myclass()
+
+mc.func2()     # 实例对象可以调用类方法 ，但是不建议使用
+mc.func3(1,2)  # 实例对象可以调用静态方法，但是不建议使用
+
+Myclass.func2()   #类对象可以调用类方法，格式:类名.类方法名()
+Myclass.func3(11,22)  # 类对象可以调用静态方法，格式：类名.类方法名()
+
+
+6，在类里设置一个属性来记录创建对象的个数
+
+class Person(object):
+       
+       num = 0    
+       
+       def __init__(self,name):
+           self.name = name
+           Person.num += 1
+ 
+print('一共生成了%d个对象'% Person.num)   
+
+
+
+
+7，# 21、 在python3中，编写函数，实现接收一个字符串，
+# 分别统计大写字母、小写字母、数字、其他字符的个数，
+# 并以元组的形式返回结果（利用函数，判断，循环实现）。
+# 
+#方法1：
+#def count(sr):
+#
+#     count_upper = 0
+#     count_lower = 0
+#     count_digit = 0
+#     count_other = 0
+#
+#
+#     for x in sr:
+#         if x.isupper():
+#             count_upper += 1
+#         elif x.islower():
+#             count_lower += 1
+#         elif x.isdigit():
+#             count_digit += 1
+#         else:
+#             count_other += 1
+#
+#     return count_upper,count_lower,count_digit,count_other
+#
+# sr = 'ABcd123=-'
+#
+# print(count(sr))
+
+
+方法2：
+
+digit_lsit = []  # 数字
+big_list = []   # 大写字母
+small_lsit = []  # 小写字母
+el_list = []     # 其他
+def ret(item):
+    for i in item:
+        if ord('0')<=ord(i)<=ord('9'):
+            digit_lsit.append(i)
+        elif ord('A')<=ord(i)<=ord('Z'):
+            big_list.append(i)
+        elif ord('a')<=ord(i)<=ord('z'):
+            small_lsit.append(i)
+        else:
+            el_list.append(i)
+    return len(digit_lsit),len(big_list),len(small_lsit),len(el_list)
+
+a = 'ABcd123@#'
+res=ret(a)
+print(res)

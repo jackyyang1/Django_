@@ -1,0 +1,395 @@
+
+
+
+falsk 短信验证
+
+
+
+1.图片验证码接口:
+
+	后端如何访问前端,正确情况下应该返回什么,错误情况下应该返回什么
+	
+	功能描述: 通过访问这个接口,可以获取验证码图片
+
+			url: /image_codes/图片验证码编号
+				/image_codes/<image_code_id>
+
+			method : GET		
+
+			请求参数:  路径参数 (比如:查询字符串,表单格式,json,xml)
+
+				一般包含的四个字段:
+					名字          类型      是否必传    说明
+				image_code_id	 str          是      图片验证码编号      
+
+				示例:/image_codes/1cb940d8-6949-4b10-8e53-11d00889824b
+
+			返回值:
+				正常: 验证码图片
+				异常: json格式数据
+
+					名字       类型     是否必传     说明	
+					errcode    str      是        错误编号
+					errmsg     str      是        错误内容
+
+					示例:
+						{"errcode":"4001","errmsg":"数据库异常"}
+
+
+2.云通信短信平台
+	1. 统一请求包头
+		URL格式：/2013-12-26/Accounts/{accountSid}/SMS/TemplateSMS?sig={SigParameter}
+	2.下载python的SDK:
+		 CCP_REST_DEMO_PYTHON_v2.7r.zip	
+		 将解压后的SDK文件夹置于我们的项目flask_ihome中
+
+	3.将DEOM中的SendTemplatesSMS.py文件也置于SDK中,然后做如下修改
+		 在每次用 rest对象发送短信的时候都会执行 初始化REST SDK,这一步操作,
+		 	为了简化代码,就将它的源码注释,自己写一个类来定义发送短信方法,初始化只执行一次,
+		 	那么需要用到单利模式	 
+
+		 	----------------------------------------------
+		 	代码如下:
+				class CCP(object):
+				    """自行封装的发送短信的工具类"""
+				    instance = None
+				    
+				    def __new__(cls, *args, **kwargs):
+				        if cls.instance is None:
+				            cls.instance = super(CCP,cls).__new__(cls)
+				            #初始化REST SDK
+				            cls.rest = REST(serverIP,serverPort,softVersion)
+				            cls.rest.setAccount(accountSid,accountToken)
+				            cls.rest.setAppId(appId)
+				            
+				        return cls.instance
+
+
+				    def sendTemplateSMS(self,to,datas,tempId):
+				        result = self.rest.sendTemplateSMS(to,datas,tempId)
+				        for k,v in result.iteritems(): 
+				    
+				            if k=='templateSMS' :
+				                    for k,s in v.iteritems(): 
+				                        print '%s:%s' % (k, s)
+				            else:
+				                print '%s:%s' % (k, v)
+				    
+
+				ccp = CCP()
+
+				执行代码:
+				statusCode为"000000"表示请求发送成功。statusCode不是"000000"，表示请求发送失败，客户服务端可以根据自己的逻辑进行重发或者其他处理
+		 	-----------------------------------------------
+
+3.发送短信验证码代码实现:
+
+		生成短信验证码-->保存短信验证码-->发送短信验证码 	
+
+			保存短信验证码在redis中:手机号:短信验证码
+
+			*判断手机号是否注册过-->有些黑客故意去试探你的哪些手机号有注册过-->如果输入手机直接验证是否已经注册过就能试出来,-->
+				那么我们需要在中间加一道关卡-->验证码通过之后,才能去验证手机号是否有注册过
+
+			------------------------------------------	
+			代码如下:  (在verify.py中)
+
+			# GET /sms_codes/手机号?image_code_id=xxx&image_code_text=xxxx
+			@api.route('/sms_codes/<re(r"1[3456789]\d{9}"):mobile>')  # 因为之前已经自定义过转换器了，而且名字叫“re”，这里是给re添加功能，写在re后面的正则表达式可以匹配的数据方法会自动保存在converter类中，来进行
+			def send_sms_code(mobile):
+			    """发送短信验证码"""
+
+			    # 提取参数
+			    image_code_id = request.args.get("image_code_id")
+			    image_code_text = request.args.get("image_code_text")
+
+			    # 校验参数
+			    if not all([image_code_id,image_code_text]):
+			        return jsonify(errcode=RET.PARAMERR,errmsg="参数不完整")
+
+			    # 验证图片验证的正确性
+			    # 根据编号取出图片验证码的真实值  redis
+			    try:
+			        real_image_code_text = redis_store.get("image_code_%s" % image_code_id)
+			    except Exception as e:
+			        current_app.logger.error("读取图片验证码异常")
+			        return jsonify(errcode=RET.DBERR,errmsg="数据库异常")
+
+			    # 判断图片验证码的值是否过期
+			    if real_image_code_text is None:
+			        # 过期
+			        return jsonify(errcode=RET.DBERR,errmsg="图片验证码已经过期")
+
+			    # 在redis中 删除图片验证码的真实值，防止用户对同一个验证码进行二次验证
+			    try:
+			        redis_store.delete("image_code_%s" % image_code_id)
+			    except Exception as e:
+			        current_app.logger.error(e)
+
+			    # 将用户填写的真实值进行对比
+			    if real_image_code_text.lower() != image_code_text.lower():
+			        # 表示用户填写图片验证码错误
+			        return jsonify(errcode=RET.DBERR,errmsg="图片验证码错误")
+
+			    # 如果相同
+			    # 查询msyql，判断手机好是否注册过
+			    try:
+			        user = User.query.filter_by(mobile=mobile).first()
+			    except Exception as e:
+			        current_app.logger.error(e)
+			    else:
+			        if user is not None:
+			            # 表示手机号注册过
+			            return jsonify(errcode=RET.DATAEXIST,errmsg="手机号已经注册过")
+
+			    # 手机号没注册过
+			    # 判断是否在60秒内发送短信，如果发送过则提取终止
+			    try:
+			        flag = redis_store.get("send_sms_code_flag_%s" % mobile)
+			    except Exception as e:
+			        current_app.logger.error(e)
+			    else:
+			        if flag is not None:
+			            # 表示60s内已经发送过短信，有发送记录
+			            return jsonify(errcode=RET.DBERR,errmsg="发送过于频繁")
+
+			    # 生成短信验证码
+			    sms_code = "%06d" % random.randint(0,999999) # %d-->%06%至少6位，如果不足6位。自动补零
+
+			    # 保存手机号和短信验证码
+			    try:
+			        redis_store.setex("sms_code_%s" % mobile,constants.SMS_CODE_REDIS_EXPIRES,sms_code)
+			    except Exception as e:
+			        current_app.logger.error(e)
+			        return jsonify(errcode=RET.DBERR,errmsg="保存短信验证码异常")
+
+			    # 保存发送的记录到redis中
+			    try:
+			        redis_store.setex("send_code_flag_%s" % mobile, constants.SEND_SMS_CODE_INTERVAL, 1)
+			    except Exception as e:
+			        current_app.logger.error(e)
+
+			    # 发送短信验证码
+			    try:
+			        ccp = CCP()
+			        #                    手机号      数据           模板id
+			        result = ccp.send_template_sms(mobile,[sms_code,str(constants.SMS_CODE_REDIS_EXPIRES // 60)],constants.SMS_CODE_TEMPLATE)
+			    except Exception as e:
+			        current_app.logger.error(e)
+			        return jsonify(errcode=RET.DBERR,errmsg="发送短信异常")
+
+			    if result == -1:
+			        return jsonify(errcode=RET.DBERR,errmsg="发送短信失败")
+			    else:
+
+
+			        return jsonify(errcode=RET.DBERR,errmsg="发送短信成功")
+
+
+
+			注:在程序代码中,使用多个try..except..捕获异常时没有毛病的,因为try...except..中间的代码越少越好.
+				这样捕获异常的性能开销就会大大减小,程序就不用找到此找是哪里出错了,而且try...except..越细微,找到异常的地方越快	
+				添加逻辑代码:无论用户是否对比过手机号有没有被注册,都需要将验证码的真实值删除,来重新生成新的验证码进行验证
+
+			单元测试: 使用postman,开启服务器,	postman使用GET请求方式,访问;127.0.0.1:5000/api/v1.0/sms_codes/13163752086
+					image_code_id -->123f3dfc-71c0-4510-8844-46bfacf89de8   (这个是从redis中查到的id)
+					image_code_text-->divb (先随便写一个验证码来测试错误的逻辑)
+
+					写好之后Send ,会返回 验证码错误
+					然后再 输入正确的验证码,返回 发送短信成功,这时候会向你的手机发送一条短信,并且会保存发送记录在redis中
+					查看redis中的记录:
+						192.168.32.149:6379> keys *
+						1) "sms_code_13163752086"
+						192.168.32.149:6379> get sms_code_13163752086
+						"357627"
+						这个验证码跟你手机上接收的消息一毛一样
+
+					测试 过于频繁的代码:	
+
+		课外作业:用celery来执行发送短信的代码,防止发送短信失败的情况下,代码无法往下执行
+
+
+
+4.前端接口代码:
+
+			-----------------------------------------------------------------
+			代码如下:
+
+
+		    // 通过ajax方式向后端接口发送请求，让后端发送短信验证码
+		    var reqData = {
+		        image_code_text: imageCode, // 用户填写的图片验证码
+		        image_code_id: imageCodeId // 图片验证码的编号
+		    };
+
+		    $.get("/api/v1.0/sms_codes/"+ mobile, reqData, function (resp) {
+		        //因为后端返回的响应数据时json字符串，并且包含了响应头Content-Type指明是application/app类型
+		        // 所以ajax 会将收到的响应数据自动转换为js中的对象（字典），我们可以直接按照对象属性的操作
+		       //resp.errcode
+		        //resp.errmsg
+		        // 表示后端发送短信成功
+		        if (resp.errcode == "0") {
+		            // 倒计时60秒，60秒后允许用户再次点击发送短信验证码的按钮
+		            var num = 60;
+		            // 设置一个计时器
+		            var t = setInterval(function () {
+		                num--; //时间减少
+		                if (num > 0 ) {
+		                    //显示倒计时 内容
+		                    $(".phonecode-a").html(num + "秒");
+		                } else {
+		                    $(".phonecode-a").html("获取验证码");
+		                    // 倒计时结束再把点击世界添加到按钮上
+		                    $(".phonecode-a").attr("onclick","sendSMSCode();");
+		                    //清楚计时器
+		                    clearInterval(t);
+		                }
+		            }, 1000, 60)
+		        } else {
+		            alert(resp.errmsg);
+		            // 表示后端出现了错误，可以将错误信息展示到前端页面中
+		            // 将点击按钮的onclick事件函数恢复回去
+		            $(".phonecode-a").attr("onclick", "sendSMSCode();");
+		        }
+		    } );
+		}
+
+		访问:127.0.0.1:5000/register.html
+			输入手机号,图片验证码,点击获取手机验证码,会 出现倒计时,并发送短信
+
+
+5.passport
+
+	5.1api_v1_0目录下新建passport.py 将密码账户放进来
+
+		---------------------------------------------------------
+	   5.2 # 如果相同，表示短信验证码填写正确
+	    # 对用户的密码进行加密
+
+	    # hashlib.sha256(password).hexdigest()
+	                    盐值salt
+	    A "123456" + "sdadwdad"  -> sha256 -> sdadwdad|hfahjhjhdjsadhashdjasdhajdhajadhak
+	    B "123456" + "daomllmm"  -> sha256 -> daomllmm|ydgklljkdajlkjwjakndbbgkbkabdwbdbb
+
+	     登陆，用户明文
+	    A  "123456" + "sdadwdad"  -> sha256 -> hfahjhjhdjsadhashdjasdhajdhajadhak
+
+	    注:sha1和md5已经被破解,开发中不要使用,可以使用sha256,
+	    	sha256加密方式是:用户名 + 随机生成的盐值  + | + sha256加密处理后的password
+	    	只有前面的用户名 + 盐值 对上之后才能开始对比验证 sha256加密处理后的password,
+	    	sha256加密后的密文不能被反推,只能拿着正确的明文去生成密文,再与数据库中密文进行对比验证
+	    ---------------------------------------------------------------
+		注:接口不一样,之前验证过的手机号是否注册过,还需要再写代码验证一遍
+			但是这样的话,就要再次查询数据库(查询数据库最好越少越好)代码重复了,在我们建表的时候,模型类中就已经考虑到这个,所mobile字段
+			设置的为 unique=True 唯一,如果有值,那么再
+			insert into ih_user_profile(name,password_hash,mobile) values("1","123","13122222222")
+			insert into ih_user_profile(name,password_hash,mobile) values("2","123","13122222222")
+			两次添加数据库数据 第二次会报错,因为unique特性唯一
+
+
+		5.3访问127.0.0.1:5000/register.html
+			5.1注册,手机号 验证码,发短信	
+			5.2用postman -->POST--> 127.0.0.1:5000/api/v1.0/users  -->body-->raw--> {
+				这里要在__init__.py文件中关闭CSRFToken防护	    "mobile":"13122222222",
+															    "sms_code":"",   # 短信验证码在后台打印,然后拿到这里来进行注册,
+															    "password":"123456",
+															    "password":"123456"
+																}
+
+			5.3在后台获取刚刚在redis中保存的注册发送的短信验证码,sms_code(短信验证码)
+				填在postman里面,然后send,返回用户注册成功的消息,并且返回用户注册之后的id,
+				在mysql中:
+				select * from ih_user_profile where id=3 \G; 查看msyql中保存的密码格式
+
+					mysql> select * from ih_user_profile where id =1 \G;
+					*************************** 1. row ***************************
+					  create_time: 2018-01-14 21:29:32
+					  update_time: 2018-01-14 21:29:32
+					           id: 1
+					         name: 13163752087
+					password_hash: pbkdf2:sha256:50000$B3TM6AR0$afd3079362823f5dd26d9dc2c58e557a5134ea795b2edeaff76260232a2cb4b3
+					       mobile: 13163752087
+					    real_name: NULL
+					      id_card: NULL
+					   avatar_url: NULL
+					1 row in set (0.00 sec)
+
+
+			注:短信发送失败不要紧,只要它发送了,在生成短信验证码的地方打印刚刚生成的验证码,拿验证码去填上面postman中的"sms_code"	
+				然后send,就可以完成注册
+
+
+	bug1'	
+		"AssertionError: View function mapping is overwriting an existing endpoint function
+		解答:在之前users.py中定义了一个简单的验证的函数叫做 def register(),后面又在verify.py文件,
+			也定义了一个 def register(),将之前的注释掉即可
+
+
+	bug2		
+		INFO:werkzeug:127.0.0.1 - - [14/Jan/2018 22:01:42] "GET /index.html HTTP/1.1" 304 -
+		+++++++++
+		INFO:werkzeug:127.0.0.1 - - [14/Jan/2018 22:01:42] "GET /api/v1.0/session HTTP/1.1" 404 -
+		+++++++++
+		INFO:werkzeug:127.0.0.1 - - [14/Jan/2018 22:01:42] "GET /api/v1.0/houses/index HTTP/1.1" 404 -
+
+		访问首页:127.0.0.1:5000/index.html 会报以上的错误,并且访问的index,找不到首页的轮播图
+
+		原因是:蓝图api配置错了,在定义api蓝图对象的时候 api = Blueprint('api_v1_0',__name__),里面定义成api了
+
+		处理:改过来处理一下
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

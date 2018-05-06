@@ -1,0 +1,260 @@
+
+乌云网：白帽黑客
+
+query 查询
+cursor 游标
+
+
+
+1.在python中调用mysql的功能
+  -如何连接数据库
+  - 如何执行sql语句
+  - 如何查询数据--》获取对应数据
+  
+  python3 使用 模块名： pymysql
+  python2 使用 模块名：mysqldb
+ 
+  windows ：pip3 install pymysql
+  Ubuntu ： sudo pip3 install pymysql
+ 
+2. 事务：
+   就是将多个数据库的更新操作看成一个整体，如果这个整体中所有的sql语句都执行成功，此时才能将更   新的   数据提交到数据库中，如果其中有一个sql语句执行失败，那么这个整体就认为是失败的，可以   将之前已经执   行sql语句进行撤销的操作
+   A-->B 转账500  1.a-500  2.b+500
+
+  --在mysql中事务可以手动开启，如果手动开启了事务，在开启的事务中所作的所有的数据
+    更新操作都不会立即影响到源数据库
+ 0.update 
+
+事务在终端中的执行：
+  开启事务 begin
+     1.insert
+     2.delete
+     3.update
+     4.insert
+ 
+  将开启事务中执行的sql语句看做是一个整体，全荣俱荣，一损俱损，如果所有的sql语句都执行成功，
+  才能够认为这个事务是成功的状态，
+  此时才能够进行提交操作--》 commit
+  但是有一个sql语句执行失败，整个事务就是一个失败的状态，
+  此时应该撤销之前的执行操作 --》 rollback
+ 
+ n ：关闭事务  关闭事务没有对应的指令，但是一旦执行了commit
+     或者rollback  手动开启的事务就会自动关闭 
+ 
+ 6.delete
+
+   在终端命令的操作  默认就开启了事务，并且自动提交了事务，如果手动开启了事务，那么就应该手动
+   的关闭了事务（rollback，commit）
+ 
+
+  1.begin
+  2.insert into goods_cates name values ('硬盘'); # 此时是没有更新源数据的
+  3.在执行commit 或者rollback之后会自动提交事务，会对源数据进行更新！
+  4.commit
+  5.如果想撤销更新操作：输入：rollback;就ok！
+
+
+3.jd_mall 商城项目
+  --用户注册
+
+  --用户登录
+
+  --用户下订单
+
+  注：在数据库databas  jing_dong 数据的基础上，再新建几个表：customer，orders，order_detail
+
+
+4.miniweb
+  --显示了模板内容
+ 
+  --将数据库中的股票信息展示到模板上
+
+  create table customer(
+      id int unsigned auto_increment primary key not null,
+      name varchar(30) not null,
+      passwd char(40) not null,    注：这里密码设置长度为40是因为要加密，而sha1这种加密方式，
+                                    # 加密之后的密文长度刚好为40位
+      tel varchar(11) not null
+  );
+
+  
+ 
+**********************************************************************************************
+  非常严重的安全漏洞
+  通过拼接参数的方式就能够导致: sql注入
+  通过 %s 表示参数占位 在execute方法中通过列表的形式传入参数即可解决sql注入的问题
+
+******************************************************************************************** 
+
+
+
+  在sql 如何创建视图 视图能够对于一个复杂sql语句进行封装
+	创建视图: create view v_goods as select * from goods;
+	删除视图: drop view v_goods;
+
+  上午最后演示视图创建的问题, 需要讲g.name, c.name, b.name 分别起别名
+  select g.name as gname,c.name as cname,b.name as bname from goods as g inner join   goods_cates as c on g.cate_id = c.id inner join goods_brands as b on g.brand_id = b.id; 
+
+
+   
+
+         #  
+
+
+********************************************************************************************
+
+知识点扩充：
+
+ 
+ 1. 非常严重的漏洞：
+ 
+    sql注入
+    注：在通过交互传值给数据库的时候，如果格式是：9；delete from table birth where id =xxx；
+        这种格式，数据库可以同时执行两种操作，有着极大的安全隐患！为修复此bug，可以在代码中
+        在%s 传值的时候，在执行sql语句的时候，通过[] 列表把要传的值放在里面，这样就能保证数据          的正确和安全性   
+
+
+ 2. 创建视图：view
+   create view v_goods as select * from goods;
+
+   视图创建好之后，是跟表存放在一起
+   查看视图：select * from v_goods;
+   删除视图：drop view v_goods;
+ 
+ 3. time
+    时间戳：time.time()  
+            结果：1510818692.066528
+            这个时间是 距离1970.1.1 00:00：00   不是人类友好型时间格式
+    
+    本地时间：time.localtime() 
+              结果： time.struct_time(tm_year=2017, tm_mon=11, tm_mday=16, tm_hour=15,                              tm_min=50, tm_sec=39, tm_wday=3, tm_yday=320, tm_isdst=0)
+              显示的是当地时间  时分秒的格式！
+              
+     但是如果想拿到这个时间，还需要时间格式化：
+        # "2017-11-11 11:11:11"
+        order_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        print(order_time)：
+        2017-11-16 16:11:07
+            
+  
+
+ 4.加密方式：md5 ，sha1
+
+   密码是一个用户的隐私数据
+   用户输入123  此时前端开发人员直接将123明文传递给服务器
+   这个过程极度不安全 
+   前端页面会对于用户输入的密码 进行加密操作
+     常见的加密方式 有 ：md5 和sha1
+      md5 或者sha1这种加密方式有一个特点：
+
+        同样的字符串加密得到的密文的字符串都是一样的，不可逆；
+        通过密文无法得到明文；
+       
+        md5 加密得到的密文长度  32位
+        sha1 得到的长度为 40 位 
+       
+      在sql 中 md5加密方法：select md5("123");
+      在sql中  sha1加密方法：select password("123"); # 注;sha1加密前提是表里有password这个字段
+
+       md5 加密结果如下：
+       mysql> select md5('123');
+    
+       +----------------------------------+
+       | md5('123')                       |
+       +----------------------------------+
+       | 202cb962ac59075b964b07152d234b70 |
+       +----------------------------------+
+
+  -后端收到的密码就是密文的密码，后端直接存储密文形式的密码
+  - 如果是用户登录 用户输入用户名和密码： 密码就是密文和密文之间的比较 
+
+   都不是绝对的安全: 密文(key) : 明文(value)  --> 暴力破解
+
+
+5 . 在创建订单表orders的时候，有一个order_time字段创建的时候格式设置的是datatime，数据库会自动    识别其格式
+
+6. 在pycharm中通过 Ctrl + 鼠标点击，可以查看代码的功能及使用信息！！！
+
+7.在下订单的时候，如果执行的数据的插入操作，这个sql语句执行完毕之后都会将之前执行的sql语句对应  的表的最后一行的id  赋值给 lastrowid
+
+
+8. 总结：
+    
+    
+    alter， 是对表结构进行修改
+    drop  是对表 或者数据库进行删除
+    insert，update，delete 是对表里的数据进行更改
+    
+    desc 是查看表结构
+    select 是查看表里的数据
+   
+    pycharm代码里实现对数据库的增删查改是需要导入模块：from pymysql import *
+           
+ 操作的流程：
+      #1.创建数据库连接
+       （conn=connect（host,user,password,database,port,charset））
+     
+      #2.获取数据库的操作对象 
+        cur=conn.cursor()  #cursor类型的对象,这里cur就是一个对象，用对象来执行方法
+      
+      #3.编写sql语句 
+        sql="insert,delete,update,select...."
+
+      #4.执行sql语句 
+        cur.execute(sql)
+
+      #5.如果是数据的更新 （插入，删除，更新）操作，在python中使用数据库，对于数据更新操作不会          立即 影响到源数据，如果希望能够将更新的数据影响到源数据可需要执行commit方法
+        conn.commit()  
+         注：提交数据不是由对象来提交，而是由连接数据的conn来提交！
+ 
+      #6.关闭cursor和关闭连接对象
+         cur.close()
+         sursor.close() 
+
+
+     更新源数据操作：insert ，update，delete 方法一样，只是sql语句不同！需要提交数据commit
+ 
+     查询操作：select  查询操作不需要commit提交，因为它没对数据进行修改
+      
+      select 操作在commit连接的地方不需要！其他地方跟上面三个的方法一样
+         # fetchone()获取下一条数据，返回的是一个元组
+         ret = cur.fetchone()
+         print(ret) 
+
+        # fetchall()  获取所有的返回数据！
+          ret = cur.fetchall()
+          
+         #fetchall返回的是一个大元组，如果想单独提取其中的返回值，可以遍历取值
+          for item in ret：
+              print(item)
+
+# 内连接表,将goods，orders，order_detail内连接
+#
+select c.name,order_id,g.name,o.quantity from order_detail as o inner join goods as g on g.id = o.goods_id inner join orders as r on r.id = o.order_id inner join customer as c on c.id = r.customer_id;     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

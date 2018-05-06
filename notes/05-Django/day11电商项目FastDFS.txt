@@ -1,0 +1,610 @@
+
+FastDFS
+分布式文件系统(c语言写的)
+
+
+待解决bug:
+	用户中心地址页,不填地址信息,直接提交添加,会报空,页面选中失效!
+
+
+FDFS文件存储系统:
+
+	tracker-server(跟踪服务器):
+		用于管理storage-server,实现调度
+
+
+	storage-server(存储服务器):
+		用于存储文件
+
+
+	1.上传文件过程:
+					发起上传文件请求→
+		client--<==============================>tracker-server
+		| ↑		←返回可用的storage-server的ip和port	
+	上	| |
+	传	| |返回 
+	文	| |文件
+	件	| |ID
+		| |
+		↓ |
+		storage-server
+
+
+	2.下载过程:
+
+						发起下载文件请求→
+		client--<==============================>tracker-server
+		| ↑		←返回可用的storage-server的ip和port	
+	下	| |
+	载	| |返回 
+	文	| |文件
+	件	| |内容
+	+   | |
+	文件	| |
+	ID	↓ |
+		storage-server
+
+
+	FDFS文件存储系统好处:
+		1.海量存储,扩展存储容量很方便(可以集群,没有主从之分)		
+		2.负载均衡
+
+
+
+	FDFS安装和配置:
+
+	安装见课件:此处略掉	
+
+	配置,进入下方配置文件目录:
+	cd /etc/fdfs
+ 	里面有8个文件,其中两个需要各自cp一份
+
+	修改日志存储路径
+	sudo vi tracker.conf
+	base_path=/home/python/fastdfs/tracker
+
+	指定文件存储目录:
+	sudo vi storage.conf
+	store_path = /home/python/fastdfs/storage
+
+
+
+	tracker-server=ip:port
+*********************************************************
+老师发的带fastdfs的Ubuntu,修改三个配置文件(都在/etc/fdfs/目录下),改成自己的ip和端口
+就可以启动了
+1. sudo vi client.conf   主要改成自己的ip
+2. sudo vi mod_fastdfs.conf     改ip
+3.  sudo vi storage.conf     改ip 
+*********************************************************
+
+
+	启动FDFS:
+
+	2.启动tracker、storage、nginx服务：
+
+	sudo service fdfs_trackerd start
+	查看:ps aux | grep fdfs
+
+	sudo service fdfs_storaged start
+	查看:ps aux | grep fdfs 
+
+	启动nginx:
+	sudo /usr/local/nginx/sbin/nginx
+
+	--------------------------------------------------
+	区分客户端:client.conf(ip,port)
+	目录 /etc/fdfs/client.conf
+	--------------------------------------------------
+	启动完之后测试上传功能:
+	
+	fdfs_upload_file /etc/fdfs/client.conf 要上传的图片文件
+	如果返回类似如下文件说明上传成功:
+	group1/M00/00/00/wKgUYFo8vF2AbNvqAABtR_KnVbE119.jpg
+
+	上传成功返回一个文件ID,以便下载使用
+
+------------------------------------------------------------
+
+	浏览器---->Nginx(封装了epoll)---->FDFS
+
+
+	安装Nginx 及fastdfs-nginx-module-master.zip
+		1.解压缩 nginx-1.8.1.tar.gz
+		2.解压缩	 fastdfs-nginx-module-master.zip
+		3.进入Nginx-1.8.1目录
+		4.执行:
+		sudo ./configure --prefix=/usr/local/nginx/ --add-module=fastdfs-nginx-nginx-module-master 解压后的目录的绝对路径
+		sudo ./make
+		sudo ./make install
+
+		5.sudo cp fastdfs-nginx-module-master 解压后的目录中src下的mod_fastdfs.conf /etc/fdfs/mod_fastdfs.conf
+		6.sudo vim /etc/fdfs/mod_fastdfs.conf
+		修改内容:
+		connect timeout=10
+		tracker_server=虚拟机ip,port:22122
+		url_have_group_name=true
+		store_path0=/home/python/fastdfs/storage
+
+		7.sudo cp 解压缩的fastdfs-master目录conf目录中的http.conf/etc/fdfs/http.conf	
+
+		8.sudo cp解压缩的....
+		9.sudo vi /usr/local/nginx/conf/nginx.conf
+			配置信息如下:
+			....内容太多
+
+		nginx配置文件位置: /usr/local/nginx/conf	
+
+	Nginx监听的 服务器:
+		
+ 35     server {
+ 36         listen       8888;
+ 37         server_name  localhost;
+ 38         location ~/group[0-9]/ {
+ 39             ngx_fastdfs_module;
+ 40         }
+ 41         error_page  500 502 503 504 /50x.html;
+ 42         location = /50x.html {
+ 43             root html;
+ 44         }
+ 45     }
+ 46 
+ 47     server {
+ 48         listen       80;
+ 49         server_name  localhost;
+ 50 
+ 51         #charset koi8-r;
+ 52 
+ 53         #access_log  logs/host.access.log  main;
+ 54 
+ 55         location / {
+ 56             root   html;
+ 57             index  index.html index.htm;
+ 58         }
+
+
+	一个server就是一个web服务器
+			
+
+	浏览器访问文件Nginx:
+	localhost:8888/group1:xxxxx(上传文件返回的id)
+	http://localhost:8000/group1/M00/00/00/wKgUYFo8vF2AbNvqAABtR_KnVbE119.jpg
+
+
+	-----------------------------------------------------------
+django框架自带上传文件的方法:
+
+setting.py(本地上传)
+
+	MEDIA_ROOT = 指定上传文件的保存目录
+	定义模型类:
+		pic = models.imageField(upload_to=目录)
+	生成表注册模型类	
+
+
+	注:我们这里需要修改django的默认上传,让其使用Nginx上传文件!
+
+	-------------------------------------------------------------
+	
+	浏览器--------------------------->django服务器----------------------->fdfs文件存储系统
+		 访问/user/    模板渲染<img src='http//172.16.179.131:8888/文件ID'>      172.16.179.131:8888                        
+
+
+
+	注:1.在django中要更改上传文件的默认操作:保存文件ID在表的对应image字段中
+	   2.django将模板返回给浏览器,浏览器得到之后解析页面内容,当解析到<img src='http//172.16.179.131:8888/文件ID'>
+			会自动向Nginx发起请求访问,去fdfs找到文件,	
+		3.注本Ubuntu使用的nginx配置的访问端口是8888
+
+***************************
+6.4Django二次开发对接FastDFS
+***************************
+前言:将dailyfresh复制一份到FDFS Ubuntu中
+	
+	
+1.在utils目录下新建包fdfs中新建storage.py
+
+	1.1自定义文件存储类:
+	class FDFSStorage(Storage):
+
+		def __init__(self,client_conf=None,nginx_url=None):
+			"""初始化,"""
+			pass
+
+		def _open(self):
+			pass
+
+		def _save(self):
+			#name:上传文件的名称
+			#content:包含上传文件内容的File对象
+			pass
+
+		def exists(self):
+			pass
+
+		def url(self):
+			"""返回一个可以访问的文件的url路径"""
+			# return 'http//172.16.179.131:8888' + name
+			return nginx_url + name
+
+
+	注:
+	1._open方法:打开文件时使用
+	2._save方法:保存文件时使用
+	3.exists:方法,如果文件已经存在,fdfs会自动生成一个名字,防止源文件被覆盖
+	4.__init__方法:因为url方法中nginx地址是写死的,需要动态传入,就需要init方法
+			__init__(self,client_conf=None,nginx_url=None),Django实例化对象self不能传参,
+			如果要传参就使用缺省参数传参
+
+	5.url()方法:返回一个可用的文件的url路径;({{ sku.image.url }},用来替换前端页面中的url地址,从而显示图片)
+	6.
+	7.File对象:file类是python file对象的一个简单封装,并带有Django特定的附加功能,
+		内含的属性和方法有(name,size,file,mode,open,read,)
+	8.DEFAULT_FILE_STORAGE :默认文件存储类,点击保存图片,它会调用类里的save方法,把文件保存在image的字段中	
+
+
+	1.2安装fdfs包,在第九天的文件资源中
+		2.1安装:
+			1. workon django_py3 
+			2. 进入fdfs_client-py-master.zip所在目录
+			3. pip install fdfs_client-py-master.zip
+
+		2.2导入包:
+		from fdfs_client.client import Fdfs_client
+
+
+		2.3client.confcopy到fdfs文件中,并修改:
+			# the base path to store log files
+			//base_path=/Users/smart/Desktop
+			base_path=/home/python/Desktop
+
+
+	1.3utils目录下 fdfs目录中新建client.
+		
+
+
+2.在项目setting文件中更改指定django系统文件存储类
+	DEFAULT_FILE_STORAGE = 'utils.fdfs.storage.FDFSStorage'
+
+
+
+3.访问后台管理页面,上传图片文件
+	首先在goods应用中admin将GoodsType注册
+	创建超级管理员:python manage.py createsuperuser
+	访问后台:localhost:8000/admin,添加表和一张图片
+
+	查询数据库中数据selec * from df_goods_type \G;
+	用window访问nginx:
+		http://192.168.32.149:8888/group1/M00/00/00/wKgglVo8-tqAOtZEAAEUSKufewU742.jpg
+		此时浏览器会下载一张图片
+
+
+4.查看数据库:select * from df_goods_type \G; 
+
+5.如果把访问nginx的地址放在一个静态文件的html页面里,浏览器也可以解析出来,并且发出访问,获取图片
+	在static目录下新建test.html,
+	<img src="http://192.168.32.149:8888/group1/M00/00/00/wKgglVo8-tqAOtZEAAEUSKufewU742.jpg">
+
+
+6.项目文件路径放在setting文件中指定
+	def __init__(self,client_conf=None,nginx_url=None):
+		"""初始化"""
+		动态配置访问地址和路径
+
+	# 指定fdfs客户端配置文件的路径
+	FDFS_CLIENT_CONF = os.path.join(BASE_DIR,'utils/fdfs/client.conf')
+
+	# 指定fdfsxit 系统机器上的nginx的ip和port
+	FDFS_NGINX_URL = 'http://192.168.32.149:8888/'
+
+	然后在init方法中:
+       client_conf = settings.FDFS_CLIENT_CONF
+       nginx_url = settings.FDFS_NGINX_URL
+
+
+7.通过在遍历过程中给对象加属性的方法将图片信息发送到前端页面
+
+	# http:127.0.0.1:8000
+	class IndexView(View):
+	    """首页"""
+	    def get(self,request):
+	        """显示"""
+
+	        #获取商品分类信息
+	        types = GoodsType.objects.all()
+
+	        #获取首页轮播商品的信息(需要排序，越小越拍在前面)
+	        index_banner = IndexGoodsBanner.objects.all().order_by('index')
+
+	        # 获取首页促销活动的信息
+	        promotion_banner = IndexPromotionBanner.objects.all()
+
+	        #获取首页分类商品展示信息
+	        # types_goods_banner = IndexTypeGoodsBanner.objects.all()
+
+	        for type in types:
+	            # 根据type查询type种类首页展示的文字商品信息和图片商品信息
+	            title_banner = IndexTypeGoodsBanner.objects.filter(type=type,display_type=0).order_by('index')
+	            image_banner = IndexTypeGoodsBanner.objects.filter(type=type,display_type=1).order_by('index')
+
+	            #给type对象增加两个属性title_banner,image_banner（因为每次遍历都会给title_banner,image_banner重新赋值，所以要采用这种方法
+	            #分别保存type种类首页展示的文字商品信息和图片商品信息
+	            type.title_banner = title_banner
+	            type.image_banner = image_banner
+
+	        # 获取登陆用户购物车中商品的数目
+	        cart_count = 0
+
+	        # 组织模板上下文
+	        context = {
+	            'types':types,
+	            'index_banner':index_banner,
+	            'promotion_banner':promotion_banner,
+	            # 'types_goods_banner':types_goods_banner
+	            'cart_count':cart_count
+	        }
+
+	        #使用模板
+	        return render(request,'index.html',context)
+
+
+
+
+8.goods 应用
+
+	banner 横幅; 旗，旗帜; 标语; 大字标题;
+
+	1.图片的显示
+
+
+
+
+
+	2.redis保存购物车记录
+
+		2.1当用户点击加入购物车的时候,应该添加购物车记录
+
+		2.2当用户访问cart购物车页面时,需要获取用户的购物车记录
+
+		2.3添加购物车时需要添加的数据:商品数量,商品ID,
+
+		2.4购物车记录保存位置:redis
+
+		2.5采用哪一种数据格式保存购物车记录?
+			每个用户的购物车记录用一条数据保存:(hash)属性:值
+
+			cart_用户id:(商品id:商品数目  商品id:商品数目)
+
+			cart_1:{'':'',"":"","":""}
+
+
+*今天课件里sql文件,导入数据库中
+
+*上传下载流程图(重点)
+
+
+
+问题:
+	1.在goods的admin文件中注册GoodsType是什么意思?
+	admin.site.register(GoodsType)
+	答:如果想在后台管理页面显示内容,就可以用在对应应用app的admin.py文件里
+		注册这个模型类(因为模型类创建的是数据库中的表),即相当于在后台页面显示对应的
+		表的信息!!!
+
+	2.为什么在导入source sql文件的时候,里面有group1//xxxx这样的文件ID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

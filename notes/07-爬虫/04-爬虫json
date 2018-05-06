@@ -1,0 +1,525 @@
+
+爬虫基础04
+
+
+反爬:
+	1.不同的User-Agent 返回不同的数据,百度会反爬 Chrome 浏览器的User-Agent
+		注释一部分你爬的数据
+	2.反爬最阴险的:1.开爬 2.所有请求都正常,给你假数据 
+
+
+
+爬取数据的作用:
+	1.分析, 商城竞品分析    指数
+	2.金融, 记账
+
+	3.知网-->期刊,出版社,新闻,大学生,
+	4.数据卖钱: 20G--8w
+
+
+	针对反爬:
+		反爬:
+		百度-->sign  算法,随机变量,库
+		解决:
+		splash-->中间件-->用浏览器来进行数据返回
+
+
+
+1.BeautifulSoup
+
+	CSS 选择器：BeautifulSoup4:
+
+	1.1和 lxml 一样，Beautiful Soup 也是一个HTML/XML的解析器，主要的功能也是如何解析和提取 HTML/XML 数据。
+
+	1.2.lxml 只会局部遍历，而Beautiful Soup 是基于HTML DOM的，会载入整个文档，解析整个DOM树，因此时间和内存开销都会大很多，所以性能要低于lxml。
+
+	1.3BeautifulSoup 用来解析 HTML 比较简单，API非常人性化，支持CSS选择器、Python标准库中的HTML解析器，也支持 lxml 的 XML解析器
+
+
+		抓取工具	      速度	使用难度 	安装难度
+
+		正则	          最快	困难     	无（内置）
+		BeautifulSoup  慢	最简单	    简单
+		lxml	       快	简单      	一般
+
+
+2.BeautifulSoup使用方法	
+	2.1创建beautifulsoup 对象
+		 html = '<html>xx</html>'
+		soup = BeautifulSoup(html,'lxml')  注: 如果不加'lxml' 会报错
+
+	2.2格式化输出 soup对象
+		print soup.prettify()
+		
+		WARNING:
+		意思是，如果我们没有显式地指定解析器，所以默认使用这个系统的最佳可用HTML解析器(“lxml”)
+		但是我们可以通过soup = BeautifulSoup(html,“lxml”)方式指定lxml解析器。
+
+
+	2.3四大对象种类:
+		Beautiful Soup将复杂HTML文档转换成一个复杂的树形结构,每个节点都是Python对象,所有对象可以归纳为4种:
+
+		Tag              通俗点讲就是 HTML 中的一个个标签,对于 Tag，它有两个重要的属性，是 name 和 attrs
+		NavigableString  获取标签内部的文字
+		BeautifulSoup    表示的是一个文档的内容。大部分时候,可以把它当作 Tag 对象，是一个特殊的 Tag
+		Comment          Comment 对象是一个特殊类型的 NavigableString 对象，其输出的内容不包括注释符号
+
+
+		---------------------------------------------------------------
+		代码:
+		    # 1.转换类型
+		    soup = BeautifulSoup(data,'lxml')
+
+		    # 2.解析
+		    # Tag,标签
+		    res = soup.title
+		    res1 = soup.title.name
+		    res2 = soup.title.string
+
+		    # NavigableString   只会取第一个,获取标签内部的文字
+		    res3 = soup.p.string
+
+		    # BeautifulSoup    一整个文档的内容
+		    res4 = soup
+
+		    # Comment -->已经被注释的数据,取出来不带注释符号
+		    res5 = soup.a.string
+
+		    # contents 当前标签的子元素, 以列表的形式输出
+		    res6 = soup.head.contents
+
+		    # children  迭代器对象
+		    res7 = soup.head.children
+
+		---------------------------------------------------------------
+
+		遍历文档树
+		1. 直接子节点 ：.contents .children 属性
+
+		2. 所有子孙节点: .descendants 属性
+
+		3. 节点内容: .string 属性
+
+	搜索文档树
+	1.find_all(name, attrs, recursive, text, **kwargs)
+
+
+	2. CSS选择器
+		这就是另一种与 find_all 方法有异曲同工之妙的查找方法.
+
+		写 CSS 时，标签名不加任何修饰，类名前加.，id名前加 #
+
+		在这里我们也可以利用类似的方法来筛选元素，用到的方法是 soup.select()，返回类型是 list
+		---------------------------------------------------------------
+		    # 1.转换类型
+		    soup = BeautifulSoup(data,'lxml')
+
+		    # 2. 解析
+		    # find 默认取出第一个
+		    res1 = soup.find('p')
+		    res2 = soup.find(attrs={"class":"story"})
+
+		    # res3 = soup.find(text="")
+		    res3 = soup.find(re.compile('^a'))  # 找到以a标签开头的第一个
+
+		    # findall -->list
+		    res4 = soup.find_all('a')[0]   # 找到a标签的列表,取出第一个
+
+
+		（1）通过标签名查找    print soup.select('a')
+		（2）通过类名查找      print soup.select('.sister')
+		（3）通过 id 名查找    print soup.select('#link1')
+		
+		（4）组合查找
+		    res8 = soup.select('p #link1')  # 层级选择器
+		    res9 = soup.select('p,#link1')  # 并级选择器
+
+		（5）属性查找
+ 			res10 = soup.select('p[name="dromouse"]') # 属性选择器
+
+		 (6) 获取内容
+		    以上的 select 方法返回的结果都是列表形式，可以遍历形式输出，然后用 get_text() 方法来获取它的内容
+		    print soup.select('title')[0].get_text()
+
+
+		--------------------------------------------------------------
+
+3.案例：使用BeautifuSoup4的爬虫
+
+	www.json.cn ---->转换json数据
+
+	------------------------------------------------------------------
+	两种方式获取知乎里的xsrf值:
+
+	    # 1.url
+	    url = 'https://www.zhihu.com'
+	    # 2.headers
+	    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko"}
+
+	    # 3. 发送请求
+	    response = requests.get(url,headers=headers)
+	    data = response.content
+
+	  方式一: 使用汤美丽
+	    # 1.转换类型
+	    soup = BeautifulSoup(data,'lxml')
+	    # 2.解析select
+	    element_data = soup.select('#data')[0]
+
+	    # 3.根据标签  取出属性值
+	    attr_value = element_data.get('data-state')
+	    print attr_value ---------------------------->在这里打印,将数据复制到json.cn转换成json数据查看'token'字段的值是否是 'f78efb87-4a0a-4631-8000-511e470f0969' 格式
+	    # 4.转换成 python 的dict
+	    dict_data = json.loads(attr_value)
+
+	    # 5.以键取值
+	    xsrf_data = dict_data['token']['xsrf']
+	    print(xsrf_data)
+
+
+	  方式二: 使用 lxml
+	    xpath_data = etree.HTML(data)
+	    res = xpath_data.xpath('//div[@id="data"]/@data-state')[0]  # 获取data-state的值,返回一个列表,取下标 0
+	    dict_data = json.loads(res)
+	    xsrf = dict_data['token']['xsrf']
+	    print res  # --->打印出获取的数据将其在json.cn转换为json格式,然后查看token中 xsrf中的值是否与下方的获取的xsrf相同
+	    print xsrf
+
+	    注:
+	   	1.打印出获取的数据将其在json.cn转换为json格式,然后查看token中 xsrf中的值是否与下方的获取的xsrf相同
+	   	2.两种方式在获取标签的时候,在检查页面时看不到xsrf的,必须要查看源码,搜索 xsrf关键字,查看其上一层标签是什么 
+
+
+
+
+4.tencent爬虫
+
+	---------------------------------------------------------
+			源码:
+				<td>深圳</td>
+				<td>2018-01-22</td>
+	    	</tr>
+	    	<tr class="odd">
+	    		<td class="l square"><a target="_blank" href="position_detail.php?id=26544&keywords=python&tid=0&lid=2218">TEG17-医学AI算法研究员（深圳）</a></td>
+				<td>技术类</td>
+				<td>4</td>
+				<td>深圳</td>
+				<td>2018-01-22</td>
+		------------------------------------------------------------		
+	   4.1Tencent2
+
+	    def analysis(self,data):
+	        # 1.类型转换
+	        soup = BeautifulSoup(data,'lxml')
+	        # 2.1解析 第一层:取出所有符合条件的 tr标签
+	        first_list = soup.select('.even,.odd')  # 并级
+	        # 2.2解析 第二层: 取出所有td
+	        for tr in first_list:
+
+	            # 把每一行的数据放字典里
+	            dict = {}
+	            dict['work_name'] = tr.select('td a')[0].get_text()  # 职位
+	            dict['work_type'] = tr.select('td')[1].get_text()    # 类型
+	            dict['work_count'] = tr.select('td')[2].get_text()   # 数量
+	            dict['work_addr'] = tr.select('td')[3].get_text()   # 地点
+	            dict['work_time'] = tr.select('td')[4].get_text()   # 发布时间
+
+	            self.it_list.append(dict)
+	    # 调用
+	    def run(self):
+	        for page in range(0,330,10):  # 隔10 取一,腾讯招聘每跳转一页加10
+	            # 1.拼接字符和参数   # 	    注:正则处理 地址为字典 ^(.*?)=(.*?)$  --> '\1':'\2'
+	            params = {
+	                'keywords': 'python',
+	                'tid': '0',
+	                'lid': '2218',
+	                'start': page
+	            }
+	            # 2.发送请求
+	            data = self.send(self.base_url,params=params)
+	            # 3.解析数据-->返回一个列表数据
+	            self.analysis(data)
+	        # 4.保存本地
+	        self.write()
+
+	   	运行 结果:Array[325]    
+
+	    注:1.正则处理 地址为字典 ^(.*?)=(.*?)$  --> '\1':'\2'
+	    	2.整个流程:1.腾讯招聘每跳转一页加10,for 循环遍历(0,330,10),取当前33页的数据,后面的数据也可以取到,但是由于是2017年的老数据,就不需要了,
+	    			2.没遍历一次拼接一次字符和参数params,传进 发送请求的函数中,发送请求,返回 response.content 数据
+	    			3.解析数据,先用 汤美丽 转换成可以解析的类型,第一层解析:取出所有符合条件的 tr标签(我们需要的数据,具体在页面检查中查看对应标签),
+	    			   第二层解析:取出所有td标签 内容,for 循环遍历 td内容,并且将其 保存在我们自定义的字典中,添加进全局大列表中	
+	    			4. 保存文件,将传入的列表[{},{},{}] 转换成json字符串,保存成 05.tencent2.json 在本地 ,是json格式的数据,可以在结束之后
+	    				将数据在json.cn网站转换一下,查看是否是 想要的数据 
+	    	3.如果在爬取整个1-33页数据的时候,需要在 send()发送请求的函数中,time.sleep(2)
+	    		太快会被认出来,还有如果出现 ssl报错,那就在	send()中	 加忽略验证(verify=False)	
+	-------------------------------------------------------------------------------------
+	4.2Tencent3
+		4.2.1在  def analysis() 函数中增加代码:     
+			 # 3.解析出 下一页的标签  id = next
+	        next_element = soup.select('#next')
+	        # 取出next 标签中 class 的值
+	        # next_value = next_element.get('class')
+	        judge = next_element.get('class')[0]  # 返回去判断是否到头
+
+	    4.2.2在 def run()  函数中增加代码:
+	     
+            # 3.解析数据-->返回一个列表数据
+            judge = self.analysis(data) # judge接收分析函数的返回值
+
+            self.page += 10
+            if judge:
+                break
+   		4.3.3将for(0,330,10) 循环 改成 while True 循环,
+   			使其自动递增,每次循环page 累加 10
+
+   		注:改成 while 循环的时候需要判断,当前页数是否是最后一页,判断分析见下方:	
+
+			在判断下一页的时候:
+				1.当前页有1-33页,如果跳到33页,此时id = next '下一页'标签变灰色,不能点了,而且 class="noactive"
+					其他情况,class 是没有值的,那么就可以以class有没有值,来判断是不是到头了(33页),
+					如果到头了,那么就跳出循环,不再请求数据!
+				2.还有一种方法可以判断是不是到头了,就是 js 的链接 变成空链接就表明是最后一页!	
+	--------------------------------------------------------------------------------			
+	4.3Tencent4
+		4.3.1在 def analysis()函数中改代码:
+
+	        # 3.解析出 总页数的标签,拿到内容
+	        all_element = soup.select('.pagenav a')[-2] # -1是'下一页',-2是最后一页
+	        all_page = all_element.get_text() # 拿到里面的内容
+
+	        return all_page
+
+	       注:1.class = "pagenav"下面包含33页 a标签
+	          2. soup.select('.pagenav a')[-2] 这里拿到的是 1-33页,所有的 <a>标签里的数据
+	       		返回的是 所有 a 标签的列表 !
+	       	 3.	[-1] 是"下一页"
+				[-2] 是'33'	
+
+
+	   4.3.2将 def run()修改如下:   		
+		    # 调用
+		    def run(self):
+		        # 1.拼接字符和参数   # 	    注:正则处理 地址为字典 ^(.*?)=(.*?)$  --> '\1':'\2'
+		        params = {
+		            'keywords': 'python',
+		            'tid': '0',
+		            'lid': '2218',
+		            'start': 0,  # 从第一页开始请求,只请求第一页
+		        }
+		        # 2.发送请求
+		        data = self.send(self.base_url,params=params)
+		        # 3.解析数据-->返回一个列表数据
+		        judge = int(self.analysis(data)) # judge接收分析函数的返回值
+
+
+		        for page in range(10,judge*10,10): # 从第二页开始,start=10
+
+		            # 1.拼接字符和参数   # 	    注:正则处理 地址为字典 ^(.*?)=(.*?)$  --> '\1':'\2'
+		            params = {
+		                'keywords': 'python',
+		                'tid': '0',
+		                'lid': '2218',
+		                'start': page,  # 从第二页开始请求
+		            }
+		            # 2.发送请求
+		            data = self.send(self.base_url, params=params)
+		            # 3.解析数据-->返回一个列表数据
+		            int(self.analysis(data))  # judge接收分析函数的返回值
+
+		            print page
+
+		        # 4.保存本地
+		        self.write()
+
+		    注: 第一次 是从start=0开始请求,即从第一页开始请求, 因为我们在第二次请求以及后面的请求
+		    	需要用到 judge(此处为 33) ,来实现for循环 请求,所以第一次请求要跟 第二次及以后请求分开   
+		    	但请求代码 都是一样的,第一次请求的时候要将 judge 转成 int 类型,方便后面使用!
+
+		   ------------------------------------------------------------------ 	
+
+			两种转换数据方法:
+				1.bs4
+				2.lxml 
+
+
+
+5.csv文件:
+
+	CSV:逗号分隔值 文件格式
+
+	---------------------------------------------------------------------
+	    # 1.读取json文件的数据
+	    json_file = open('05.tencent4.json','r')
+	    # 2.csv的写入文件对象
+	    csv_file = open('06tencent.csv','w')
+
+	    # 3.取出数据 :1.表头,2.内容
+	    json_list = json.load(json_file)  # 把文件转成python对象用load()
+	    # 3.1 取表头 -->最上面的 头
+	    sheet_title = json_list[0].keys()
+	    # 3,2 取所有内容
+	    json_values = []
+	    for dict in json_list:
+	        json_values.append(dict.values())
+
+	    # 4.写入csv文件
+	    # 4.1根据文件对象.生成读写器
+	    csv_writer = csv.writer(csv_file)
+
+	    # 4.2写入表头
+	    csv_writer.writerow(sheet_title)
+	    # 4.3 写入内容
+	    csv_writer.writerows(json_values)
+
+	    # 5.关闭文件
+	    csv_file.close()
+	    json_file.close()
+
+	    注: 在用读写器 写入表头和 内容的时候一定要注意 一个是 wirterow()
+	    	一个是writerows()
+	---------------------------------------------------------------------
+	注:
+		1.1python2运行 会报错'ascii'
+		这时候选择python3 来运行就 ojbk
+
+		1.2或者在对应代码上面加上如下:
+			import sys
+			reload(sys)
+			sys.setdefaultencoding('utf-8')
+
+		2.在用excel打开csv文件时如果乱码:
+			数据-->获取外部数据-->导入文本文件-->选择编码-->选utf-8
+
+	--------------------------------------------------------------------		
+
+
+
+6.跨过
+	1.获取知乎登录跳转页面链接的方法
+		1.1输入错误账户和密码
+		1.2preserve log 
+
+
+	知乎登陆过程：
+	1.xsrf
+	2.获取验证码,保存验证码图片到本地---------》新接口，请求都是 英文，数字
+	3.模拟登陆cookie
+	4.setting	
+
+
+
+
+
+
+
+	--------------------------------------------------------
+	注:
+	1.问题:多次输入错误,出现验证码是倒立的中文怎么办
+	Request URL:https://www.zhihu.com/api/v3/oauth/captcha?lang=cn
+	2.获取验证码,将获取到的验证码的图片数据写入保存在本地,然后手动输入(如果想自动输入,必须花钱买图像识别接口)
+
+
+	-------------------------	
+
+	加群
+	论坛
+	老资料
+
+	---------------------------1
+	time.time() 时间戳
+	站长工具: 毫秒
+
+	2018年为准，151。。。。。 是时间戳开头
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

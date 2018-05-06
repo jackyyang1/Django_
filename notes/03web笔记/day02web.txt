@@ -1,0 +1,299 @@
+回顾：
+进程之间不共享全局变量，所以进程之间有特殊的信息共享工具 即queue 消息队列
+
+
+python 一切皆对象
+html 一切皆标签
+Linux 一切皆文件
+
+1.web静态服务器：
+  1.1显示固定页面
+  
+      # 组织相应 头信息(header)
+      response_headers = "HTTP/1.1 200 OK\r\n"  # 200表示找到这个资源
+      response_headers += "\r\n"  # 用一个空的行与body进行隔开
+
+     *在Linux和Unix中换行是/n
+      在windows中换行是/r/n    （/r  是return）
+   
+
+222.多进程：子进程在运行时会复制运行环境资源
+     此时需要 同时关闭两个套接字
+
+333.多线程 ：子线程不会复制运行环境资源，而是共享主线程资源，就不需要关闭主线程的套接            字
+
+
+静态服务器：
+
+步骤如下：
+  1.静态服务器--返回固定内容
+  创建一个标准的TCP服务器，在接收数据代码处，返回固定的消息，返回response格式如下;
+   # 头消息  
+   response_header = "HTTP/1.1 200 OK\r\n"    # 200是访问成功的意思
+   response_header += "\r\n"  
+   response_body = "hello world"
+   # 返回内容
+   resp = response_header + response_body
+   # 发送
+   client_socket.send(resp.encode())
+   client_socket.close()
+   
+
+ 2.web静态服务器--根据请求返回相应的内容--(显示一个可以访问的网页)
+   
+   大致思路是：
+   根据请求分析路径，然后打开对应路径的文件，并读，将读取内容发送到浏览器
+   
+   在1的基础上： 分析请求，读取对应的文件，将文件数据发送给浏览器，
+   req = client_socket.recv(2048)
+   # print(req.decode())
+   req = req.deconde()
+   req_lines = req.splitlines()
+   for line in req_lines:
+      # 验证 请求头信息中最后一行是空行**************************************重要
+      print(line)
+   # 获取第一行
+   req_line = req_lines[0]
+   # 请求数据报文开头大概有这几种：    
+        # GET /favicon.ico HTTP/1.1
+        # GET /a/b/c/11.html HTTP/1.1
+        # GET / HTTP/1.1
+   #正则表达式  获取两个组 即：组1开头非路径，组2开头非空   
+   ret = re.match("([^/]*) ([^ ]*)",req_line)
+   # 方法
+   method = ret.group(1)
+   print(method)
+   # 路径
+   path = ret.group(2)
+   print(path)
+   # 将默认打开的网址显示主页设置为 /index.html
+   if path == '/':     # 即输入的路径是127.0.0.1:8080  没有分路径
+      path = "/index.html"
+   # 打开文件
+   f = open("./html" + path,"rb")
+   content = f.read()
+   f.close 
+   # 头，body，response = 头+body    and so on
+   
+   注：1.记得发送之前转码encode（）
+       2.记得关闭读取文件
+
+
+ 3.web静态服务器--404错误  （当输入不存在的路径时会返回给浏览器一个404提醒）
+   
+   大致思路：在打开文件这一步，如果用户输入不存在的路径如127.0.0.1:8080/a/b/index.html
+             返回的内容是try...except...捕获的异常，即当正常打开时，返回正常response，
+             打开异常时，异常下面代码为返回的内容 ，如此来提高代码的健壮性
+   
+   # 打开文件 打开一个不存在的文件 No such file or directory: './html/a/c/b.html'
+        # 提高程序的健壮性
+        resp = ""
+        try:
+            f = open("./html" + path, "rb")
+        except Exception as ret:
+            # 404错误
+            response_header = "HTTP/1.1 404 Not Found\r\n"
+            response_header += "content-type:text/html; charset=utf-8\r\n"
+            response_header += "\r\n"
+            response_body = "sorry, 您访问的页面不存在".encode()
+        else:
+            # 打开文件成功
+            # 读取二进制的数据
+            content = f.read()
+            f.close()
+            response_header = "HTTP/1.1 200 OK\r\n"
+            response_header += "content-type:text/html; charset=utf-8\r\n"
+            response_header += "\r\n"
+            response_body = content
+        finally:
+            resp = response_header.encode() + response_body
+            new_socket.send(resp)
+            # 7. 断开连接 new_socket 服务端套接字先close 浏览器就能够知道数据已经接受                                                    完毕
+            new_socket.close()
+
+    
+
+4.web静态服务器--类封装 
+     
+   大致思路：将上面的代码封装成一个类，然后 在主程序中创建HTTPServer对象，再调用方法
+   class HTTPServer（）：
+       def__init__(self):
+           pass
+       def run(self):
+           while True:  
+              pass
+
+   def main():
+    # 整体的逻辑控制
+    # 1. 创建HTTPServer对象
+    server = HTTPServer()
+    # 2. 调用对象的对象方法来启动服务器
+    server.run()
+
+
+   if __name__ == '__main__':
+       main()
+
+
+
+ 5.web静态服务器--添加运行参数
+     
+   大致思路：在4的基础上，把py文件在 交互式模式中运行：# 以后通过 python3 xx.py 8888               来运行服务器，这就需要在运行过程 传入参数 端口：8888，调用sys方法，                    sys.argv, print（sys.argv）返回的是一个列表
+    
+    def main():
+    # 以后通过 python3 xx.py 8888 来运行服务器
+    if len(sys.argv) == 2:
+        # 判断端口号的格式 是不是数字
+
+        if sys.argv[1].isdigit():      
+            port = int(sys.argv[1])
+        else:
+            print("请输入正确的端口号")
+            return
+    else:
+        # 不是两个参数
+        print("请以 python3 xx.py 8888 来运行服务器")
+        return
+    print(sys.argv)
+    # 整体的逻辑控制
+    # 1. 创建HTTPServer对象
+    server = HTTPServer(port)
+    # 2. 调用对象的对象方法来启动服务器
+    server.run()
+
+
+
+ 6.web静态服务器--多进程   （开辟子进程解开堵塞req= client_socket.recv(2048)）
+   大致思路：为解开堵塞，在run方法里开辟一个子进程，并且把 handle_request()方法独立出               来，作为一个方法，以便作为 线程的target = self.handle_request, args=                                                                         (client_socket),
+         在run方法中开启线程，关闭套接字--因为主进程close，链接才会断开，如果这里不             close的话，那么浏览器会处于一直接受数据的状态！（原因是因为子进程在运行时会            copy调用环境资源）
+
+    def run(self):
+        """运行服务器"""
+        # 4. 等待新的客户端连接
+        while True:
+            # 一旦有客户端连接 就创建进程为该顾客服务
+            new_socket, new_addr = self.server_socket.accept()
+            # 创建子进程
+            new_process = multiprocessing.Process(target=self.handle_with_request,                                                                 args=(new_socket,))
+            # 开启进程
+            new_process.start()
+            # 主进程close 连接才会断开
+            new_socket.close()
+
+    def handle_with_request(self, new_socket):
+        # 接收数据
+        req = new_socket.recv(2048)
+        # 如果接收的数据位空 关闭连接即可
+        if not req:
+            # close()
+            new_socket.close()
+            # 退出当次循环
+            return         # 因为handle 方法不在循环里了，不能再用continue，换做return
+   
+          # 后面的代码不变
+
+
+ 7.web静态服务器--多线程
+
+    大致思路：将上面代码子进程  变为子线程，其他不变，但注意这里在run方法最后的地方不              需要关闭套接字，因为子线程在运行过程中不会调用系统资源，主线程关闭，子线              程也关闭了
+  
+   
+      def run(self):
+        """运行服务器"""
+        # 4. 等待新的客户端连接
+        while True:
+            # 一旦有客户端连接 就创建进程为该顾客服务
+            new_socket, new_addr = self.server_socket.accept()
+            # 创建子进程 线程共享进程资源 不会发生资源的拷贝
+            new_thread = threading.Thread(target=self.handle_with_request, args=                                                                  (new_socket,))
+            # 开启进程
+            new_thread.start()
+            # 主进程close 连接才会断开
+            # OSError: [Errno 9] Bad file descriptor 错误的文件描述符
+            # 多线程的时候 不能够close
+            # new_socket.close()  # 不需要关闭
+
+333
+from socket import *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   

@@ -1,0 +1,822 @@
+
+DailyFresh
+
+***
+ip的使用:如果想让外面主机访问,你的服务器(django服务器,celery,nginx服务器,tracker-server,storage-server),数据库(mysql,redis,那么你的服务器和数据库就不能绑定为本地 127.0.0.1
+
+
+网站性能优化:
+	两大点:1.页面静态化
+		  2.缓存	
+
+
+1.页面静态化:查询数据库渲染出的数据,生成一个静态文件
+	通过celery来实现(broker来调worker)
+
+	1.1.写好代码之后启动celery:
+		需要添加一个初始化环境的代码:django.setup()
+
+	1.2.broker在哪启动,就在哪生成静态文件首页:
+		在蟒蛇控制台进行调用:
+		from celery_tasks.tasks import generate_static_index_html
+		发出任务:delay()
+		generate_static_html_content.delay()
+
+
+	1.3.nginx配置:/usr/local/nginx/conf/nginx.conf
+
+		访问nginx首页: 127.0.0.1    
+		nginx默认的端口是80,而且返回它的首页
+
+		所以我们要在nginx配置文件中修改
+
+ 47     server {
+ 48         listen       80;
+ 49         server_name  localhost;
+ 50 
+ 51         #charset koi8-r;
+ 52 
+ 53         #access_log  logs/host.access.log  main;
+ 54 
+ 55         location /static {
+ 56             alias /home/python/Desktop/dailyfresh/static/; # 生成静态文件保存的地址
+ 57         }
+ 58 
+ 59         location / {
+ 60             #root   html;
+ 61             root /home/python/Desktop/dailyfresh/static/; # 80端口默认显示路径
+ 62             index  index.html index.htm;  # 默认显示首页页面
+ 63         }
+
+
+
+		使cs起作用:
+			location /static
+-----------------------------------------------------------
+代码;
+	素质三连:
+		2.启动tracker、storage、nginx服务：
+		sudo service fdfs_trackerd start
+		sudo service fdfs_storaged start
+		sudo /usr/local/nginx/sbin/nginx	
+
+		修改配置重启nginx:
+		sudo /usr/local/nginx/sbin/nginx -s reload
+
+	1.tasks文件中定义函数来专门处理首页显示,将view中获取数据库中
+	首页信息的代码cp一份到tasks定义的函数里,
+	2.templates中:
+		base.html-->static_base.html
+		index.html -->static_index.html
+
+	3.from django.template import loader	
+
+	4.将写好的代码cp一份放在桌面,用终端单独运行,要在虚拟环境下
+	(django_py3) python@ubuntu:~/Desktop/dailyfresh$ celery -A celery_tasks.tasks worker -l info
+
+	5.如果报错,那说明还没初始化环境:
+	这两行代码需要在启动worker的一端打开
+	初始化 django所依赖的环境
+	import os
+	import django
+	os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dailyfresh.settings")
+	django.setup()
+
+	from goods.models import GoodsType,IndexGoodsBanner,IndexPromotionBanner,IndexTypeGoodsBanner
+	注:这一行代码要写在下面的位置,不然还是会报错!!!!
+
+	注: celery -A celery_tasks.tasks worker -l info
+		这几行代码在哪里运行 celery的worker就在哪里!
+
+	6.开启work成功之后,发送任务,生成静态文件(先把桌面上的dailyfresh中static中的index文件删除)	
+				在蟒蛇控制台进行调用:
+		from celery_tasks.tasks import generate_static_index_html
+		generate_static_html_content.delay()
+
+		然后终端会输出一个创建新index文件成功的指令,在static看看是否生成了新的index.html文件!	
+
+
+-------------------------------------------------------------
+
+
+2. 配置nginx提供静态首页:
+
+	什么时候需要重新生成静态首页?
+	当首页用到的数据表发生变化时,需要重新生成静态首页
+
+	promotion 促进，增进; 提升，升级; （商品等的）推广; 发扬;
+
+	当通过后台管理页面修改了某个模型类对应的数据表内容的时候,
+	save_model()  新增或更新时调用
+	delete_model()  删除数据时调用
+
+
+	django文档1.8.2时间到:Admin
+
+	2.1在goods应用中的adim定义类,用以在静态页面数据发生变化的时候
+	修改保存,以及删除数据!
+	代码如下:
+		class IndexPromotionBannerAdmin(admin.ModelAdmin):
+		    def save_model(self, request, obj, form, change):
+		        """新增或者更新上数据时被调研"""
+		        # 调用父类的方法，完成新增或者更新的操作
+		        super().save_model(request,obj,form,change)
+
+		        # 附加操作：发出generate_static_html任务
+		        from celery_tasks.tasks import generate_static_index_html
+		        # 发出修改并保存的任务
+		        generate_static_index_html().delay()
+
+		        print('send generate_static_index_html OK!!!!! ')
+
+		    def delete_model(self, request, obj):
+		        """删除数据时被调用"""
+		        # 调用父类的方法，完成删除的操作
+		        super().delete_model(request,obj)
+
+		        # 附加操作：发出generate_static_html任务
+		        from celery_tasks.tasks import generate_static_index_html
+		        # 发出删除数据的任务
+		        generate_static_index_html().delay()
+
+
+
+		admin.site.register(GoodsType)
+		admin.site.register(IndexPromotionBanner)
+
+		注:在定义完了之后要注册
+		提问:为什么要在admin中定义类?
+		答:因为修改静态页面时后台管理员进行的操作,需要在admin定义之后注册,让其在后台管理页面显示
+			然后管理员进行修改操作!	
+
+解决bug"			
+	localhost:8000/admin  进入管理员页面无法进入,报错信息是连不上redis
+	但是以redis服务器绑定的ip来链接redis-cli可以成功:$ redis-cli -h 192.168.32.149 -p 6379
+
+	注:已经解决,我将redis.conf文件的配置设置为bind 0.0.0.0,然后一定要重启redis,看到启动项为 0.0.0.0才算成功,这时就可以连接客户端了redis-cli
+
+
+
+
+
+3.静态首页的重新生成
+	
+	3.1在解决完上面那个redis  bug之后进入admin后台管理页面,主页促销活动修改:
+		将促销活动的两张图片中的一个 0 改为2 ,然后再到index去查看,促销活动图片的位置
+		会发现图片位置互换了!这就是一个静态首页重新生成的例子!
+
+	3.2	在goods应用中的adim,为了能管理所有能更新数据的地方,应该将以下的类全部定义:
+		GoodsType,IndexPromotionBanner,IndexGoodsBanner,IndexTypeGoodsBanner
+		但是这些类的方法都是一样的,所以可以用抽取父类的方法来抽取一个基类,减少代码量
+		class BaseAdmin()就是这个基类!
+
+		class IndexGoodsBannerAdmin(BaseAdmin):
+   			 pass
+
+		class GoodsTypeAdmin(BaseAdmin):
+		    pass
+
+		class IndexTypeGoodsBannerAdmin(BaseAdmin):
+		    pass
+
+		class IndexPromotionBannerAdmin(BaseAdmin):
+		    pass
+		这些类都是继承BaseAdmin
+
+		admin.site.register(GoodsType,GoodsTypeAdmin)
+		admin.site.register(IndexGoodsBanner,IndexGoodsBannerAdmin)
+		admin.site.register(IndexTypeGoodsBanner,IndexTypeGoodsBannerAdmin)
+		admin.site.register(IndexPromotionBanner,IndexPromotionBannerAdmin)
+
+		注:注册的时候一定是GoodsType,GoodsTypeAdmin这种格式!即模型类和管理类!
+
+
+	django 1.8.2文档:站点:BaseAdmin method	
+
+
+
+4.静态首页 和 IndexView区分
+
+          访问          ←返回index.html
+   用户---------→Nginx------------→django服务器
+			    ↑ |     /index→
+			返  | | /
+			回	| | ↓
+	  index,html| |
+			→	| |
+			|	| ↓
+		Nginx←--celery worker
+
+	部署时,为了把静态index.html和IndexView区分开,会部署一个
+	调度的nignx服务器,用户访问网站的时候直接访问调度的nginx服务器,
+	最终由调度nginx根据请求地址的不同  采用不同凡是获取首页内容,再
+	返回首页内容给浏览器,
+	比如:1.('/')如果用户没有登录,而是直接访问的网站,那么就通过nginx去找到celery中worker(内部的nginx(绑定地址:192.168.32.149:80(80端口在配置文件里设置成默认的了,可以访问的时候不必输入))
+		服务器),然后内部的nginx服务器会去找到对应的静态首页的内容 (index.html) 将其返回给用户浏览器(注:这里面的nginx是专门用来找静态页面的)
+		2.('/index')如果用户已经登录,那么访问地址的时候,就通过django框架中定义的视图函数IndexView()来访问首页页面	  
+
+
+	以上内容总结为四个点:
+		1.celery任务函数生成静态首页
+		2.配置nginx提供静态首页
+		3.静态首页的重新生成
+		4.静态首页和IndexView的区别	
+
+
+
+5.设置缓存:
+		
+	cache
+	把从数据库中查到的数据缓存在某一个地方,下一次使用地点时候直接拿过来显示
+	  缓存理解:用户在第一次浏览了页面之后,把访问的数据生成缓存,那么待会再浏览的时候
+			就不用再次从数据库去查询了,这样就减少了 服务器查询数据库的压力!
+
+
+	Memcached 内存型数据库(可以专门用来存储缓存数据)
+	注:在我们最开始创建项目的时候,已经设置过CACHE = {},当时是设置缓存保存在redis中
+
+	缓存的级别:1.站点级缓存(缓存整个网站,网站内容多的情况下尽量不用,因为占用内存多)
+			  2.单个view缓存(单个用户访问的 返回内容是一模一样的情况下使用)	
+			  3.模板片段缓存 {%load cache%} {%endcache%}
+			  4.底层的缓存API(from django.core.cache import cache)
+				set() 设置缓存
+				get() 获取缓存
+				实现自己定义缓存
+
+	本网页采用第四种缓存方式-->缓存API:
+		设置缓存:cache.set()
+		获取缓存:cache.get()
+
+	*setting.py文件中的CACHES配置项:(重点)
+		缓存的数据都放在redis数据库中(可以在setting中查看redis
+			配置,即ip,port)
+	---------------------------------------------------------
+	代码如下:
+
+	# http:127.0.0.1:8000
+	class IndexView(View):
+	    """首页"""
+	    def get(self,request):
+	        """显示"""
+
+	        # 先尝试从缓存中获取数据
+	        context = cache.get('index_page_data')
+
+	        # 先判断，如果没有数据的时候，就从数据库去差数据，并且将查到的数据设置缓存00
+	        if context is None:
+	            print('正在设置首页数据缓存...')
+	            #获取商品分类信息
+	            types = GoodsType.objects.all()
+
+	            #获取首页轮播商品的信息(需要排序，越小越拍在前面)
+	            index_banner = IndexGoodsBanner.objects.all().order_by('index')
+
+	            # 获取首页促销活动的信息
+	            promotion_banner = IndexPromotionBanner.objects.all()
+
+	            #获取首页分类商品展示信息
+	            # types_goods_banner = IndexTypeGoodsBanner.objects.all()
+
+	            for type in types:
+	                # 根据type查询type种类首页展示的文字商品信息和图片商品信息
+	                title_banner = IndexTypeGoodsBanner.objects.filter(type=type,display_type=0).order_by('index')
+	                image_banner = IndexTypeGoodsBanner.objects.filter(type=type,display_type=1).order_by('index')
+
+	                #给type对象增加两个属性title_banner,image_banner（因为每次遍历都会给title_banner,image_banner重新赋值，所以要采用这种方法
+	                #分别保存type种类首页展示的文字商品信息和图片商品信息
+	                type.title_banner = title_banner
+	                type.image_banner = image_banner
+
+	            # 获取登陆用户购物车中商品的数目
+	            cart_count = 0
+
+	            # 组织缓存的数据
+	            context = {
+	                'types':types,
+	                'index_banner':index_banner,
+	                'promotion_banner':promotion_banner,
+	                'cart_count':cart_count
+	            }
+
+
+	            # 设置缓存 pickle（设置缓存的模块）
+	            cache.set('index_page_data',context,3600)
+
+	        cart_count = 0
+	        # 获取user
+	        user = request.user
+	        if user.is_authenticated():
+	            # 用户已经登陆
+	            conn = get_redis_connection('default')
+	            cart_key = 'cart_%d'%user.id
+	            cart_count = conn.hlen(cart_key)
+
+
+	        # 组织模板上下文,更新cart_count
+	        context.update(cart_count=cart_count)
+
+	        #使用模板,
+	        return render(request,'index.html',context)
+
+	    注:1.先尝试从缓存中拿数据get(),如果缓存中没有数据再从数据库中查询,
+	    	并且设置缓存set(),那么下一次再查询的时候就会直接显示缓存中的内容
+	    	2.以上代码设置好,开启服务器,访问:http:127.0.0.1:8000,会看到第一次访问的时候
+	    		打印出'正在设置首页数据缓存...',第二次执行访问的时候,就不会看到这句话,因为已经缓存过了
+	    		直接获取的缓存数据	
+    		3.缓存数据可以在 之前设置的redis数据库中查看到 
+    			注:连接数据库查询的时候一定要: redis-cli -h 192.168.32.149连接
+  				(day12 视频9 最后两分钟,代码效果自己没完成)
+
+待解决问题:redis'
+	上面代码设置缓存过程中用到redis来缓存数据,但是我在cache设置的redis缓存地址都是6号数据库
+		而在celery_tasks目录下的tasks文件中设置的redis是数据库5,但是当我缓存结束之后,查询redis数据库
+		发现数据缓存在redis 5中,why?"或者说此redis 5中的数据还是之前生成静态页面worker生成的?而不是这次缓存生成的?
+
+		设置缓存成功了为什么查询redis 6 是空的??没有index_page_data
+
+	注:bug已经解决,原因是setting里CACHE = {} 配置文件没有按照老师的来,每一个标点都不能错	
+
+
+6.清除缓存: )(更新缓存)
+
+	当首页用到的数据表的内容发生变化的时候,需要更新缓存:
+	在goods应用中的adim.py中将BaseAdmin方法中,附加操作:清除首页缓存
+	cache.delete()
+
+	class BaseAdmin(admin.ModelAdmin):
+	    def save_model(self, request, obj, form, change):
+	    	...
+	        # 附加操作：清除首页缓存
+        	cache.delete('index_page_data')
+        	...
+
+
+
+
+7.网站性能优化的本质: 减少数据库的查询.(上面6个都是网站性能优化操作)
+
+	在一定层面可以方阻止恶意的请求攻击:DDos攻击(同一时间组织多台电脑向网站发起请求)
+
+
+
+8.详情页面的显示:
+
+	# 访问商品的详情页面时候，需要传递商品的id
+	前端向后端传递参数的方式:
+	    1.get （只涉及到数据的获取） /goods？sku_id=商品id
+	    2.post （涉及到数据的修改） 传递
+	    3.url （捕获参数） /goods/商品id
+
+
+	# flask：restful api的设计
+
+
+	通过sku中外键拿到商品详情信息:
+	sku.goods.detail
+		注:两个通过外键关联的表,只需要点一下就够了,就能拿到对方的属性
+
+
+
+
+	------------------------------------------------------------
+	代码如下:
+
+	8.1在详情页面detail.html通过添加下面代码来显示相同sku的其他规格额商品,
+	并且点击之后可以直接跳转到 盒装草莓详情页:	
+
+	8.1.1goods应用views.py中:
+        # 获取和sku商品同一spu的其他规格的商品,exclude()排除
+        same_spu_skus = GoodsSKU.objects.filter(goods=sku.goods).exclude(id=sku_id)
+
+
+    8.1.2在detail.html中:    
+        <div>
+            <div>其他规格：</div>
+            <div>
+                {% for sku in same_spu_skus %}
+                    <a href="{% url 'goods:detail' sku.id %}">{{ sku.name }}</a>
+                {% endfor %}
+            </div>
+
+        </div>
+
+        访问:127.0.0.1:8000/goods
+
+    8.2历史浏览记录中显示最近浏览的位个商品:    (注:这里用的是redis中list类型数据)
+        #获取登陆用户购物车中商品的条目数(从上面的类视图函数中cp下来的)
+        cart_count = 0
+        # 获取user
+        user = request.user
+        if user.is_authenticated():
+             用户已经登陆
+            conn = get_redis_connection('default')
+            cart_key = 'cart_%d'%user.id
+            cart_count = conn.hlen(cart_key)
+
+            获取 用户的历史浏览记录
+            history_key = 'history_%d'%user.id
+
+            先尝试从redis对应的列表删除元素sku_id （LREM）--如果用户已经浏览过这个商品,后面又浏览了这个商品,那么首先要删除,0代表删除所有,如果这个列表有的话就删除所有,如没有的话就什么都不做
+            conn.lrem(history_key,0,sku_id)
+            
+            把新浏览的商品sku_id加入到redis对应列表的左侧
+            conn.lpush(history_key,sku_id)
+
+            裁剪:保留用户最近浏览的5个商品的id
+            conn.ltrim(history_key,0,4)
+                
+
+        然后--将base.html中'用户中心'的href='{% url 'user:user' %}' 动态导入跳转地址到用户中心
+            
+        然后--将user_center_info.html中'最近浏览'动态导入:
+            <a href="{% url 'goods:detail' sku.id %}"><img src="{{ sku.image.url }}"></a>
+            <h4><a href="{% url 'goods:detail' sku.id %}">{{ sku.name }}</a></h4>
+
+        访问:具体商品,1,2,3然后点击用户中心,会有浏览记录显示,点击浏览的商品可以直接跳转到商品详情页    
+
+
+    --------------------------------------------------
+    相关技术的应用:    
+
+	列表删除:LREM 
+		lrem key count value  (根据count数  删除相应的值),如果count=0,那么表示删除所有
+
+	列表加入:LPUSH
+		lpush key start stop
+
+	列表裁剪:LTRIM
+		ltrim key start stop	
+
+	# 导入反向解析	
+	from django.shortcuts import render,redirect
+	from django.core.urlresolvers import reverse
+
+
+
+9.列表页面类视图
+
+	views.py中代码
+	
+        # 获取排序方式
+        sort = request.GET.get('sort','default')
+        # sort == 'default' : 按照默认方式（商品id）排序
+        # sort == 'price' :按照商品的价格（price）排序
+        # sort == 'hot' ：按照商品的销量（sales）排序
+
+        if sort == 'price':
+            #skus查到的时一个查询集queryset
+            # price从低到高
+            skus = GoodsSKU.objects.filter(type=type).order_by('price')
+
+        elif sort == 'hot':
+            # 默认销量从低到高，这里从高到低
+            skus = GoodsSKU.objects.filter(type=type).order_by('-sales')
+        else:
+            # 给sort重新赋值
+            sort = 'default'
+            # 默认排序按id从高到低排序
+            skus = GoodsSKU.objects.filter(type=type).order_by('-id')
+
+
+        # 分页 (这里skus时一个查询集)
+        paginator = Paginator(skus,2)
+
+        # 处理页码
+        page = int(page)
+        if page > paginator.num_pages or page <= 0:
+            # 默认显示第一页
+            page = 1
+
+        # 获取第page也页Page对象
+        skus_page = paginator.page(page)
+
+        # 页码处理（页面上最短只显示出5个页码）
+        # 1.分页之后总页数不足5页，显示所有页码
+        # 2.当前页是第三页，显示1-5页
+        # 3.当前页时后3页，显示后5页
+        # 4.其他情况，显示当前页的前2页，当前页，当前页的后两页
+        num_pages = paginator.num_pages  # 返回的时num_pages页数对象
+        if num_pages < 5:
+            pages = range(1,num_pages+1)
+        elif page <= 3:
+            pages = range(1,6)
+        elif num_pages - page <=2:
+            pages = range(num_pages-4,num_pages+1)
+        else:
+            pages = range(page-2,page+3)
+
+
+	在list.html中代码:
+        {# 获取当前页的所有商品对象的列表 #}
+		{#{% for sku in skus_page.object_list %}#}
+        {% for sku in skus_page %}
+            
+		    <li>
+			<a href="{% url 'goods:detail' sku_id %}"><img src="{{ sku.image.url }}"></a>
+			<h4><a href="{% url 'goods:detail' sku_id %}">{{ sku.name }}</a></h4>
+			<div class="operate">
+				<span class="prize">￥{{ sku.price }}</span>
+				<span class="unit">{{ sku.price }}/{{ sku.unite }}</span>
+				<a href="#" class="add_goods" title="加入购物车"></a>
+			</div>
+		</li>
+        {% endfor %}
+
+	-------------------------------------------------------
+	应用的方法:	
+
+		QuerySet查询集
+		分页:Paginator分页器
+
+
+		列表页父模板:list.html
+
+		Paginator获取到的是Page对象
+
+
+		分页,最多显示五个页面的四种情况:
+
+		本质就是从表里查信息,查完之后显示在模板中
+
+		from django.core.paginator import Paginator
+
+		Paginator获取到的是可以是QeurySet,list 等
+		Paginator的属性:
+		Paginator.num_pages-->页面的总数
+		Page.object_list
+            {# 获取当前页的所有商品对象的列表 #}
+			{#{% for sku in skus_page.object_list %}#}
+                {% for sku in skus_page %}
+                   <li>...</li>
+                {%endfor}
+
+		注:这两种for 循环的到的对象都是一样的
+
+		Page objects
+		属性:
+		has_next 下一页 
+		has_previous 上一页 
+		Page.previous_page_number 返回当前页上一页的页码
+		Page.next_page_number  返回当前页下一页的页码
+		Page.paginator
+
+后天内容:
+
+	1.首页搜索功能
+	2.添加购物车
+	3.购物车页面显示
+
+ 	ajax请求
+
+
+
+-----------------------------------------------------------
+new land:
+
+	1.当我们在写好换一个tasks把它当做worker来运行的时候,运行celery中的tasks
+	此时查看进程状态(ps aux | gerp celery)会看到两个任务在运行,本人猜想应该是
+	类似于多线程的原理,非阻塞的方式来接收并处理任务,进程如下:
+	python     5997  9.3  2.2 118116 45784 pts/4    S+   16:49   0:00 /home/python/.virtualenvs/django_py3/bin/python3 /home/python/.virtualenvs/django_py3/bin/celery -A celery_tasks.tasks worker -l info
+	python     6001  0.0  1.9 117036 40204 pts/4    S+   16:49   0:00 /home/python/.virtualenvs/django_py3/bin/python3 /home/python/.virtualenvs/django_py3/bin/celery -A celery_tasks.tasks worker -l info
+	有趣的是当我们杀死(sudo kill -9 pid)其中一个线程的时候,另一个也被一起杀死
+
+
+
+------------------------------------------------------------
+工作总结:
+	1.	前端向后端传递参数的方式:
+	    1.get （只涉及到数据的获取） /goods？sku_id=商品id
+	    2.post （涉及到数据的修改） 传递
+	    3.url （捕获参数） /goods/商品id
+
+	2.关键字参数的使用:
+		url(r'^goods/(?P<sku_id>\d+)$',DetailView.as_view(),name='detail'),# 详情页面    
+
+	3.在一个页面要显示另一个表的内容需要通过外键来链接,然后直接.属性	
+
+
+    4.添加用户的历史浏览记录
+    	history_key = 'history_%d'%user.id
+
+
+    5.动态导入跳转地址:
+    	5.1<a href="{% url 'user:user' %}">用户中心</a>	
+
+        {# 反向解析导入地址 #}
+		5.2<a href="{% url 'user:login' %}">登录</a>
+
+		5.3<a href="{% url 'user:register' %}">注册</a>
+
+
+		类似于这样的点击之后动态跳转页面,是根据	url里的反向解析来
+		导入对应的视图函数,从而显示页面的: 
+		在5.1例子中用户中心对应的user里,user是url反向解析的名字,它可以调用UserInfoView()视图函数
+   			url(r'^$', UserInfoView.as_view(), name='user'),  # 用户中心-信息页
+
+	   	5.4还有这种:	
+	    <a href="{% url 'goods:detail' sku.id %}"><img src="{{ sku.image.url }}"></a>
+
+	    怎么理解?"
+
+	    答:我猜想应该是 sku_id是传过来的参数 ,还有传两个参数的 sku_id 1
+
+	6.获取用户购物车中的商品的条目数,是以下这段代码
+        cart_count = 0
+        # 获取user
+        user = request.user
+        if user.is_authenticated():
+            # 用户已经登陆,通过默认的redis设置来链接redis 数据库
+            conn = get_redis_connection('default')
+            cart_key = 'cart_%d'%user.id
+            cart_count = conn.hlen(cart_key)
+
+
+    7.在配置url的时候要捕获种类id（type_id）和页码id（page_id）
+    	那是因为访问的时候会跟着下面的参数:
+    	# 访问列表页面的时候，需要传递的参数
+		# 种类id（type_id）,页码(page)，排序方式(sort)--（这些都是前段传过来的）
+		# /list?type_id=种类id&page=页码&sort=排序方式
+		#/list/种类id/页码/排序方式
+		/list/种类id/页码？sort=排序方式-->这里用的就是这种方式
+    	url(r'^list/(?P<type_id>\d+)/(?P<page_id>\d+)$',ListView.as_view(),name='list'), # 列表页面
+
+        
+    8.关于{% %} 和{{}}用法总结:
+    	如果是内部还要使用循环语句,判断语句的,调用发方法的,就用{% %}	
+    	如果是固定的写死的内容,就用 {{ }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

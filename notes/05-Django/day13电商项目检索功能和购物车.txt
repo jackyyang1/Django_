@@ -1,0 +1,601 @@
+
+dailyfresh
+
+
+
+想一想:1.生成静态首页需要开启哪些服务器?
+		storage-server,tracker-server,nginx,redis
+	   2.生成缓存需要开启哪些服务器?
+	   3.在昨日的清除缓存delete哪里用到了?
+
+
+1.根据商品的名称和简介搜索商品(重点)
+	select * from df_goods_sku where name like '%key%' or desc like '%key%';
+	sql语句查询效率比较低,所以我们这里用搜索引擎老查询!
+
+	**搜索引擎:搜索引擎可以根据表中某些字段的内容进行关键词划分(分词处理),
+			建立关键词和表数据之间对应的关系(建立索引数据)
+
+		字典目录
+	
+	**全文检索框架:帮助用户使用搜索引擎		
+
+		haystack(框架):全文检索的框架,支持whoosh,soir 等搜索引擎
+
+		客户端-------->全文检索框架(haystack)------>搜索引擎(whoosh)             
+    ----------------------------------------------------------
+
+	1.1安装:
+		pip install django-haystack
+		pip install whoosh
+
+	1.2注册:
+		1.2.1在setting中apps中注册:
+			'haystack',	
+
+		1.2.2全文检索框架配置(setting中)
+			# 全文检索框架配置
+			HAYSTACK_CONNECTIONS = {
+			    'default':{
+			        # 使用whoosh引擎
+			        # ENGINE:'haystack.backends.whoosh_backend.WhooshEngine',
+			        'ENGINE':'haystack.backends.whoosh_cn_backend.WhooshEngine',
+			        # 索引文件路径
+			        'PATH':os.path.join(BASE_DIR,'whoosh_index'),
+
+			    }
+			}
+
+			# 当添加，修改，删除数据时，自动生成索引
+			HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+
+        1.2.3.virtual  进入虚拟环境查看其配置路径
+        		cd .virtualenvs/django_py3/lib/python3.5/site-packages/haystack/backends/
+
+        1.2.4在setting中写入:
+        	当添加,修改,删除数据时,自动生成索引:			
+			HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+
+
+    1.3在goods应用中新增search_indexes.py定义一个索引类:
+    	from haystack import indexes
+		# 导入模型类
+		from goods.models import GoodsSKU
+
+
+		# 制定对于某个类的某些数据建立索引
+		# 索引类名称一般格式：模型类名+Index
+
+		class GoodsSKUIndex(indexes.SearchIndex,indexes.Indexable):
+		    """商品索引类"""
+		    # 索引字段:use_template=True说明根据那些字段的内容建立索引数据，这些字段会放在文件中来指定
+		    text = indexes.CharField(document=True,use_template=True)
+
+		    def get_model(self):
+		        return GoodsSKU
+
+		    # 返回的是哪些索引，就会对哪些数据建立索引（这里时对所有的表生成索引）
+		    def index_queryset(self, using=None):
+		        return self.get_model().objects.all()
+
+
+	1.4在templates目录下新建几个目录和文件:
+		search目录:
+			indexes目录:
+				goods目录:
+					goodssku_test.txt    
+
+				# 指定索引的属性
+				{{ object.name }}  #指定根据商品的名称建立索引
+				{{ object.desc }}   #指定根据商品的简介建立索引
+				{{ object.goods.detail }}  #指定根据商品的详情建立索引	
+														
+		注:这里的txt文件名字是有固定格式的,不能随便写
+					
+	1.5上面完成之后建立索引文件:
+		执行:
+	    python manage.py rebuild_index		
+
+	    Are you sure you wish to continue? [y/N]  y
+
+	    建立索引文件成功之后会在项目目录下生成一个文件目录:whoosh_index
+	----------------------------------------------------------    
+
+2.全文检索的使用:(重点)
+
+	2.1配置url
+  		url(r'^search',include('haystack.urls')), # 全文检索框架
+  		注:把请求交给全文检索去处理!
+
+	2.2表单搜索时,设置表单内容如下:
+        <form method="get" action="/search">
+		<input type="text" class="input_text fl" name="q" placeholder="搜索商品">
+		<input type="submit" class="input_btn fr" name="" value="搜索">
+        </form>
+
+
+	2.3全文检索结果
+		搜索出结果后，haystack会把搜索出的结果传递给templates/search目录下的search.html，传递的上下文包括：
+		query：搜索关键字  #http://localhost:8000/search?q=草莓
+
+		page：当前页的page对象 –>遍历page对象，获取到的是SearchResult类的实例对象，对象的属性object才是模型类的对象。
+
+		paginator：分页paginator对象
+
+		通过HAYSTACK_SEARCH_RESULTS_PER_PAGE 可以控制每页显示数量。
+		-----------------------------
+		搜索关键字：{{ query }}<br/>
+		当前页的page对象：{{ page }}<br/>
+
+		<ul>
+		    {% for item in page %}
+		        <li>{{ item.object }}</li>
+		    {% endfor %}
+		</ul>
+
+		分页paginator对象：{{ paginator }}<br/>
+		分页之后的总页数：{{ paginator.num_pages }}
+
+		-----------------------------
+
+	3.将list.html复制一份放在	templates/search目录下,更名为search.html
+		更改对象名称,然后搜索'草莓',显示出关于草莓的商品
+		此时检索不完整(盒装草莓无法显示),相同的sku下其他品种无法检索出来
+
+		是因为分词的时候有些结果没分出来
+
+		{{ query }}
+
+		item.object
+
+
+
+3.改变分词(重点)
+
+	jieba分词包(兼容中文)
+
+	res = jieba(str,cut_all=True)
+
+	1.安装jieba(虚拟环境下)
+		pip install jieba
+
+
+		----------------------------------
+		测试jieba分词:
+
+		>>> import jieba
+		>>> str = '很不错的草莓'
+		>>> res = jieba.cut(str,cut_all=True)
+		>>> res
+		<generator object Tokenizer.cut at 0x7ff1bdaa3620>
+		>>> for val in res:
+		>>> res
+		<generator object Tokenizer.cut at 0x7ff1bdaa3620> # 这是一个生成器
+		>>> for val in res:
+		...     print(val)
+
+		很
+		不错
+		的
+		草莓
+		----------------------------------
+
+	2.找到虚拟环境django_py3下的haystack目录:
+	/home/python/.virtualenvs/django_py3/lib/python3.5/site-packages/haystack/backends
+
+
+	3.在上面的目录中创建 vi ChineseAnalyzer.py 文件:
+		import jieba
+		from whoosh.analysis import Tokenizer, Token
+
+		class ChineseTokenizer(Tokenizer):
+			pass
+
+	4.复制whoosh_backend.py文件,改为如下名称( cp whoosh_backend.py whoosh_cn_backend.py
+)
+		whoosh_cn_backend.py
+
+	5.打开复制出来的新文件,引入中文分析类,内部采用jieba分词
+		from .ChineseAnalyzer import ChineseAnalyzer
+
+	6.更改词语分析类
+		查找
+		analyzer=StemmingAnalyzer()--->这句话大概在第161行
+		改为
+		analyzer=ChineseAnalyzer()
+
+
+	7.修改setting.py文件中配置项
+   		'ENGINE':'haystack.backends.whoosh_cn_backend.WhooshEngine',# 添加中文分析函数
+
+
+	8.重新创建索引数据
+		python manage.py rebuild_index
+
+	此时再访问127.0.0.1:8000/index,查询'草莓',会返回两个结果	
+
+	
+	注:在编辑 ChineseAnalyzer.py文件的时候一定要打开目录在里面用编辑工具编辑,不然缩进错了就会报错
+		IndentationError: unexpected indent
+
+
+							extra:改变每页显示条数
+
+3.购物车模块开发(重点)
+
+	1.添加购物车
+		商品详情页操作商品价格数量!
+
+
+       1.1//计算商品的总价
+        function update_sku_amount() {
+            //获取商品的价格和数目
+            var count = $('.num_show').val();
+            var price = $('.show_prize').children('em').text();
+            //计算小计
+            alert(count)
+            alert(parseInt(price))
+            var amount = parseInt(count)*parseFloat(price);
+            //设计商品的小计（保留两位小数）
+            $('.total').children('em').text(amount.toFixed(2) + '元');
+
+        }
+
+
+       1.2//商品数目的增加
+        $('.add').click(function () {
+            //获取商品的数目,拿到的时str类型
+            var count = $('.num_show').val();
+            //数目加1
+            count  = parseInt(count)+1;
+            //重新设置商品数目
+            $('.num_show').val(count);
+            //更新商品的小计(调用上面的函数)
+            update_sku_amount();
+        })
+
+       1.3 //商品数目的减少
+    	$('.minus').click(function () {
+            //获取商品的数目,拿到的时str类型
+            var count = $('.num_show').val();
+            //数目减少1
+            count  = parseInt(count)-1;
+            //如果小于0就返回
+            if (count<=0){
+                return
+            }
+            //重新设置商品数目
+            $('.num_show').val(count);
+            //更新商品的小计(调用上面的函数)
+            update_sku_amount();
+        })
+
+        1.4//用户手动输入商品的数目
+        $('.num_show').blur(function () {
+            //获取用户手动输入的数目
+            var count = $('.num_show').val()
+            //判断用户输入是否合法--非数字，什么都没输入，输入负数
+            if (isNaN(count) || count.trim().length==0 || parseInt(count)<=0){
+                count=1
+            }
+            //重新设置商品数目
+            $('.num_show').val(count);
+            //更新商品的小计(调用上面的函数)
+            update_sku_amount();
+        })
+
+
+
+        这里报错，price不能转换类型"
+        答:已经解决:前端代码英文prize 写成了pirze导致数据拿不到!!!!
+
+
+		-------------------------------------------------
+		$.ajax({
+			"url":"请求地址";
+			"type":"请求方式";
+			"dataType":"预期返回的数据格式"
+			}) success(function(data){
+				//执行成功之后的回调函数
+
+			})
+		过程	:1.发起ajax请求,jQuery发起
+			2.执行相应的视图函数,返回json内容
+			3.执行相应的回调函数,通过判断json内容(保存在data中),进行相应处理
+
+		----------------------------------------------------
+
+	2.购物车页面显示
+		2.1创建类视图:
+		# /cart/add 
+		class CartAddView(View): 用以处理添加商品到购物车
+
+
+		2.2配置url
+
+		2.3detail.html
+
+		2.4base.html如果这里面不修改成cart_count,加入购物车的一瞬间购物车数据会变成0'
+				<div class="guest_cart fr">
+			<a href="#" class="cart_name fl">我的购物车</a>
+			<div class="goods_count fl" id="show_count">{{ cart_count }}</div>
+		</div>
+
+		--bug!!
+		2.5 cart_count获取不到,购物车记录变成 0!无法添加'	
+
+
+		遍历获取商品信息
+
+		给sku增加属性count,amount,分别保存用户购物车中添加的商品的数目和商品小计
+
+		注:from utils.mixin import LoginRequiredMixin 这里不能继承这个类,因为这个类返回的是一个index页面,
+			而ajax返回的只能是一个json数据,不能做页面跳转,即使做了也是在后台的,前台看不见
+
+
+		bug:当添加商品的品种的时候,购物车cart_count显示不出来,反而出现为 0,
+			这个时候肯定是后端的view视图函数中 hset 那里设置redis数据库的代码没写对,
+			导致数据写不进去redis,而且也拿不到,但是代码不会报错
+
+
+		bug'
+		显示购物车页面,添加不进去
+		答:已经解决,是class CartInfoView(LoginRequiredMixin,View):
+			这里获取的redis数据写在for循环里面去了 ,只取了一个数据就return返回了响应
+
+
+
+	3.购物车记录更新
+
+		采用ajax post请求
+		前端需要传递的参数:商品id(sku_id) 商品数量(count)
+
+        3.1//获取全选checkbox选中的状态
+        var is_checked = $(this).prop('checked')
+        	代码略
+
+
+        3.2//更新页面上被选中的商品的总数目和总价格
+        function update_page_info() {
+            var total_count = 0
+            var total_amount = 0
+            
+            //获取所有被选中的商品对应的ul元素(parent只能选中父标签，parents可以选中爷爷及以上的标签)
+            $('.cart_list_td').find(':checked').parents('ul').each(function () {
+               //获取商品的数量和小计
+                var count = $(this).find('.num_show').val()
+                var amount = $(this).children('.col07').text()
+                //累加计算被选中的商品的总数目和总价格
+                total_amount = parseFloat(amount)
+                total_count = parseInt(count)
+            })
+             //设置页面被选中的商品的总数目和总价格
+            $('.settlements').find('em').text(total_amount.toFixed(2))
+            $('.settlements').find('b').text(total_count)
+       		 }
+
+
+        3.3//商品的选中状态发生改变，全选checkbox也要改变	 
+
+
+
+        3.4购物车记录的更新
+
+        通用思路:
+        1.获取商品的id和count
+        2.发起ajax post请求,访问/cart/update,传递的参数:商品id和count
+        3.更新结果执行操作
+        	3.1更新成功
+
+
+
+
+
+
+
+
+
+	4.购物车记录删除
+	
+		采用ajax post请求
+
+		json数据返回传到 data中(所有的数据都是传到这里的,包括错误信息)
+
+		注:实际开发中,需要与前端沟通确认:
+			1.请求方式	
+			2.确定前端是否传递什么数据,什么格式
+			3.确定返回给前端的什么数据,什么格式
+
+
+		如果购物车记录已经添加过该商品(通过判断是否有该商品sku_id),那么商品数量需要累加	
+		,所以要从redis数据库中获取原购物车数量,但首先要判断用户是否登录
+
+		判断库存
+
+		csrf获取,传到前端页面
+
+		购物车动画
+
+
+
+
+
+
+明天预习:
+	1.购物车页面的js
+	2.显示提交订单页面place_order.html
+	3.结算
+
+	预习:
+	CheckBox
+	checked
+
+
+
+
+*********************************************************
+小结:
+	1.实际开发中需要与前端沟通好,使用什么请求方式
+
+
+	2.显示图片有两种方式:
+		{{ sku.image.url }}
+		{% static 'image/logo.png' % }
+
+
+	3.利用反向解析跳转页面:
+		<a href="{% url 'cart:show' %}">我的购物车</a>	
+
+		其中'cart'是反向解析中项目文件中的url配置: url(r'^cart/', include('cart.urls', namespace='cart')),
+		'show' 是应用cart中url配置:    url(r'^$',CartInfoView.as_view(),name='show'), 
+
+	4.# 获取用户的购物车的记录信息
+        conn = get_redis_connection('default')
+        # 购物车记录是一个字典
+        cart_dict = conn.hgetall(cart_key)  # {‘商品id’：‘数量’}
+
+        注:凡是有get_redis_connection(),这个方法的都是跟redis建立的连接
+        	并且将数据写入其中,在CACHE里可以设置存储在redis的哪个数据库中
+
+
+******************************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

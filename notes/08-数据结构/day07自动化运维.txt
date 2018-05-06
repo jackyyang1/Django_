@@ -1,0 +1,246 @@
+
+
+
+
+环境部署:
+
+
+
+				 $# $n 在函数内部时，获取的值是调用函数时传递进来的
+
+					 使用source指向脚本时，如果脚本中有函数，可以直接在当前窗口调用函数
+
+				在root账户下，在指定目录中，想使用虚拟环境
+
+				export WORKON_HOME=/home/python/Desktop/code
+
+				source /usr/local/bin/virtualenvwrapper.sh
+
+	7、发布代码
+
+		准备环境
+
+			在windows中使用xshell连接远端服务器，配置ip、用户名、密码
+
+			通过root用户连接
+
+				vi /etc/ssh/sshd_config
+				把下面内容
+				#PermitRootLogin prohibit-password
+				改为
+				PermitRootLogin yes
+				重启ssh服务
+				service ssh restart
+
+			linux连接linux（重点）
+
+				ssh root@192.168.133.141
+
+
+			windows向远端服务器，上传 下载
+
+				连接上服务器，在服务器中安装工具  apt install lrzsz
+
+				上传：rz
+
+				下载：sz 文件名
+
+			linux和linux，上传 下载
+
+				下载：scp python@192.168.133.141:/home/python/Desktop/code/for.sh .
+
+				上传：scp abcdefg python@192.168.133.141:/home/python/Desktop
+
+
+			linux远程连接，免密码
+
+				线上服务器：创建公钥和私钥  ssh-keygen -t rsa
+
+				把公钥放到代码服务器  /root/.ssh/authorized_keys
+
+			django软件
+
+				虚拟环境 
+
+					export WORKON_HOME=/data/virtual/
+					source /usr/local/bin/virtualenvwrapper.sh
+
+				创建python3版本的虚拟环境
+
+					mkvirtualenv -p python3 django
+
+
+				启动django
+
+					python manage.py runserver >/dev/null 2>&1 &
+
+				停止django
+
+					kill $(lsof -ti:8000)
+
+					ctrl+r 查找使用过的命令
+
+			nginx软件
+
+				./configure     
+				make
+				make install
+
+				代理django项目
+
+				location ~ /hello {
+		            proxy_pass   http://127.0.0.1:8000;
+		        }
+
+		发布代码
+
+				手工发布
+
+					--------代码服务器-------
+
+					1、获取代码
+
+					2、打包代码
+
+						tar zcf django.tar.gz django
+
+					--------线上服务器-------
+
+					3、传输代码
+
+						scp root@192.168.133.141:/data/codes/django.tar.gz /data/codes/
+
+
+					4、解压代码
+
+						tar xf django.tar.gz
+
+					5、停止应用
+
+						停止nginx
+
+							/data/server/nginx/sbin/nginx -s stop
+
+						停止django
+
+							kill $(lsof -ti:8000)
+
+					6、替换代码
+
+						备份
+
+							mv /data/server/itheima/hello/views.py /data/backup/view.py-$(date +%Y%m%d%H%M%S)
+
+						替换
+
+							mv /data/codes/django/views.py /data/server/itheima/hello/
+
+					7、开启应用
+
+						开启django
+
+							export WORKON_HOME=/data/virtual/
+							source /usr/local/bin/virtualenvwrapper.sh
+
+							python manage.py runserver >/dev/null 2>&1 &
+
+						开启nginx
+
+							/data/server/nginx/sbin/nginx
+
+					8、检查
+
+						lsof -Pi:80
+
+
+				自动化发布
+
+					sed -i 's#1.1#1.2#' /data/codes/django/views.py 
+
+					打包代码
+
+						sed -i 's#1.2#1.3#' /data/codes/django/views.py 
+						bash /data/scripts/tar_code.sh 
+						zcat /data/codes/django.tar.gz 
+
+					远程执行命令
+
+						ssh root@192.168.133.141 "bash /data/scripts/tar_code.sh"
+
+
+
+
+
+
+----------------------------------------------------
+自动化部署项目脚本:
+	将零碎化的命令写入deploy.sh文件,执行文件调用方法,自动完成项目部署
+	
+	1.
+
+
+	2.
+
+
+
+
+
+
+	4.添加write_log 日志功能
+
+
+
+	5.添加锁文件,删除锁文件
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------
+1.输出时间:
+	
+	date +%F-%T
+	2018-03-06-11:38:21
+
+
+2.关于锁:
+	如:在运行文件操作MongoDB的时候,有读写操作,会默认加锁
+		如果运行期间出现错误,程序崩溃,那么MongoDB就不能使用了,因为上一次运行没有解锁
+		解决: 找到内部锁文件并删除即可!
+
+
+3.重点:  ---->必须知道的
+
+	1.什么是shell: 命令解释器
+
+	2.命名变量
+
+	3. &
+
+	4.四剑客
+
+	5.source --->让函数可调用
+
+	6.连接 服务器,上传下载文件
+
+	7.发布流程
+
+-----------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+

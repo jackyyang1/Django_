@@ -1,0 +1,332 @@
+买买买！！！！决战618
+git操作指南
+
+
+
+
+--更新备注
+
+--删除关注的股票
+
+
+
+--总结
+
+--元类
+
+
+  --orm（MVT）,Django
+
+
+--GIL全局解释器锁
+
+
+
+Nginx  --服务器--保证服务器任务分配均衡
+
+
+redis 缓存中间件--设置热点数据（设置过期时间）
+
+
+
+--元类 是用来创建类的！！！！
+
+  元类--》类——》对象
+
+  type（1） ———》int
+  help（int），也可以看看int的信息，是一个类
+
+  help（type）——》元类
+  
+   type就是元类 
+  
+  class Person（objec）：
+       pass
+ 
+   通过type 也能够创建Person
+   参数1：字符串类型。传需要创建的类的名字
+   参数2：元组类型，继承的父类
+   参数3：字典类型，类中方法或者属性，不包括对象
+
+**********************************************************************************************-- 总结
+
+-- 元类
+
+类--> 对象
+
+元类  --> 类--> 对象
+
+type就是元类  --> 类--> 对象
+
+
+class Person(object):
+	pass
+
+通过type 也能够创建Person
+参数1: 字符串类型, 传需要创建的类的名字
+参数2: 元组类型, 继承的父类
+参数3: 字典类型, 类中方法或者属性, 不包括对象属性
+type("",(),{})
+
+Son = type("Son",(),{})  创建Son类
+
+类: 类属性 类方法 (实例属性无法通过type完成) 对象方法, 静态方法
+	-- 类属性 TT = type("TT",(),{"bar":True})
+	-- 对象方法 
+		class Person(object):
+			__metaclass___
+			def run(self):
+				print("Person run")
+
+
+		def run(self):
+			print("P run")
+
+		P = type("P",(),{"run":run})
+	
+	-- orm (MVT), django
+
+-- GIL 全局解释器锁
+
+
+-- 在python中调用c的动态库
+
+
+
+
+ 
+******************************************************************************************  
+
+  orm里面自带sql语句，可以直接调用，来执行MySQL的增删查改！
+
+
+
+ --GIL全局解释器锁
+
+  单进程： python--》解释器（cpython）【在解释源代码的时候会上锁，保证只有一个进程在使用解释器              】 ---》CPU
+  
+          如果是单核CPU运行死循环（htop查看），GIL会让CPU使用率上升到100%
+  
+            双核.....50% 每个核
+
+
+   如果希望彻底解决GIL问题：
+     可以直接将cpython解释器换成 jpython解释器
+
+********************************************************************************
+ C语言：
+  #include <studio.h>          # 导入
+
+  int main()                   # int 是返回值类型   main是入口相当于if 
+  {
+       char *******p = NULL;    # 指针
+       print("hello haha\n");    
+       return 0;
+   }
+ 
+ 注：编译型语言；在执行之前必须要先编译成二进制数据
+    gcc demo.c   生成 编译文件
+    
+
+
+********************************************************************************
+元类：
+
+ 1.  type 是元类，是用来创建类的
+
+  
+    例：In [8]: class Person(object):
+         ...:     pass
+         ...: help(Person)
+         ...:
+        Help on class Person in module __main__:
+
+        class Person(builtins.object)
+ |          Data descriptors defined here:
+ |
+ |          __dict__
+ |              dictionary for instance variables (if defined)
+ |
+            __weakref__
+ |              list of weak references to the object (if defined)
+ 
+           
+   用type 创建类的格式如下：
+     In [19]: TT = type("TT",(),{"bar":True})
+
+     In [20]: help(TT)
+     Help on class TT in module __main__:
+
+     class TT(builtins.object)
+ |       Data descriptors defined here:
+ |
+ |      __dict__
+ |           dictionary for instance variables (if defined)
+ |
+ |       __weakref__
+ |           list of weak references to the object (if defined)
+ |
+ |       ----------------------------------------------------------------------
+ |       Data and other attributes defined here:
+ |
+ |       bar = True
+
+      注：在用help查看的时候也能查看其类属性 True
+
+         In [23]: TT
+         Out[23]: __main__.TT
+
+  2. type可以在创建类的时候添加方法
+     
+   def run(self):
+       print('哈哈') 
+ 
+   P = ("P",(),{"run":run})
+   # 对象调用方法  
+   p = P（）
+   p.run()
+   哈哈  
+   # 类对象调用方法
+   P.run（1）
+   哈哈
+
+
+  3. type 可以创建类的时候添加类方法和静态方法
+     
+    
+  In [33]: @staticmethod
+    ...: def run():
+    ...:     print("staticmethod run")
+    ...:     
+
+In [34]: @classmethod
+    ...: def test_classmethod(cls):
+    ...:     print("classmethod run")
+    ...:     
+
+In [35]: PP = type("PP",(),{"run":run,"test_classmethod":test_classmethod})
+
+In [36]: pp = PP()
+
+In [37]: pp.run()
+staticmethod run
+
+In [38]: PP.run()
+staticmethod run
+
+In [39]: PP.run()
+staticmethod run
+
+In [40]: PP.test_classmethod()
+classmethod run
+
+In [41]: pp.test_classmethod()
+classmethod run
+
+In [42]: pp.bar = True
+
+In [43]: pp.bar
+Out[43]: True
+   
+
+
+
+
+
+
+****************************************************************
+
+课堂知识点：
+
+ 1。URL编码
+  GET
+  /update  后面会接上urlencode 一大串16进制的数据，可以使用URL解码翻译
+  
+2.
+  2.1.建立对应关系def update_info(path,pattern),提取股票简称 和 备注的信息
+   2.2 对提取信息 做url解码
+   
+        # 2.对提取的信息 做url解码
+    short = urllib.parse.unquote(short)
+    note_info = urllib.parse.unquote(note_info)
+    
+    注：解码前先要导入模块  ：import urllib.parse
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*********************************************************************
+小计：
+  1.错误弹窗，每个地方都要稍微不同，出错的时候方便查找
+
+ 2.
+touch readme.md
+请以以下方式运行项目：python3 web_server.py 8888 my_app:app
+
+

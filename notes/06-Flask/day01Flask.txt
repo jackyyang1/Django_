@@ -1,0 +1,521 @@
+
+
+
+Flask
+
+
+
+
+HTTP通信:
+
+	HTTP协议报文
+
+
+	gunicorn
+
+
+
+
+
+
+
+1.关于Flask(轻量级框架)
+	1.1了解框架:
+
+	使用框架的目的: 降低开发难度,提高开发效率
+
+	flask的核心是: 路由和视图
+
+	Flask本身相当于一个内核，其他几乎所有的功能都要用到扩展（邮件扩展Flask-Mail，用户认证Flask-Login），都需要用第三方的扩展来实现。比如可以用Flask-extension加入ORM、窗体验证工具，文件上传、身份验证等。Flask没有默认使用的数据库，你可以选择MySQL，也可以用NoSQL。其 WSGI 工具箱采用 Werkzeug（路由模块） ，模板引擎则使用 Jinja2 
+
+	可以说Flask框架的核心就是Werkzeug和Jinja2(模板引擎)
+
+
+	Flask扩展包：
+
+		Flask-SQLalchemy：操作数据库；
+		Flask-migrate：管理迁移数据库；
+		Flask-Mail:邮件；
+		Flask-WTF：表单；
+		Flask-script：插入脚本；
+		Flask-Login：认证用户状态；
+		Flask-RESTful：开发REST API的工具；
+		Flask-Bootstrap：集成前端Twitter Bootstrap框架；
+		Flask-Moment：本地化日期和时间；
+
+
+	1.2安装环境:
+
+		用python2创建虚拟环境:
+		mkvirtualenv flask_py2
+
+		指定Flask版本安装
+		pip install flask==0.10.1
+
+		生成依赖包（移植环境,须在虚拟环境中）：
+		pip freeze > requirements.txt
+		注:迁移好的txt文件需要拿出来,放在需要运行的机器上进行安装,如下所示命令来安装:
+
+		安装依赖包（须在虚拟环境中）：(-r是迭代)
+		pip install -r requirements.txt
+
+
+		在ipython中测试安装是否成功
+		from flask import Flask
+
+		注:如果安装包的时候前面加了sudo 那么就不是在虚拟环境中安装了,
+			而是直接安装在真实环境中!
+
+
+1.4 flask的hello world程序!
+			-------------------------------------
+		hello.py
+
+			# coding:utf-8
+
+			# 导入Flask类
+			from flask import Flask
+
+			#Flask类接收一个参数__name__
+			app = Flask(__name__)
+
+			# 装饰器的作用是将路由映射到视图函数index
+			@app.route('/')
+			def index():
+			    return 'Hello World'
+
+			# Flask应用程序实例的run方法启动WEB服务器
+			if __name__ == '__main__':
+			    app.run()
+
+			----------------------------------------    
+			疑问: __name__ 是参数吗?'还是模块名?
+			答:是实例化Flask()对象的时候传的参数,它代表了当前页面的模块名(通俗点:__name__代表了它所在页面的模块名,.py文件 就是一个模块)
+
+
+			注: 0.启动flask服务器有二种方式:
+						1.终端:python 01_hello.py
+						2.在pycharm中反键运行 
+
+				1.flask默认是后台运行,如果在终端运行了,那么你关闭终端,再次运行的时候他会提示你,已经在运行了,
+					这个时候如果想关掉,那么就 ps aux|grep flask 找到pid,sudo kill -9 pid
+
+				2.flask默认运行的地址:127.0.0.1:5000
+
+				3.因为flask使用的环境是python2,所以在开头一定要 # coding=utf-8	
+					而且模块名不要以数字开头
+
+				4.http://localhost:5000/static/index.html访问静态文件
+
+				5.当修改了静态路径为其他的名称时,如"python" :static_url_path="/python"
+					那么访问静态文件的时候就如下:http://localhost:5000/python/index.html
+
+				6.配置参数的使用:(开启调试模式:DEBUG=True)
+					方式一:使用文件
+						app.config.from_pyfile("config.cfg")
+
+					方式二:使用对象
+						class Config(object):
+							"""配置参数"""	
+							DEBUG=True  # 调试模式
+
+						app.config.from_object(Config) # 从对象中导入参数，把类名传过来,它会自动从类名找到类里面的变量或者方法
+	
+					方式三:使用字典    (app.config保存了flask的所有的配置信息，我我们可以把这个属性当做字典来使用)		
+						app.config["DEBUG"] = True
+
+					注:开启之后,运行出现DEBUGGER is 'active',表示开启成功	
+
+				7.调试模式的作用： (DEBUG=True)
+					 1.自动启动  :restart (保存之后生效:ctrl + s)   
+					 2.返回错误信息 (开启返回具体错误信息,关闭之后返回500) 		
+
+				8.提取配置参数 :
+					from flask import Flask,current_app  
+				     1.通过app或者current_app来提取配置参数          
+				    p = app.config.get("ITCAST")         
+				     2.current_app(当配置文件过多时,分成了很多小块,不方便找,这个时候用current_app,它就是代表app)                       
+				    p = current_app.config.get("ITCAST")   
+				   	print(p)                               	 
+									
+				9.启动flask程序:                                
+				    1.app.run()                                
+				    host指明ip地址，port 指明端口                     
+				    2.app.run(host='192.168.32.149',port=8000,debug=True)
+				    3.app.run(host='192.168.32.149', port=8000)     	
+				    注:指定ip和端口可以使外面机器来访问
+
+
+			--------------------------------------------------------
+
+
+1.5路由:
+	------------------------------------------------------
+	route.py:
+
+		1. 默认支持以GET方式访问
+		 可以通过 methods 参数修改支持的访问方式
+			@app.route("/",methods=["GET","POST"])  # 支持两种访问方式
+			def index():
+			    return "index page"
+
+		2.查看路由: url_map
+			...
+			@app.route("/",methods=["GET","POST"]) 
+			...
+			@app.route('/hello')
+			...
+
+
+			if __name__=='__main__':
+			    # 使用url_map查看所有的路由与试图的信息
+			    print(app.url_map)
+			    app.run(debug=True)	    
+
+			打印结果如下:
+				Map([<Rule '/hello' (HEAD, OPTIONS, GET) -> hello>,
+				 <Rule '/' (HEAD, POST, OPTIONS, GET) -> index>,
+				 <Rule '/static/<filename>' (HEAD, OPTIONS, GET) -> static>])    
+
+		3. 同一个路径，被不同的视图使用，如果请求方式页相同，则前面定义的会覆盖调后面的
+		   如果请求方式不一样，则不会冲突
+
+			@app.route('/hello',methods=["POST"])
+			def hello1():
+			    return '<h1>hello1</h1>'
+
+			@app.route('/hello')     # 不写methods默认时GEt方式请求
+			def hello2():
+			    return '<h2>hello2</h2>'		
+
+			注:这里在演示 访问的时候,看到POST访问方式会直接跳到下一个去访问hello2,
+				因为在使用'POST'方式访问的时候,系统会跳出:Method Not Allowed字样,即系统默认禁止使用post方式访问,这是出于安全机制
+
+
+		4.同一个试图函数，多个路径(输入哪个路径都可以访问视图函数)
+			@app.route('/h1')
+			@app.route('/h2')
+			def hi():
+			    return 'hi girl！'		
+
+
+1.6重定向:
+	------------------------------------------------------------------
+	redirect.py
+	
+		1.重定向
+			from flask import redirect,url_for
+
+			@app.route("/")
+			def index():
+			    return "index page"
+
+
+			@app.route('/login')
+			def login():
+			    # 使用url_for来反推路径，url_for接收参所属，视图函数的名字
+			    url = url_for("index")
+			    print(url)
+			    return redirect(url)
+			注:这里用url_for这个方法将要跳转的视图函数名放在里面,就会自动解析出要跳转的路径为'/',然后跳转
+
+
+		2.转换器
+			 格式：<转换器类型:参数名>    # 对比:在django中关键字参数捕获的规则是/goods/(?P<goods_id>)
+			 
+			@app.route('/goods/<int:goods_id>')
+			# @app.route('/goods/<goods_id>')   # 默认时字符串类型
+			def index(goods_id):
+			    return 'goods page goods_id=%s'%goods_id
+				
+			注:1.输入地址访问:输入什么数字就返回什么数字-->127.0.0.1:5000/goods/123 	   
+				 因为转换器中指定了类型是 int 所以只能匹配数字,位数不限
+			   2.转换器有三种类型:int, float ,path(可以包含/的字符串)  字符串（不能包含/）  --默认是字符串类型		
+
+
+		3.自定义转换器:(重要!!!)
+				3.1
+				from werkzeug.routing import BaseConverter # 转换器的父类 
+
+				#自定义转换器
+				1.以类的方式定义
+				class MoblieConverter(BaseConverter):
+				    """自定义手机号码转换器"""
+
+				    def __init__(self,url_map):
+				        """
+				        flask调用的初始化方法
+				        :param url_map:是flask传递的
+				        """
+				        # 调用父类的初始化方法，将url_map传给父类，父类会用到这个url_map参数
+				        super(MoblieConverter, self).__init__(url_map)
+
+				        # regex 用来保存正则表达式，最终被flask使用匹配提取
+				        self.regex=r'1[345678]\d{9}'
+
+
+				2.向flask添加自定义的转换器(注册)
+				# converters 包含了flask所有的转换器，可以像字典的方式使用
+				app.url_map.converters['mobile']=MoblieConverter
+
+				# GET  /send_msg/18123456789
+				# 根据转换器的类型名字找到转换器的类，然后实例化这个转换器的对象
+				# 转换器对象中有一个对象属性regex，保存了用来匹配提取的正则表达式
+			    3.使用自定义的转换器
+				@app.route('/send_msg/<mobile:mobile_num>')
+				def send_msg(mobile_num):
+				    return 'send_msg to mobile:%s'%mobile_num
+
+
+				注:记住这三个步骤!
+				----------------------------------------------------------------------------------------------------------
+				3.2在MobileConverter这个类中也可以定义两个方法来处理:路径返回值,重定向路径
+					    def to_python(self, value):
+					        """我们定义，由flask调用，从路径中提取的参数，先经过这个函数处理，函数返回的值作为视图函数的值"""
+					        return '123'  # 这里定义的是多少,返回的就是多少
+
+
+					    def to_url(self, value):
+					        """我们定义，由flask调用：在用url_for反推路径的时候被调用，用来将处理后的参数添加到路径中"""
+					        return '18888888888' # 重定向时,返回到路径里的返回值   /send_msg/1888888888
+
+
+				   # 定义一个hello函数来重定向到send_msg试图函数中
+					@app.route('/hello')
+					def hello():
+					    url = url_for("send_msg",mobile_num="13838383838")  # /send_msg/???
+					    print(url)
+					    return redirect(url)     
+
+				注: 1.通过访问下面的hello函数来重定向访问mobile_num页面:127.0.0.1:5000/hello  
+					2.to_python处理后的值返回给页面中(mobile_num),to_url处理后返回值返回给了重定向的路径中(send_msg/1888888888)
+					3.在自定义类中,这两个方法:to_python方法,to_url方法很少使用,一般在公司有需求的时候才会使用	
+			----------------------------------------------------------------------------------------------------	    
+			3.3*更为强大的电话号码转换器:(将正则作为参数传递)
+
+			# 自定义转换器
+			# 1.以类的方式定义
+			class ReConverter(BaseConverter):
+			    """自定义手机号码转换器"""
+			    def __init__(self,url_map,reg):
+			        """
+			        flask调用的初始化方法
+			        :param url_map:是flask传递的
+			        """
+			        # 调用父类的初始化方法，将url_map传给父类，父类会用到这个url_map参数
+			        super(ReConverter, self).__init__(url_map)
+
+			        # regex 用来保存正则表达式，最终被flask使用匹配提取
+			        self.regex= reg
+
+
+			# 2.向flask添加自定义的转换器
+			# converters 包含了flask所有的转换器，可以像字典的方式使用
+			app.url_map.converters['re']=ReConverter
+
+			# GET  /send_msg/18123456789
+			# 根据转换器的类型名字找到转换器的类，然后实例化这个转换器的对象
+			# 转换器对象中有一个对象属性regex，保存了用来匹配提取的正则表达式
+			# 3.使用自定义的转换器
+			@app.route("/send_msg/<re(r'1[345678]\d{9}'):mobile_num>")
+			def send_msg(mobile_num):
+			    return 'send_msg to mobile:%s'%mobile_num			
+
+
+			注:在使用转换器的时候直接传入要匹配的正则表达式直接当参数传进去  :re(r'1[345678]\d{9}') 
+				然后将 {'re':ReConverter} re 注册到 converters(转换器)中,并且要将reg
+				这个多出来的参数传递到自定义的转换器类中,这个reg就是第二个参数,然后 self.regex= reg
+
+			总结:'这样做可以少些很多代码,而且扩展性强,如果想匹配固定电话,那么直接改参数的正则即可,复用性强!
+
+	-------------------------------------------------------------------
+
+		405状态码:请求方式不支持
+
+	----------------------------------------------------------------------
+1.6前端请求参数的方式:
+
+
+
+	HTTP协议报文
+		起始行
+		请求头 Header
+		请求体 body
+
+	POST /goods/123456?a=1&b=2 HTTP/1.1
+	User-agent:xxx
+	Content-Type:xxx
+	Itcast:xxx
+	Cookie:cookie=xxx;cookie2=xxx
+	\r\n
+	body
+
+
+	前端向后端发送参数的方式
+	1.从路径中使用正则传参
+	2.路径?传参  查询字符串 query string  ?a=1&b=2  不限制请求方式,get能穿,其他方式也能传
+	3.从请求头中传递参数
+	4.cookie
+	5.请求体参数
+		5.1图片
+		5.2文件
+		5.3字符串:
+			5.3.1.普通表单格式 : "c=3&d=4"       # <form method='post'>
+			5.3.2.json格式字符串 :'{"c":3,"d":4}'  # json数据是类似于字典的字符串
+			5.3.3.xml格式字符串 :
+								"""
+								<xml>
+									<c>3</c>
+									<d>4</d>	
+								</xml>
+								"""  
+
+
+	注:理解普通表单格式:1.如果请求格式是method='get',那就拼接到地址栏中 (?c=3&d=4)		
+					  2.如果请求格式是method='post',那就将c=3&d=4 放在 body中发送过去	
+
+
+    ----------------------------------------------------------------------------					  
+
+	postman 接口测试工具
+		安装postman:
+		扩展程序-->开发者模式-->加载已解压的扩展程序
+
+
+-------------------------------------------------------------
+flask开发文档的底层介绍:
+
+		from flask import Flask
+		app = Flask(__name__)
+
+		@app.route('/')
+		def hello_world():
+		    return 'Hello World!'
+
+		if __name__ == '__main__':
+		    app.run()
+
+
+	1.首先，我们导入了 Flask 类。这个类的实例将会是我们的 WSGI 应用程序。
+	2.接下来，我们创建一个该类的实例，第一个参数是应用模块或者包的名称。 如果你使用单一的模块（如本例），你应该使用 __name__ ，因为模块的名称将会因其作为单独应用启动还是作为模块导入而有不同（ 也即是 '__main__' 或实际的导入名）。这是必须的，这样 Flask 才知道到哪去找模板、静态文件等等。详情见 Flask 的文档。
+	3.然后，我们使用 route() 装饰器告诉 Flask 什么样的URL 能触发我们的函数。
+	4.这个函数的名字也在生成 URL 时被特定的函数采用，这个函数返回我们想要显示在用户浏览器中的信息。
+	5.最后我们用 run() 函数来让应用运行在本地服务器上。 其中 if __name__ == '__main__': 确保服务器只会在该脚本被 Python 解释器直接执行的时候才会运行，而不是作为模块导入的时候
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,843 @@
+
+
+爱家租房
+
+
+1.将查询到的房屋数据进行缓存
+
+	将缓存以hash类型保存在redis中-->  hset-->expire设置有效期 
+	如果查询页数大于有效页数,那么就不缓存
+	查询redis中的缓存:hgetall + 键 --> 查看所有值
+
+	------------------------------------------------------
+	管道:
+	使用redis提供的pipline(管道)工具,一次执行多条redis命令
+
+	1.创建redis管道工具对象:
+	pipe = redis_store.pipeline()
+
+	2.开启管道,让其接收多条redis命令
+	pipe.multi()
+
+	3.通过pipe执行管道命令
+	pipe.hset(redis_key, page, resp_json_str)
+	pipe.expire(redis_key,有效期时间)
+
+	4.让管道执行命令
+	pipe.execute()
+
+	管道可以把要执行的redis命令一次性执行,不用一条条来
+	---------------------------------------------------
+	操作;
+		使用postman以GET方式请求:
+		127.0.0.1:5000/api/v1.0/houses
+		127.0.0.1:5000/api/v1.0/houses?p=2
+		127.0.0.1:5000/api/v1.0/houses?p=3
+
+		与此同时可以查询redis中的房屋列表页缓存:
+			1.keys *  -->  house_list_None_None_None_new  # 因为页面时写死的,我们暂时查不到自己上传的房源信息,所以返回None
+			2.hgetall house_list_None_None_None_new
+
+	------------------------------------------------
+
+2.search.js(理解就行)
+	房源:
+	填充模板,each遍历--替换html()-->追加append()
+
+	页面加载,城区选择的显示
+
+	页面滚动-->onscroll-->根据像素(接近窗口底部)调用函数-->发送请求
+
+
+	注: 1.关于滚动,把当前页面最顶端 和最低端两个点相减,如果像素小于50,那么就回调函数,
+		向后端发送请求
+		2.如果滚动速度特别快:翻到第一页返回数据还没结束,就又翻到第二页,又开始请求数据,那么同时返回前一页和当前页的数据,出现混乱!
+			解决:
+			加一个全局变量:house_data_querying = true //表示前端还在向后端发送请求
+			请求结束收到返回值,将house_data_querying=false 改为false  //表示之前的请求结束
+			那么滚动就可以调用函数继续发送请求
+
+	-------------------------------------------------------------------
+	操作:
+	search.html
+		将写死的数据,改成后端传的数据:
+
+        <script id="house-list-tmpl" type="text/html">
+            {{ each houses as house }}
+          <li class="house-item">
+                <a href="/detail.html?id={{ house.house_id }}"><img src="{{ house.img_url }}"></a>
+                <div class="house-desc">
+                    <div class="landlord-pic"><img src="{{ house.user_avatar }}"></div>
+                    <div class="house-price">￥<span>{{ (house.price/100.0).toFixed(0) }}</span>/晚</div>
+                    <div class="house-intro">
+                        <span class="house-title">{{ house.title }}</span>
+                        <em>出租{{ house.room_count }}间 - {{ house.order_count }}次入住 - {{ house.address }}</em>
+                    </div>
+                </div>
+            </li>
+            {{ /each }}
+        </script>
+
+
+	search.js
+
+		var cur_page = 1; // 当前页
+		var next_page = 1; // 下一页
+		var total_page = 1;  // 总页数
+		var house_data_querying = true;   // 是否正在向后台获取数据
+
+		// 解析url中的查询字符串
+
+		// 更新用户点选的筛选条件
+
+		// 更新房源列表信息
+		// action表示从后端请求的数据在前端的展示方式 append
+		// 默认采用追加方式
+		// action=renew 代表页面数据清空从新展示
+
+	    // 获取筛选条件中的城市区域信息
+	    ...
+
+
+	BUG'    
+		 1.在search.js第184行报错如下,搜索不到数据,返回的页面什么也没有:
+		    raise TypeError(repr(o) + " is not JSON serializable")
+			TypeError: <bound method House.to_basic_dict of <ihome.models.House object at 0x7f5ea01c93d0>> is not JSON serializable
+		待解决:	
+
+	------------------------------------------------------------------		
+
+
+3.houses.py
+	见昨日代码:
+	def get_user_houses() 获取房东发布的房源信息条目
+
+	def get_house_index() 获取主页幻灯片展示的房屋基本信息
+
+	def get_house_detail() 获取房屋详情
+		在这里用到了在模型类中 class House(),封装的将全部字段转换为字典的方法 def to_full_dict()
+		使用此方法之后可以拿到里面我们想要的数据,如:用户名,头像,等
+
+		--------------------------------------------------------------
+		models.py代码如下:
+		    def to_full_dict(self):
+		        """将详细信息转换为字典数据"""
+		        house_dict = {
+		            "hid":self.id,
+		            "user_id":self.user_id,
+		            "user_name":self.user.name,
+		            "user_avater":constants.QINIU_URL_DOMIAN + self.user.avatar_url if self.user.avatar_url else "",
+		            "title":self.title,
+		            "price":self.price,
+		            "address":self.address,
+		            "room_count":self.room_count,
+		            "acreage":self.acreage,
+		            "unit":self.unit,
+		            "capacity":self.capacity,
+		            "beds":self.beds,
+		            "deposit":self.deposit,
+		            "min_days":self.min_days,
+		            "max_days":self.max_days,
+		            # "img_urls":[],   # 所有房屋的图片
+		            # "facilities":[],    # 房屋设施
+		            # "comments":[{"comment":"","user_name":"","ctime":""},{},{}...]   # 评论
+		        }
+
+		        # 房屋图片
+		        img_urls = []
+		        for image in self.images:
+		            img_urls.append(constants.QINIU_URL_DOMIAN + image.url)
+		        house_dict["img_urls"] = img_urls
+
+		        # 房屋设施
+		        facilities = []
+		        for facitily in self.facilities:
+		            facilities.append(facitily.id)
+		        house_dict['facilities'] = facilities
+
+		        # 评论信息
+		        comments = []
+		        orders = Order.query.filter(Order.house_id == self.id, Order.status == "COMPLETE",Order.comment != None)\
+		            .order_by(Order.update_time.desc()).limit(constants.HOUSE_DETAIL_COMMENT_DISPLAY_COUNTS)
+		        for order in orders:
+		            comment = {
+		                "comment":order.comment,  # 评论内容
+		                "user_name":order.user.name if order.user.name != order.user.mobile else "匿名用户",   # 发表评论的用户
+		                "ctime": order.update_time.strftime("%Y-%m-%d %H:%M:%S")  #评论时间
+		            }
+		            comments.append(comment)
+
+		        house_dict["comments"] = comments
+
+
+		--------------------------------------------------------------
+
+
+
+4.myhouse.js
+
+	-------------------------------------------------------
+	代码如下:
+	$(document).ready(function(){
+	    // 对于发布房源，只有认证后的用户才可以发布，所以先判断用户的实名认证状态
+	    $.get("/api/v1.0/user/auth", function(resp){
+	        if (resp.errcode == "4101") {
+	            // 用户未登录
+	            location.href = "/login.html";
+	        } else if (resp.errcode == "0") {
+	            // 未认证的用户，在页面中展示 "去认证"的按钮
+	            if (!(resp.data.real_name && resp.data.id_card)) {
+	                $(".auth-warn").show();
+	                return;
+	            }
+	            // 已认证的用户，请求其之前发布的房源信息,
+	            $.get("/api/v1.0/user/houses", function(resp){
+	                if (resp.errcode == "0") {
+	                    $("#houses-list").html(template("houses-list-tmpl", {houses:resp.data.houses}));
+	                } else {
+	                    $("#houses-list").html(template("houses-list-tmpl", {houses:[]}));
+	                }
+	            });
+	        }
+	    });
+	})
+	---------------------------------------------------------
+
+
+
+5.index.js
+
+
+	------------------------------------------------------------
+	操作:
+		1.把index.js中 获取幻灯片要展示的房屋基本信息 的代码放进$.get("/api/v1.0/houses/index")
+		中,实现在展示轮播图的时候获取到要展示的轮播图
+		2.把index.js中,获取城区信息的代码  放进    $.get("/api/v1.0/area_info",function (resp) {}
+			实现获取到后端城区信息的数据
+
+
+	------------------------------------------------------------	
+
+
+
+6.detail.html?id=5	
+	console:	document.location-->
+
+	1.swiper轮播插件,使用轮播图js扩展来实现轮播图的滚动: <script src="/static/plugins/swiper/js/swiper.jquery.min.js"></script>
+	2.每张轮播图<a href="detail.html?id=3">...</a>都有对应的id跳转地址,来实现点击跳转到对应详情页面
+		加载页面的时候,前端使用ajax向后端发送请求:document.location.href 能够将请求地址补全
+		如:location.href="/index.html",发送到后端的时候是:http://127.0.0.1:5000/index.html?id=5
+		document.location.search 方法可以将前面的地址参数去除,只留下"?id=5"传递到后端,后端再进行解析,调用对应函数进行显示
+		前端封装的有对应的函数:decodeQuery() -->id=5
+
+		---------------------------------------------------------------
+		操作:	
+		detail.js
+
+				$(document).ready(function(){
+
+				    // 获取详情页面要展示的房屋编号
+				    var queryData = decodeQuery(); //decodeQuery 可以将地址过滤 返回id=x给后端
+				    var houseId = queryData["id"];
+
+				    // 获取该房屋的详细信息
+				    $.get("/api/v1.0/houses/" + houseId, function (resp) {
+				        if (resp.errcode == "0") {
+
+				            $(".swiper-container").html(template("house-image-tmpl",{img_urls:resp.data.house.img_urls,price:resp.data.house.price}));
+				            $(".detail-con").html(template("house-detail-tmpl",{house:resp.data.house}));
+
+				            // resp.user_id为访问页面用户 ,   resp.data.user_id为房东
+				            if (resp.data.user_id != resp.data.house.user_id) {
+				                $(".book-house").attr("href","/booking.html?hid=" + resp.data.house.hid );
+				                $(".book-house").show();
+				            }
+
+				            var mySwiper = new Swiper ('.swiper-container', {
+				                loop: true,
+				                autoplay: 2000,
+				                autoplayDisableOnInteraction: false,
+				                pagination: '.swiper-pagination',
+				                paginationType: 'fraction'
+				            });
+				    // $(".book-house").show();
+				        }
+				    })
+
+				});
+
+		detail.html
+			将写死的信息 替换为后端参数<script></script>		
+
+
+		--------------------------------------------------------
+
+
+
+7.map()函数
+
+		# map()是python中的内建函数,映射
+
+
+		li = [1,2,3,4,5,6]
+		li2 = [7,8,9,10,11,12]
+		li3 = [1,2,3,4,5,6]
+
+		def add_self(item):
+		    """自增"""
+		    return item + 1
+
+
+		# ret = map(add_self,li)
+
+		# ret1 = map(lambda item: item + 2,li)
+
+		ret = map(lambda x,y:x+y,li,li2)   # 这个两个列表里的元素数量一定要相同，不然会报错
+
+		ret1 = map(lambda x,y,z:x+y+z, li, li2, li3 )
+
+		print(type(ret))
+		print ret
+		print("原来的列表：%s" % li )
+
+		# print ret1
+
+
+		注:1.python2 中的map与python3中的map 返回值不一样,python2中返回的是列表,python3中返回的是可迭代对象
+		   2.map() 用法为:def map(function, sequence, *sequence_1)
+									要执行的函数, 序列, 多个序列....
+
+			map()函数会将后面传进来的序列遍历,并分别放在前面的函数中执行,最后返回一个执行后的列表
+			3.其中传入的函数可以是匿名函数
+
+
+
+8.orders.py
+
+	===========================================================================
+	操作:
+	后端代码:
+
+		@api.route('/orders',methods=["POST"])
+		@login_required
+		def save_oder():
+		    """保存订单"""
+
+		@api.route("/user/orders",methods=['GET'])
+		@login_required
+		def get_user_orders():
+		    """查询用户的订单信息"""
+
+
+		@api.route("/orders/<int:order_id>/status",methods=["PUT"])
+		@login_required
+		def accept_reject_order(order_id):
+		    """接单，拒单"""
+
+
+		@api.route("/orders/<int:order_id>/comment",methods=["PUT"])
+		@login_required
+		def save_order_comment(order_id):
+		    """保存订单评论信息"""
+
+
+
+	===========================================================================	
+
+	booking.js前端代码:	
+
+
+
+
+视频7 2:50s '
+
+
+
+
+
+
+
+
+
+
+
+
+
+	大胆的想法:
+		能否年booking.html中的首页图片转换成变量自己的房源图片?
+
+
+	============================================================================
+
+
+9.订单并发问题;
+
+	1.乐观锁 2.悲观锁
+
+	并行-->串行
+	3.消息队列
+
+
+	with语句
+
+	celery -A ihome.celery_task.main worker -l info -c 1
+	-c指明并发
+
+	BUG:1.'cannot import user_order 循环导入
+		在init文件中延迟导入 
+
+
+		2.Unicode and Unicode不能进行加减操作
+			在传递参数的时候 要转换类型
+
+
+	接单状态是:wait_accept才能被接单
+
+
+	查询订单:
+		房东和房客界面不一样
+
+
+
+
+
+10.运营端,客户端
+
+	单一产品开发-->新功能的实现-->bug修改 (2-3年)
+
+ 	-->性能优化-->业务逻辑-->细节-->更改密码的技术-->
+
+
+ 	技术靠近-->新名词的了解
+
+ 	上进,信心
+
+
+
+
+
+================================================================
+
+falsk项目文件存储规范:
+	1.flask_ihome
+	2.ihome
+	3.__init__.py
+	4.manage.py
+	5.config.py
+
+
+
+flask_ihome
+├── config.py
+├── config.pyc
+├── ihome
+│   ├── api_v1_0
+│   │   ├── houses.py
+│   │   ├── houses.pyc
+│   │   ├── __init__.py
+│   │   ├── __init__.pyc
+│   │   ├── orders.py
+│   │   ├── orders.pyc
+│   │   ├── passport.py
+│   │   ├── passport.pyc
+│   │   ├── users.py
+│   │   ├── users.pyc
+│   │   ├── verify_code.py
+│   │   └── verify_code.pyc
+│   ├── celery_task
+│   │   ├── config.py
+│   │   ├── config.pyc
+│   │   ├── __init__.py
+│   │   ├── __init__.pyc
+│   │   ├── main.py
+│   │   ├── main.pyc
+│   │   └── sms
+│   │       ├── __init__.py
+│   │       ├── __init__.pyc
+│   │       ├── tasks.py
+│   │       └── tasks.pyc
+│   ├── constants.py
+│   ├── constants.pyc
+│   ├── __init__.py
+│   ├── __init__.pyc
+│   ├── libs
+│   │   ├── __init__.py
+│   │   ├── __init__.pyc
+│   │   └── yuntongxun
+│   │       ├── CCPRestSDK.py
+│   │       ├── CCPRestSDK.pyc
+│   │       ├── __init__.py
+│   │       ├── __init__.pyc
+│   │       ├── sms.py
+│   │       ├── sms.pyc
+│   │       ├── xmltojson.py
+│   │       ├── xmltojson.pyc
+│   │       └── 接口说明.txt
+│   ├── models.py
+│   ├── models.pyc
+│   ├── static
+│   │   ├── css
+│   │   │   ├── ihome
+│   │   │   │   ├── booking.css
+│   │   │   │   ├── detail.css
+│   │   │   │   ├── index.css
+│   │   │   │   ├── login.css
+│   │   │   │   ├── main.css
+│   │   │   │   ├── my.css
+│   │   │   │   ├── myhouse.css
+│   │   │   │   ├── newhouse.css
+│   │   │   │   ├── orders.css
+│   │   │   │   ├── profile.css
+│   │   │   │   ├── register.css
+│   │   │   │   └── search.css
+│   │   │   └── reset.css
+│   │   ├── favicon.ico
+│   │   ├── html
+│   │   │   ├── auth.html
+│   │   │   ├── booking.html
+│   │   │   ├── detail.html
+│   │   │   ├── index.html
+│   │   │   ├── login.html
+│   │   │   ├── lorders.html
+│   │   │   ├── myhouse.html
+│   │   │   ├── my.html
+│   │   │   ├── newhouse.html
+│   │   │   ├── orders.html
+│   │   │   ├── payComplete.html
+│   │   │   ├── profile.html
+│   │   │   ├── register.html
+│   │   │   └── search.html
+│   │   ├── images
+│   │   │   ├── home01.jpg
+│   │   │   ├── home02.jpg
+│   │   │   ├── home03.jpg
+│   │   │   ├── houseicon_sprite.png
+│   │   │   ├── landlord01.jpg
+│   │   │   └── logo@128x59.png
+│   │   ├── js
+│   │   │   ├── ihome
+│   │   │   │   ├── auth.js
+│   │   │   │   ├── booking.js
+│   │   │   │   ├── detail.js
+│   │   │   │   ├── index.js
+│   │   │   │   ├── login.js
+│   │   │   │   ├── lorders.js
+│   │   │   │   ├── myhouse.js
+│   │   │   │   ├── my.js
+│   │   │   │   ├── newhouse.js
+│   │   │   │   ├── orders.js
+│   │   │   │   ├── profile.js
+│   │   │   │   ├── register.js
+│   │   │   │   └── search.js
+│   │   │   ├── jquery.blockui.min.js
+│   │   │   ├── jquery.form.min.js
+│   │   │   ├── jquery.min.js
+│   │   │   └── template.js
+│   │   └── plugins
+│   │       ├── bootstrap
+│   │       │   ├── css
+│   │       │   │   ├── bootstrap.css
+│   │       │   │   ├── bootstrap.css.map
+│   │       │   │   ├── bootstrap.min.css
+│   │       │   │   ├── bootstrap.min.css.map
+│   │       │   │   ├── bootstrap-theme.css
+│   │       │   │   ├── bootstrap-theme.css.map
+│   │       │   │   ├── bootstrap-theme.min.css
+│   │       │   │   └── bootstrap-theme.min.css.map
+│   │       │   ├── fonts
+│   │       │   │   ├── glyphicons-halflings-regular.eot
+│   │       │   │   ├── glyphicons-halflings-regular.svg
+│   │       │   │   ├── glyphicons-halflings-regular.ttf
+│   │       │   │   ├── glyphicons-halflings-regular.woff
+│   │       │   │   └── glyphicons-halflings-regular.woff2
+│   │       │   └── js
+│   │       │       ├── bootstrap.js
+│   │       │       ├── bootstrap.min.js
+│   │       │       └── npm.js
+│   │       ├── bootstrap-datepicker
+│   │       │   ├── css
+│   │       │   │   ├── bootstrap-datepicker3.css
+│   │       │   │   ├── bootstrap-datepicker3.css.map
+│   │       │   │   ├── bootstrap-datepicker3.min.css
+│   │       │   │   ├── bootstrap-datepicker3.standalone.css
+│   │       │   │   ├── bootstrap-datepicker3.standalone.css.map
+│   │       │   │   ├── bootstrap-datepicker3.standalone.min.css
+│   │       │   │   ├── bootstrap-datepicker.css
+│   │       │   │   ├── bootstrap-datepicker.css.map
+│   │       │   │   ├── bootstrap-datepicker.min.css
+│   │       │   │   ├── bootstrap-datepicker.standalone.css
+│   │       │   │   ├── bootstrap-datepicker.standalone.css.map
+│   │       │   │   └── bootstrap-datepicker.standalone.min.css
+│   │       │   ├── js
+│   │       │   │   ├── bootstrap-datepicker.js
+│   │       │   │   └── bootstrap-datepicker.min.js
+│   │       │   └── locales
+│   │       │       ├── bootstrap-datepicker.ar.min.js
+│   │       │       ├── bootstrap-datepicker.ar-tn.min.js
+│   │       │       ├── bootstrap-datepicker.az.min.js
+│   │       │       ├── bootstrap-datepicker.bg.min.js
+│   │       │       ├── bootstrap-datepicker.bs.min.js
+│   │       │       ├── bootstrap-datepicker.ca.min.js
+│   │       │       ├── bootstrap-datepicker.cs.min.js
+│   │       │       ├── bootstrap-datepicker.cy.min.js
+│   │       │       ├── bootstrap-datepicker.da.min.js
+│   │       │       ├── bootstrap-datepicker.de.min.js
+│   │       │       ├── bootstrap-datepicker.el.min.js
+│   │       │       ├── bootstrap-datepicker.en-AU.min.js
+│   │       │       ├── bootstrap-datepicker.en-GB.min.js
+│   │       │       ├── bootstrap-datepicker.en-IE.min.js
+│   │       │       ├── bootstrap-datepicker.en-NZ.min.js
+│   │       │       ├── bootstrap-datepicker.en-ZA.min.js
+│   │       │       ├── bootstrap-datepicker.eo.min.js
+│   │       │       ├── bootstrap-datepicker.es.min.js
+│   │       │       ├── bootstrap-datepicker.et.min.js
+│   │       │       ├── bootstrap-datepicker.eu.min.js
+│   │       │       ├── bootstrap-datepicker.fa.min.js
+│   │       │       ├── bootstrap-datepicker.fi.min.js
+│   │       │       ├── bootstrap-datepicker.fo.min.js
+│   │       │       ├── bootstrap-datepicker.fr-CH.min.js
+│   │       │       ├── bootstrap-datepicker.fr.min.js
+│   │       │       ├── bootstrap-datepicker.gl.min.js
+│   │       │       ├── bootstrap-datepicker.he.min.js
+│   │       │       ├── bootstrap-datepicker.hr.min.js
+│   │       │       ├── bootstrap-datepicker.hu.min.js
+│   │       │       ├── bootstrap-datepicker.hy.min.js
+│   │       │       ├── bootstrap-datepicker.id.min.js
+│   │       │       ├── bootstrap-datepicker.is.min.js
+│   │       │       ├── bootstrap-datepicker.it-CH.min.js
+│   │       │       ├── bootstrap-datepicker.it.min.js
+│   │       │       ├── bootstrap-datepicker.ja.min.js
+│   │       │       ├── bootstrap-datepicker.ka.min.js
+│   │       │       ├── bootstrap-datepicker.kh.min.js
+│   │       │       ├── bootstrap-datepicker.kk.min.js
+│   │       │       ├── bootstrap-datepicker.km.min.js
+│   │       │       ├── bootstrap-datepicker.ko.min.js
+│   │       │       ├── bootstrap-datepicker.kr.min.js
+│   │       │       ├── bootstrap-datepicker.lt.min.js
+│   │       │       ├── bootstrap-datepicker.lv.min.js
+│   │       │       ├── bootstrap-datepicker.me.min.js
+│   │       │       ├── bootstrap-datepicker.mk.min.js
+│   │       │       ├── bootstrap-datepicker.mn.min.js
+│   │       │       ├── bootstrap-datepicker.ms.min.js
+│   │       │       ├── bootstrap-datepicker.nb.min.js
+│   │       │       ├── bootstrap-datepicker.nl-BE.min.js
+│   │       │       ├── bootstrap-datepicker.nl.min.js
+│   │       │       ├── bootstrap-datepicker.no.min.js
+│   │       │       ├── bootstrap-datepicker.pl.min.js
+│   │       │       ├── bootstrap-datepicker.pt-BR.min.js
+│   │       │       ├── bootstrap-datepicker.pt.min.js
+│   │       │       ├── bootstrap-datepicker.ro.min.js
+│   │       │       ├── bootstrap-datepicker.rs-latin.min.js
+│   │       │       ├── bootstrap-datepicker.rs.min.js
+│   │       │       ├── bootstrap-datepicker.ru.min.js
+│   │       │       ├── bootstrap-datepicker.sk.min.js
+│   │       │       ├── bootstrap-datepicker.sl.min.js
+│   │       │       ├── bootstrap-datepicker.sq.min.js
+│   │       │       ├── bootstrap-datepicker.sr-latin.min.js
+│   │       │       ├── bootstrap-datepicker.sr.min.js
+│   │       │       ├── bootstrap-datepicker.sv.min.js
+│   │       │       ├── bootstrap-datepicker.sw.min.js
+│   │       │       ├── bootstrap-datepicker.th.min.js
+│   │       │       ├── bootstrap-datepicker.tr.min.js
+│   │       │       ├── bootstrap-datepicker.uk.min.js
+│   │       │       ├── bootstrap-datepicker.vi.min.js
+│   │       │       ├── bootstrap-datepicker.zh-CN.min.js
+│   │       │       └── bootstrap-datepicker.zh-TW.min.js
+│   │       ├── bootstrap-switch
+│   │       │   ├── css
+│   │       │   │   ├── bootstrap-switch.css
+│   │       │   │   └── bootstrap-switch.min.css
+│   │       │   ├── js
+│   │       │   │   ├── bootstrap-switch.js
+│   │       │   │   └── bootstrap-switch.min.js
+│   │       │   ├── LICENSE
+│   │       │   └── README.md
+│   │       ├── font-awesome
+│   │       │   ├── css
+│   │       │   │   ├── font-awesome.css
+│   │       │   │   └── font-awesome.min.css
+│   │       │   ├── fonts
+│   │       │   │   ├── FontAwesome.otf
+│   │       │   │   ├── fontawesome-webfont.eot
+│   │       │   │   ├── fontawesome-webfont.svg
+│   │       │   │   ├── fontawesome-webfont.ttf
+│   │       │   │   ├── fontawesome-webfont.woff
+│   │       │   │   └── fontawesome-webfont.woff2
+│   │       │   ├── HELP-US-OUT.txt
+│   │       │   ├── less
+│   │       │   │   ├── animated.less
+│   │       │   │   ├── bordered-pulled.less
+│   │       │   │   ├── core.less
+│   │       │   │   ├── fixed-width.less
+│   │       │   │   ├── font-awesome.less
+│   │       │   │   ├── icons.less
+│   │       │   │   ├── larger.less
+│   │       │   │   ├── list.less
+│   │       │   │   ├── mixins.less
+│   │       │   │   ├── path.less
+│   │       │   │   ├── rotated-flipped.less
+│   │       │   │   ├── screen-reader.less
+│   │       │   │   ├── stacked.less
+│   │       │   │   └── variables.less
+│   │       │   └── scss
+│   │       │       ├── _animated.scss
+│   │       │       ├── _bordered-pulled.scss
+│   │       │       ├── _core.scss
+│   │       │       ├── _fixed-width.scss
+│   │       │       ├── font-awesome.scss
+│   │       │       ├── _icons.scss
+│   │       │       ├── _larger.scss
+│   │       │       ├── _list.scss
+│   │       │       ├── _mixins.scss
+│   │       │       ├── _path.scss
+│   │       │       ├── _rotated-flipped.scss
+│   │       │       ├── _screen-reader.scss
+│   │       │       ├── _stacked.scss
+│   │       │       └── _variables.scss
+│   │       ├── simple-line-icons
+│   │       │   ├── fonts
+│   │       │   │   ├── Simple-Line-Icons.dev.svg
+│   │       │   │   ├── Simple-Line-Icons.eot
+│   │       │   │   ├── Simple-Line-Icons.svg
+│   │       │   │   ├── Simple-Line-Icons.ttf
+│   │       │   │   └── Simple-Line-Icons.woff
+│   │       │   ├── icons-lte-ie7.js
+│   │       │   ├── License.txt
+│   │       │   ├── Readme.txt
+│   │       │   ├── simple-line-icons.css
+│   │       │   └── simple-line-icons.min.css
+│   │       ├── swiper
+│   │       │   ├── css
+│   │       │   │   ├── swiper.css
+│   │       │   │   └── swiper.min.css
+│   │       │   └── js
+│   │       │       ├── swiper.jquery.js
+│   │       │       └── swiper.jquery.min.js
+│   │       └── uniform
+│   │           ├── css
+│   │           │   ├── uniform.default.css
+│   │           │   ├── uniform.default.min.css
+│   │           │   └── uniform.default.scss
+│   │           ├── images
+│   │           │   ├── bg-input-focus.png
+│   │           │   ├── bg-input.png
+│   │           │   ├── sprite_original.png
+│   │           │   └── sprite.png
+│   │           ├── jquery.uniform.js
+│   │           ├── jquery.uniform.min.js
+│   │           └── README.md
+│   ├── utils
+│   │   ├── captcha
+│   │   │   ├── captcha.py
+│   │   │   ├── captcha.pyc
+│   │   │   ├── fonts
+│   │   │   │   ├── actionj.ttf
+│   │   │   │   ├── Arial.ttf
+│   │   │   │   └── Georgia.ttf
+│   │   │   ├── __init__.py
+│   │   │   └── __init__.pyc
+│   │   ├── commons.py
+│   │   ├── commons.pyc
+│   │   ├── __init__.py
+│   │   ├── __init__.pyc
+│   │   ├── response_code.py
+│   │   └── response_code.pyc
+│   ├── web_page.py
+│   └── web_page.pyc
+├── logs
+│   └── log
+├── main.py
+└── migrations
+    ├── alembic.ini
+    ├── env.py
+    ├── env.pyc
+    ├── README
+    ├── script.py.mako
+    └── versions
+        ├── a59ea9fed0cb_initial_create_table.py
+        └── a59ea9fed0cb_initial_create_table.pyc
+
+
+
+==================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+***********************************************************
+小结:
+	1.django中验证用户是否登录用:
+		isauth...
+
+	flask中验证用户是否登录用自定义的@login required 装饰器,装饰视图函数
+
+
+
+
+
+
+

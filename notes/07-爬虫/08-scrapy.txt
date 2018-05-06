@@ -1,0 +1,661 @@
+
+
+scrapy框架
+
+
+概念:
+	scrapy本身就异步框架,不能再开多线程!
+
+
+					scheduler(调度器)
+						|    |  
+					   ↑|	 |↓
+						|    |
+                                  ---→      Internet
+	管道(pipline)-------引擎(engine)--------下载器(downloader)
+					←	↑			  M		|
+						|	| ↑				|
+					  	| M |				|
+						|	|	←-----------
+					   spider()	
+					   ↑
+					request
+
+	工作原理:
+	
+		Scrapy Engine(引擎): 负责Spider、ItemPipeline、Downloader、Scheduler中间的通讯，信号、数据传递等。
+
+		Scheduler(调度器): 它负责接受引擎发送过来的Request请求，并按照一定的方式进行整理排列，入队，当引擎需要时，交还给引擎。
+
+		Downloader（下载器）：负责下载Scrapy Engine(引擎)发送的所有Requests请求，并将其获取到的Responses交还给Scrapy Engine(引擎)，由引擎交给Spider来处理，
+
+		Spider（爬虫）：它负责处理所有Responses,从中分析提取数据，获取Item字段需要的数据，并将需要跟进的URL提交给引擎，再次进入Scheduler(调度器)，
+
+		Item Pipeline(管道)：它负责处理Spider中获取到的Item，并进行进行后期处理（详细分析、过滤、存储等）的地方.
+
+		Downloader Middlewares（下载中间件）：你可以当作是一个可以自定义扩展下载功能的组件。
+
+		Spider Middlewares（Spider中间件）：你可以理解为是一个可以自定扩展和操作引擎和Spider中间通信的功能组件（比如进入Spider的Responses;和从Spider出去的Requests）					
+
+
+
+	注: pip install scrapy 不同版本会覆盖,只安装一次就行,在pip安装了,就不要在pip3安装!
+
+
+
+命令:
+	1.scrapy bench
+
+	2.scrapy fetch "www.baidu.com" -->结束之后跳出来
+
+	3.scrapy shell -->命令终端(用来测试)
+		print response
+		print body
+		print response.url
+
+	4.scrapy view "http://www.baidu.com" -->打开浏览器
+
+
+
+
+1. scrapy的操作步骤:
+	-------------------------------------------------------	
+	available commands:
+		bench  		测试版本
+		fetch       自动下载
+		genspider   创建spider
+		runspider   运行爬虫
+		setting     设置内容
+		shell       命令行
+		startproject 创建项目
+		view         运行url,打开浏览器
+	文件:
+		scrapy.cfg--->项目部署文件	
+
+	--------------------------------------------------------
+      
+        1.1 新建scrapy的项目
+            //scrapy startproject ITCAST
+        
+        1.2 创建spider(cd ITCAST:cd到项目里面再创建)
+            // scrapy genspider xxx  xxx.cn 
+            					爬虫名字  爬去范围
+
+        1.3 运行爬虫(cd spiders: cd到爬虫所在的目录下面)
+            //1. scrapy runspider itcast.py (注意点: 必须路径在spiders里面的)
+            //2. scrapy crawl itcast        (优点 随时随地)
+
+            --------------------------------------------------------
+	       	pipline.py:
+	       		当引擎接收到 spider传递过来的数据,传给管道pipeline
+				管道的作用: 存储数据 json csv  数据库
+	        
+			setting:
+				1.			
+				USER_AGENT = 'hello world'	
+
+				2.君子协议:
+				# Obey robots.txt rules
+				ROBOTSTXT_OBEY = False
+
+				3.管道:
+				ITEM_PIPELINES = {
+		   		'ITCAST.pipelines.ItcastPipeline': 300,
+				}	
+            -------------------------------------------------------
+      
+        1.3 url, 解析 设置item
+
+            1.设置item,使用的时候,在里面设置字段! (如果运行错误,会报错)
+            	    name = scrapy.Field()
+				    # 职称
+				    position = scrapy.Field()
+				    # 介绍
+				    info = scrapy.Field()
+
+            2.使用item解析
+            3.yield 交给引擎-->管道
+
+            ----------------------------------------------------------------------------------------------------------
+			注:	1.
+				item就是充当了 字典的角色: 设置key
+				item和字典的区别:字典  dict= {} dict['key']='ads' dict['kye']='ads'
+				                  item 写错了报错提示
+
+				2.bug:'此时还没有开通管道,如果 scrapy crawl itcast2 运行爬虫:
+					会报错:ValueError: XPath error: Invalid expression in /html/body/div[1]/div[5]/div[2]/div[16]/ul/li/
+                	这个是因为 li/标签后面多了一个 '/',爬虫代码就找不到 对应的数据
+                	解决: 删除 '/', 运行成功之后会 打印出 :
+                		{'info': u'\u91d1\u8001\u5e08', 'position': u'\u9ad8\u7ea7\u8bb2\u5e08', 'name': u'\u91d1\u8001\u5e08'}
+                		可以unicode转成中文查看内容
+
+               	3.在item.py 中我们给 class ItcastItem() 类中定义的字段:name,position,info等
+               		如果你在 爬虫文件中(itcast.py) 取标签,定义字典 dict['inf'] = node.xpath('./div/h3/text()').extract()[0] 		
+               		此时的字段'inf' 与 定义类的'info'不一样,运行爬虫的时候,框架会自动改成'inf'而且不报错!
+
+               	4.extract() '取出',此方法返回的是一个列表,[0] 下标来取数据,如果只有一个数据,那么用 extract_first()即可,不用下标取!	
+
+            ------------------------------------------------------------------------------------
+
+        extract() 取出来的是 list 需要下标
+            //{'inf': [<Selector xpath='./div/h3/text()' data=u'\u738b\u8001\u5e08'>], 'postion': [<Selector xpath='./div/h3/text()' data=u'\u738b\u8001\u5e08'>], 'name': [<Selector xpath='./div/h3/text()' data=u'\u738b\u8001\u5e08'>]}
+            //{'inf': [u'\u8096\u8001\u5e08'], 'postion': [u'\u8096\u8001\u5e08'], 'name': [u'\u8096\u8001\u5e08']}
+
+        1.4 管道的存储 json
+            // 1. open_spider(self,spider)
+            // 2. process_item()
+            // 3.close_spider
+        1.5 注意:记得  在setting开启管道
+
+
+        =================================================
+        xx.有两种爬虫:1.spider.spider-->这是 'basic'的爬虫
+        		  2.crawl.spider -->这是另一种爬虫
+        =================================================
+
+
+2.  scrapy shell
+
+        使用场合: 测试用(解析的是否正确)
+
+        // scrapy shell "http://www.baidu.com" -s USER_AGENT="值"  # -s 是set的意思,设置
+        // response.body  str
+        // response.text  unicode
+
+        // extract()  返回list   如果列表为空 在取下标 报错
+
+        // extract_first() 返回直接内容 : 返回当前符合条件的第一条
+
+        // response.css('选择器::text') 文本内容
+        // response.css('选择器::attr(属性)')  属性值
+
+        注:为了防止反爬,可以在用shell 运行测试的时候,加 -s USER_AGENT="xx"来设置!
+
+       ----------------------------------------------------------------
+       知识点:
+       Scrapy Shell根据下载的页面会自动创建一些方便使用的对象，例如 Response 对象，以及 Selector 对象 (对应HTML及XML内容)。
+
+       Selectors选择器:
+			Scrapy Selectors 内置 XPath 和 CSS Selector 表达式机制
+			Selector有四个基本的方法，最常用的还是xpath:
+
+			xpath(): 传入xpath表达式，返回该表达式所对应的所有节点的selector list列表
+			extract(): 序列化该节点为字符串并返回list
+			css(): 传入CSS表达式，返回该表达式所对应的所有节点的selector list列表，语法同 BeautifulSoup4
+			re(): 根据传入的正则表达式对数据进行提取，返回字符串list列表
+
+		XPath表达式的例子及对应的含义:
+			/html/head/title: 选择<HTML>文档中 <head> 标签内的 <title> 元素
+			/html/head/title/text(): 选择上面提到的 <title> 元素的文字
+			//td: 选择所有的 <td> 元素
+			//div[@class="mine"]: 选择所有具有 class="mine" 属性的 div 元素
+
+        --------------------------------------------------------------
+        操作:
+        	在终端中运行: scrapy shell 'http://www.itcast.cn/channel/teacher.shtml'
+
+        	print(response.body)  ---str 类型
+        	print(response.text)	--->unicode 类型 (在python3中打印不出来)
+        	
+        	返回列表:
+			print(response.xpath('/html/body/div[1]/div[5]/div[2]/div[16]/ul/li/div').extract())
+
+        	获取单个老师信息:
+			print(response.xpath('/html/body/div[1]/div[5]/div[2]/div[16]/ul/li/div').extract_first())
+
+			response对象操作 CSS()方法!取出标签内的内容!
+			 print(response.css('.tea_txt li div').extract_first())
+
+		 	取属性:   加 ::attr(xxx)
+		 	 print(response.css('.tea_txt li div::attr(class)').extract_first()) --->li_txt
+
+		 	取值:   加 ::text
+		 	  print(response.css('.tea_txt li div h3::text').extract_first())  --->朱老师
+
+		注:1.如果以后用 extract()取多个数据,如果报错,说明返回数据为空列表 list,取下标[0] 没取到才报错的!	
+			2.我们的案例里因为只取一条数据,所以可以用 extract_first() 方法返回第一条li标签数据
+        -------------------------------------------------------------
+
+    
+3. 发送请求
+    yield scrapy.Request(url, callback= self.method)
+    
+ 	  1.' 不同页面 不同的item 存储不同的文件
+        item判断 : if isinstance(item, 类型)
+	  2.' 不同页面 数据放入同一个 item; 
+        yield scrapy.Request(url,meta={"key":item}, callback= self.method)
+
+                                                                               
+	=========================================================
+	scrapy.cfg 文件:deploy 部署	
+	pipline:引擎接收到 spider传递过来的数据,传给管道pipline
+	setting:BOT_NAME = 'ITCAST'项目名称
+	middlewares:内容可以不要,当需要时,再自己定义
+	'responses默认是交给def parse()这个函数处理的）
+
+	shell里面加 user_agent
+	===============================================================
+
+	'问:1.新的url是怎么来的?	作用是什么?
+		答:
+		Spider：（处理完毕数据之后对于需要跟进的URL），Hi！引擎，我这里有两个结果，这个是我需要跟进的URL，还有这个是我获取到的Item数据。
+
+		引擎：Hi ！管道 我这儿有个item你帮我处理一下！调度器！这是需要跟进URL你帮我处理下。然后从第四步开始循环，直到获取完老大需要全部信息。
+
+
+		'2.列表转字符串:.join()  ? 这不是数组转换 字符串的方法吗?
+	 
+	 --------------------------------------------------------------
+	制作 Scrapy 爬虫 一共需要4步：
+
+		新建项目 (scrapy startproject xxx)：新建一个新的爬虫项目
+		明确目标 （编写items.py）：明确你想要抓取的目标(爬取范围,即地址)
+		制作爬虫 （spiders/xxspider.py）：制作爬虫开始爬取网页(新建爬虫文件)
+		存储内容 （pipelines.py）：设计管道存储爬取内容(开通管道才可以保存,可以在管道设置权重,权重大的可以先保存)
+	 ===============================================================
+	 基本模块文件:
+	 	1.item.py
+
+		 	class ItcastItem(scrapy.Item):
+			    # define the fields for your item here like:
+			    # name = scrapy.Field()
+			    name = scrapy.Field()
+			    # 职称
+			    position = scrapy.Field()
+			    # 介绍
+			    info = scrapy.Field()
+
+	    	注:item 是一个类似于字典的这样一个模型类,里面定义了字段,用来存储parse()方法解析后的数据
+	    		使用的时候是将 模型类导入到 爬虫文件里(itcast.py),并创建一个 item对象:
+	    		item = ItcastItem(),用给对象属性赋值的方式来 保存数据到对象里!
+
+
+		2.pipelines.py (管道)
+
+			# 当引擎接收到 spider传递过来的数据,传给管道pipeline
+			# 管道的作用: 存储数据 json csv  数据库
+			class ItcastPipeline(object):
+
+			    # 爬虫开启的时候调用一次
+			    def open_spider(self, spider):
+			        self.file = open('teacher.json', 'w')
+
+			    def process_item(self, item, spider):
+			        # 1.将item类型转换为字典类型  ItcastItem --->dict
+			        dict_data = dict(item)
+			        # 2.dict -->str 字典转换为json字符串
+			        item_str = json.dumps(dict_data) + '\n' # 每次处理数据换行
+			        # 3.写入文件
+			        self.file.write(item_str)
+
+			        return item
+
+			    # 爬虫结束的时候调用一次
+			    def close_spider(self, spider):
+			        self.file.close()	    
+
+			注: 1.管道文件用来存储数据,后面这个 return 是因为 有些数据写入 json文件,有些则写入csv,或者数据库
+				return 让不同的文件写入互不干扰       
+				2.爬虫开启和关闭的操作方法 都可以在管道这里定义!
+				3.写好管道文件之后,要在setting.py中开启管道
+					ITEM_PIPELINES = {
+					   'ITCAST.pipelines.ItcastPipeline': 300,
+					}
+
+			测试:运行scrapy crawl itcast3 
+				得到文件 teacher.json ,取一条数据	放入json.cn 转换类型即可!	
+
+
+
+		3.保存数据:
+			scrapy保存信息的最简单的方法主要有四种，-o 输出指定格式的文件，，命令如下：
+			# json格式，默认为Unicode编码
+			scrapy crawl itcast -o teachers.json
+
+			# json lines格式，默认为Unicode编码
+			scrapy crawl itcast -o teachers.jsonl
+
+			# csv 逗号表达式，可用Excel打开
+			scrapy crawl itcast -o teachers.csv
+
+			# xml格式
+			scrapy crawl itcast -o teachers.xml	
+
+
+
+		注:yield item  中,yield的作用的是将数据返回给 pipline,如果是用 return item
+			的话,数据就不会指定交给pipline 管道		
+
+		=============================================================================		
+
+		'问:1.item 是一个实例对象?在pipline.py中 将 item转换为 dict类型
+	        # 1. item类型  ItcastITem --> dict
+       		 dict_data = dict(item)
+        	这个底层是怎么实现的?
+        ------------------------------------------------------------
+        百度得自定义将一个类 转换为字典类型:
+
+        	def classToDict(obj):
+			    is_list = obj.__class__ == [].__class__
+			    is_set = obj.__class__ == set().__class__
+
+			    if is_list or is_set:
+			        obj_arr = []
+			        for o in obj:
+			            dict = {}
+			            dict.update(o.__dict__)
+			            obj_arr.append(dict)
+			        return obj_arr
+			    else:
+			        dict = {}
+			        dict.update(obj.__dict__)
+			        return dict
+
+        ------------------------------------------------------------
+
+
+
+5.腾讯社招案例:
+	-------------------------------------------------------------------
+	知识点:
+		使用递归,循环遍历,判断结尾:
+		yield scrapy.Request(url=,callback=)
+
+
+		高并发:一次性把 10个全部给它
+
+		请求详情页:tiems 中加一个字段:'work_link'
+			告诉引擎请求详情页:yield scrapy.Request(url=item['work_link'])
+			列表有冲突,需要重新写一个方法来解析详情页的数据
+
+		开启管道:	
+				0-1000之间,值越小,权重越大,越先执行
+
+		跟前面是没有区别的,将来是要做管道判断的
+
+		把请求放在一个管道理,用 meta={"same_item":item}
+
+
+		spider里面可以放很多爬虫,可以共用管道和setting
+	-----------------------------------------------------------------------	
+	操作:
+		scrapy startproject Tencent
+		cd Tencent
+		scrapy genspider tencent tencent.com
+
+		1.在tencent.py
+			写完基本的爬虫代码之后需要先测试运行下,这个方法暂时写为打印响应体数据
+			    # 系统指定的解析方法
+			    def parse(self, response):
+			        print(response.body)	
+			如果没问题就可以继续下面操作!        
+
+
+		2.item.py 定义模型类:
+			class TencentItem(scrapy.Item):
+			    # define the fields for your item here like:
+			    # name = scrapy.Field()
+			    work_name = scrapy.Field()
+			    work_type = scrapy.Field()
+			    work_count = scrapy.Field()
+			    work_place = scrapy.Field()
+			    work_time = scrapy.Field()
+
+		3.pipelines.py
+			定义管道:
+			    def process_item(self, item, spider):
+			        item_dict = dict(item)  # 转dict类型
+			        item_str = json.dumps(item_dict)  # 转json字符串类型
+			        self.file.write(item_str) # 写入
+			 	
+		4.settings.py	        
+			打开管道
+
+		运行测试:scrapy crawl tencent		
+
+
+		5.tencent2.py
+		一个页面一个页面获取数据:
+	        # 发送其他列表页的请求 再经过scrapy-->传到引擎
+	        self.offset += 10
+	        yield scrapy.Request(url=self.base_url+str(self.offset), callback=self.parse)
+
+
+		6.tenctent3.py
+			高并发:	
+
+		    # 关于并发 爬取数据
+		    url_list = []
+		    for page in range(0, 100, 10):
+		        url = base_url + str(page)
+		        url_list.append(url)
+
+		    # 一下子获取到 10条请求
+		    start_urls = url_list
+
+		    并且去掉后面的 scrapy.Request(url=, callback=),因为同时完成了请求,后面不需要回调
+
+			注:所有的url 同时被请求,运行速度是非常快的,几乎瞬间完成,因为scrapy框架本身是异步的! 	   
+
+		6.
+		tencent4.py
+			请求详情页:(点击进入)
+
+			tencent4.py:
+		    def parse(self, response):
+		    	...
+	            # 这个是单独处理,要在前面把 地址前缀加上
+	            item['work_link'] = 'https://hr.tencent.com' + tr.xpath('./td[1]/a/@href').extract_first()
+	            ...
+
+
+		    def detail_parse(self, response):
+		        # 专门用来解析 详情页链接
+		        # 列表数据,详情页的不同的item,需要存储在不同的文件中
+		        item = TencentDetailItem()
+		        ul_list = response.xpath('//ul[@class="squareli"]')
+		        # 返回一个列表  ul_list[0].xpath('./li/text()').extract()
+		        # 列表为 :['','',''.]
+		        # 这个列表就此项目页面只有两个元素 ['duty','demand'],这里就不需要用for循环,直接用下标取
+		        # 列表转换字符串 "".join(),用空''来将 <li>标签内的数据拼接在一起
+
+		        item['work_duty'] = "".join(ul_list[0].xpath('./li/text()').extract())
+		        item['work_demand'] = "".join(ul_list[1].xpath('./li/text()').extract())
+
+		        yield item
+
+		     注: 1.在系统指定的解析方法内 添加一个:  
+		            item['work_link'] = 'https://hr.tencent.com' + tr.xpath('./td[1]/a/@href').extract_first()
+		            这个是将 获取到的 <a href="">标签里href 的链接地址,然后拼接 'https://hr.tencent.com'
+		            作为键值 放进 item 中,然后在回调函数中 作为 二次url返回给引擎,引擎接收到 url继续发起请求,
+		            执行自定义的   def detail_parse():方法,请求详情页数据
+
+		     	2.在item.py 自定义class TencentDetailItem(),添加详情页字段
+		     		定义详情页的 item对象存储数据:
+		     		存储的过程中 ul_list 返回一个数据列表
+			        列表为 :['','',''.]
+			        这个列表就此项目页面只有两个元素 ['duty','demand'],这里就不需要用for循环,直接用下标取
+			        列表转换字符串 "".join(),用空''来将 <li>标签内的数据拼接在一起
+
+			pipelines.py:
+
+				class TencentPipeline(object):
+					...
+				    def process_item(self, item, spider):
+				        # 判断的依据是根据当前 item的类型来进行存储到不同的文件
+				        if isinstance(item, TencentItem):
+				    ...    	
+
+
+				class TencentDetialPipeline(object):
+
+				    def open_spider(self, spider): # 这个spider是必传的,系统默认写法,用不到也要写
+				        self.file = open('detail.json', 'w')
+
+				    def process_item(self, item, spider):
+				        # 判断的依据是根据当前 item的类型来进行存储到不同的文件
+				        if isinstance(item, TencentDetailItem):
+				            item_dict = dict(item)  # 转dict类型
+				            item_str = json.dumps(item_dict) + '\n' # 转json字符串类型
+				            self.file.write(item_str) # 写入
+				        return item
+
+				    def close_spider(self, spider):
+				        self.file.close()
+
+
+				注: if isinstance(item, TencentDetailItem): 判断的依据是根据当前 item的类型来进行存储到不同的文件     
+
+			测试运行: scrapy crawl tencent	
+					此时还会生成 detail.json 文件,存储的是
+
+
+
+
+
+7.腾讯社招案例的将不同的数据写入相同的文件中:
+	
+	
+
+
+	注: 1.删除并且只保留一个 item.py中的模型类,'列表页'和'详情页'字段都放在此 class 中
+		
+		2.pipelines.py中管道不用判断 isinstance(item,xxx),删除并且只保留一个管道函数
+
+		3.tencent.py中 通过使用 meta = {"same_item":item} 可以将item 用完了之后传递到下面的代码继续使用
+			 def detail_parse()
+				item = response.meta['same_item']
+
+			删除上面的 yield item ,只在最下面 yield item,即当 '详情页'也完成了之后再 传递给引擎! 		
+
+		运行测试: scrapy crawl tencent4 --->列表页,详情页 都会存放在一条信息里面!
+
+------------------------------------------------------------------			
+
+
+	\面试题:不同页面的数据存在一起,怎么处理,用 ',meta'传递
+
+===========================================================
+
+安装scrapy的总结;
+	1.在python2.7中安装包会报 "ascii can't decode by 'utf-8'"
+		那么需要在python2.7/Lib目录下创建一个sitecustomize.py
+		内容如下:
+			# encoding=utf8
+			import sys
+
+			reload(sys)
+			sys.setdefaultencoding('gbk') 
+
+	2.安装wheel:pip install wheel 		
+	3.安装 .whl 文件:twisted, pyOpenSSL, zope
+	4.Python 下载win32api 模块:
+		终端输入“pip install pypiwin32”
+
+===========================================================
+小结:
+	1.关于json 格式数据与 python数据类型之间转换的小结
+
+					dumps()→
+		json字符串  ------------> python 数据类型
+			'xxx'	←loads()		dict 
+
+						dump()→
+		json文件对象 -----------> python数据类型
+	csv,html,json等文件  ←load()     dict
+
+	注: 1.转换方法里加了 's' 就是 '短小'的数据之间的数据转换,所谓 python数据类型就是指
+		dict ,list ,tuple ,str 等由python语言编写的数据类型,python可以识别,python本身是不能识别 json格式的数据的
+		所以用之前需要使用此方法来转换数据
+		2. 转换方法不加 's',那么就是 json 文件格式的数据,比如 一整个写好的 .csv 文件 与python 类型之间的转换, 使用转换的时候需要
+			有打开或关闭文件的操作!
+
+
+	2.yield 的作用:
+		yield 保证了	实时有数据返回,并且交给引擎或者管道,那么就会开始下一轮的循环
+		或者保存数据,yield 不会	
+
+
+
+
+
+
+day07: 两个代码没写!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
